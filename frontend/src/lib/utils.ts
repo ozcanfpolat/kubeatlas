@@ -71,3 +71,14 @@ export function truncate(str: string, length: number): string {
   if (str.length <= length) return str
   return str.slice(0, length) + '...'
 }
+
+export function getClusterTypeIcon(type: string): string {
+  const icons: Record<string, string> = {
+    kubernetes: "☸️",
+    docker: "🐳",
+    openshift: "🟥",
+    rancher: "🐮",
+  }
+
+  return icons[type] || "🖥️"
+}

@@ -1,0 +1,721 @@
+openapi: 3.0.3
+info:
+  title: KubeAtlas API
+  description: |
+    KubeAtlas is a Kubernetes Inventory & Asset Management Platform.
+    
+    ## Authentication
+    
+    All API endpoints (except `/auth/login` and `/auth/refresh`) require authentication.
+    Include the JWT token in the `Authorization` header:
+    
+    ```
+    Authorization: Bearer <your-token>
+    ```
+    
+    ## Rate Limiting
+    
+    API requests are rate limited to 100 requests per minute per user.
+    
+  version: 1.0.0
+  contact:
+    name: KubeAtlas Team
+    url: https://github.com/kubeatlas/kubeatlas
+    email: support@kubeatlas.io
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Authentication
+    description: User authentication and token management
+  - name: Dashboard
+    description: Dashboard statistics and metrics
+  - name: Clusters
+    description: Kubernetes cluster management
+  - name: Namespaces
+    description: Namespace inventory management
+  - name: Teams
+    description: Team management
+  - name: Users
+    description: User management
+  - name: Dependencies
+    description: Internal and external dependency tracking
+  - name: Documents
+    description: Document management
+  - name: Audit
+    description: Audit logs
+
+paths:
+  # ==================== Authentication ====================
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      description: Authenticate user and return JWT tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@kubeatlas.local
+                password:
+                  type: string
+                  format: password
+                  example: admin123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '401':
+          description: Invalid refresh token
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: User logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+
+  # ==================== Dashboard ====================
+  /dashboard/stats:
+    get:
+      tags: [Dashboard]
+      summary: Get dashboard statistics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+
+  # ==================== Clusters ====================
+  /clusters:
+    get:
+      tags: [Clusters]
+      summary: List all clusters
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, error, syncing, pending]
+        - name: cluster_type
+          in: query
+          schema:
+            type: string
+            enum: [kubernetes, openshift, rke2, eks, aks, gke]
+        - name: environment
+          in: query
+          schema:
+            type: string
+            enum: [production, staging, development, test]
+      responses:
+        '200':
+          description: List of clusters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterListResponse'
+
+    post:
+      tags: [Clusters]
+      summary: Create a new cluster
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClusterRequest'
+      responses:
+        '201':
+          description: Cluster created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cluster'
+        '400':
+          description: Invalid request
+        '403':
+          description: Forbidden
+
+  /clusters/{id}:
+    get:
+      tags: [Clusters]
+      summary: Get cluster by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Cluster details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cluster'
+        '404':
+          description: Cluster not found
+
+    put:
+      tags: [Clusters]
+      summary: Update cluster
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateClusterRequest'
+      responses:
+        '200':
+          description: Cluster updated
+        '403':
+          description: Forbidden
+        '404':
+          description: Cluster not found
+
+    delete:
+      tags: [Clusters]
+      summary: Delete cluster
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Cluster deleted
+        '403':
+          description: Forbidden
+        '404':
+          description: Cluster not found
+
+  /clusters/{id}/sync:
+    post:
+      tags: [Clusters]
+      summary: Sync cluster namespaces
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '202':
+          description: Sync started
+        '403':
+          description: Forbidden
+        '404':
+          description: Cluster not found
+
+  /clusters/{id}/namespaces:
+    get:
+      tags: [Clusters]
+      summary: List cluster namespaces
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: List of namespaces
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NamespaceListResponse'
+
+  # ==================== Namespaces ====================
+  /namespaces:
+    get:
+      tags: [Namespaces]
+      summary: List all namespaces
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: cluster_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: environment
+          in: query
+          schema:
+            type: string
+        - name: criticality
+          in: query
+          schema:
+            type: string
+            enum: [tier-1, tier-2, tier-3]
+        - name: orphaned
+          in: query
+          schema:
+            type: boolean
+        - name: undocumented
+          in: query
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of namespaces
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NamespaceListResponse'
+
+  /namespaces/{id}:
+    get:
+      tags: [Namespaces]
+      summary: Get namespace by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Namespace details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Namespace'
+
+    put:
+      tags: [Namespaces]
+      summary: Update namespace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNamespaceRequest'
+      responses:
+        '200':
+          description: Namespace updated
+
+  /namespaces/{id}/dependencies:
+    get:
+      tags: [Namespaces]
+      summary: Get namespace dependencies
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Dependencies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  internal:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InternalDependency'
+                  external:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ExternalDependency'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+
+    PageSizeParam:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        request_id:
+          type: string
+
+    LoginResponse:
+      type: object
+      properties:
+        tokens:
+          $ref: '#/components/schemas/TokenPair'
+        user:
+          $ref: '#/components/schemas/User'
+
+    TokenPair:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        token_type:
+          type: string
+          example: Bearer
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        role:
+          type: string
+          enum: [admin, editor, viewer]
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    DashboardStats:
+      type: object
+      properties:
+        total_clusters:
+          type: integer
+        total_namespaces:
+          type: integer
+        total_nodes:
+          type: integer
+        active_clusters:
+          type: integer
+        namespaces_with_owner:
+          type: integer
+        ownership_percentage:
+          type: number
+        namespaces_documented:
+          type: integer
+        documentation_percentage:
+          type: number
+        orphaned_namespaces:
+          type: integer
+        undocumented_namespaces:
+          type: integer
+
+    Cluster:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        display_name:
+          type: string
+        api_server_url:
+          type: string
+        cluster_type:
+          type: string
+          enum: [kubernetes, openshift, rke2, eks, aks, gke]
+        version:
+          type: string
+        environment:
+          type: string
+          enum: [production, staging, development, test]
+        status:
+          type: string
+          enum: [active, inactive, error, syncing, pending]
+        node_count:
+          type: integer
+        namespace_count:
+          type: integer
+        last_sync_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    CreateClusterRequest:
+      type: object
+      required: [name, api_server_url, cluster_type, environment]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        display_name:
+          type: string
+        api_server_url:
+          type: string
+          format: uri
+        cluster_type:
+          type: string
+          enum: [kubernetes, openshift, rke2, eks, aks, gke]
+        environment:
+          type: string
+          enum: [production, staging, development, test]
+        service_account_token:
+          type: string
+        kubeconfig:
+          type: string
+        skip_tls_verify:
+          type: boolean
+          default: false
+
+    UpdateClusterRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+        description:
+          type: string
+        environment:
+          type: string
+        owner_team_id:
+          type: string
+          format: uuid
+
+    ClusterListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cluster'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_pages:
+          type: integer
+
+    Namespace:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        cluster_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        display_name:
+          type: string
+        description:
+          type: string
+        environment:
+          type: string
+        criticality:
+          type: string
+          enum: [tier-1, tier-2, tier-3]
+        infrastructure_owner_team_id:
+          type: string
+          format: uuid
+        business_unit_id:
+          type: string
+          format: uuid
+        application_manager_name:
+          type: string
+        application_manager_email:
+          type: string
+        technical_lead_name:
+          type: string
+        technical_lead_email:
+          type: string
+        sla_availability:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    UpdateNamespaceRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+        description:
+          type: string
+        environment:
+          type: string
+        criticality:
+          type: string
+          enum: [tier-1, tier-2, tier-3]
+        infrastructure_owner_team_id:
+          type: string
+          format: uuid
+        business_unit_id:
+          type: string
+          format: uuid
+        application_manager_name:
+          type: string
+        application_manager_email:
+          type: string
+          format: email
+        technical_lead_name:
+          type: string
+        technical_lead_email:
+          type: string
+          format: email
+        sla_availability:
+          type: string
+        sla_rto:
+          type: string
+        sla_rpo:
+          type: string
+
+    NamespaceListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Namespace'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_pages:
+          type: integer
+
+    InternalDependency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        source_namespace_id:
+          type: string
+          format: uuid
+        target_namespace_id:
+          type: string
+          format: uuid
+        dependency_type:
+          type: string
+          enum: [api, database, queue, cache, storage]
+        is_critical:
+          type: boolean
+        description:
+          type: string
+
+    ExternalDependency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        namespace_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        system_type:
+          type: string
+          enum: [api, database, saas, payment-gateway]
+        provider:
+          type: string
+        endpoint:
+          type: string
+        is_critical:
+          type: boolean
+
+security:
+  - bearerAuth: []

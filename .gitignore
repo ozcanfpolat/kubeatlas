@@ -1,0 +1,117 @@
+# ============================================
+# KubeAtlas .gitignore
+# ============================================
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ============================================
+# Backend (Go)
+# ============================================
+backend/kubeatlas
+backend/*.exe
+backend/*.exe~
+backend/*.dll
+backend/*.so
+backend/*.dylib
+backend/*.test
+backend/*.out
+backend/vendor/
+backend/coverage.out
+backend/coverage.html
+backend/.air.toml
+backend/tmp/
+
+# ============================================
+# Frontend (Node.js)
+# ============================================
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.pnp
+frontend/.pnp.js
+frontend/coverage/
+frontend/.next/
+frontend/out/
+frontend/.nuxt/
+frontend/.cache/
+frontend/*.log
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.npm
+frontend/.yarn-integrity
+
+# ============================================
+# Docker
+# ============================================
+docker/data/
+
+# ============================================
+# Data & Uploads
+# ============================================
+data/
+uploads/
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================
+# Logs
+# ============================================
+logs/
+*.log
+
+# ============================================
+# Kubernetes
+# ============================================
+kubeconfig
+*.kubeconfig
+
+# ============================================
+# Secrets
+# ============================================
+secrets/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ============================================
+# Build artifacts
+# ============================================
+bin/
+dist/
+build/
+*.tar.gz
+*.zip
+
+# ============================================
+# Test artifacts
+# ============================================
+coverage/
+test-results/
+.nyc_output/

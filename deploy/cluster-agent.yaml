@@ -1,0 +1,91 @@
+# ==============================================
+# KubeAtlas Cluster Agent
+# Deploy this to each cluster you want to monitor
+# ==============================================
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubeatlas-agent
+  labels:
+    app.kubernetes.io/name: kubeatlas-agent
+    app.kubernetes.io/part-of: kubeatlas
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubeatlas-agent
+  namespace: kubeatlas-agent
+  labels:
+    app.kubernetes.io/name: kubeatlas-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubeatlas-agent
+  labels:
+    app.kubernetes.io/name: kubeatlas-agent
+rules:
+  # Namespace discovery
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+  
+  # Node information
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  
+  # Pod information (for resource counts)
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  
+  # Workloads
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  
+  # Jobs
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+  
+  # Networking
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "watch"]
+  
+  # Storage
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  
+  # Server version
+  - nonResourceURLs: ["/version", "/healthz"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubeatlas-agent
+  labels:
+    app.kubernetes.io/name: kubeatlas-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubeatlas-agent
+subjects:
+  - kind: ServiceAccount
+    name: kubeatlas-agent
+    namespace: kubeatlas-agent
+---
+# Long-lived token for the service account (Kubernetes 1.24+)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kubeatlas-agent-token
+  namespace: kubeatlas-agent
+  annotations:
+    kubernetes.io/service-account.name: kubeatlas-agent
+type: kubernetes.io/service-account-token

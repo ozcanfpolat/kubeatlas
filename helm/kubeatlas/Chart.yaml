@@ -1,0 +1,52 @@
+apiVersion: v2
+name: kubeatlas
+description: Kubernetes Inventory & Asset Management Platform
+
+type: application
+
+version: 1.0.0
+appVersion: "1.0.0"
+
+home: https://kubeatlas.io
+icon: https://kubeatlas.io/logo.png
+
+sources:
+  - https://github.com/kubeatlas/kubeatlas
+
+maintainers:
+  - name: KubeAtlas Team
+    email: team@kubeatlas.io
+    url: https://kubeatlas.io
+
+keywords:
+  - kubernetes
+  - inventory
+  - cmdb
+  - asset-management
+  - openshift
+  - devops
+  - platform-engineering
+
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/category: integration-delivery
+  artifacthub.io/screenshots: |
+    - title: Dashboard
+      url: https://kubeatlas.io/screenshots/dashboard.png
+    - title: Namespace Detail
+      url: https://kubeatlas.io/screenshots/namespace-detail.png
+  artifacthub.io/changes: |
+    - kind: added
+      description: Initial release
+  artifacthub.io/containsSecurityUpdates: "false"
+  artifacthub.io/prerelease: "false"
+
+dependencies:
+  - name: postgresql
+    version: "12.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: "17.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled

@@ -1,0 +1,155 @@
+# ==============================================
+# KubeAtlas - OpenShift Production Values
+# ==============================================
+
+# Global settings
+global:
+  # OpenShift domain (apps.cluster.example.com)
+  domain: "apps.ocp.example.com"
+  
+  # Storage class for PVCs
+  storageClass: "ocs-storagecluster-ceph-rbd"  # ODF storage class
+  
+  # OpenShift specific
+  openshift:
+    enabled: true
+
+# API Backend
+api:
+  replicaCount: 2
+  
+  image:
+    repository: quay.io/kubeatlas/api
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Environment variables
+  env:
+    LOG_LEVEL: "info"
+    GIN_MODE: "release"
+    SYNC_INTERVAL_MINUTES: "30"
+  
+  # Probes
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# UI Frontend
+ui:
+  replicaCount: 2
+  
+  image:
+    repository: quay.io/kubeatlas/ui
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# PostgreSQL (using Bitnami chart)
+postgresql:
+  enabled: true
+  
+  auth:
+    database: kubeatlas
+    username: kubeatlas
+    # Password from secret
+    existingSecret: kubeatlas-db-secret
+    secretKeys:
+      adminPasswordKey: postgres-password
+      userPasswordKey: password
+  
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClass: "ocs-storagecluster-ceph-rbd"
+    
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+    
+    # OpenShift security context
+    podSecurityContext:
+      enabled: false
+    containerSecurityContext:
+      enabled: false
+
+# Document Storage
+storage:
+  # Use PVC for document storage
+  type: pvc
+  pvc:
+    size: 50Gi
+    storageClass: "ocs-storagecluster-cephfs"  # RWX for shared access
+    accessMode: ReadWriteMany
+
+# OpenShift Route (instead of Ingress)
+route:
+  enabled: true
+  host: "kubeatlas.apps.ocp.example.com"
+  tls:
+    enabled: true
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+
+# Ingress (disabled for OpenShift, use Route instead)
+ingress:
+  enabled: false
+
+# Service Account
+serviceAccount:
+  create: true
+  name: kubeatlas
+  annotations: {}
+
+# Pod Security (OpenShift manages this)
+podSecurityContext: {}
+securityContext: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - kubeatlas
+          topologyKey: kubernetes.io/hostname

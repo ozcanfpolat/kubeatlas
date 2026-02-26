@@ -1,0 +1,168 @@
+# KubeAtlas Go Linting Configuration
+# https://golangci-lint.run/usage/configuration/
+
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+  skip-dirs:
+    - vendor
+    - third_party
+  skip-files:
+    - ".*_test.go"
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+
+  govet:
+    check-shadowing: true
+    enable-all: true
+
+  gofmt:
+    simplify: true
+
+  goimports:
+    local-prefixes: github.com/kubeatlas/kubeatlas
+
+  golint:
+    min-confidence: 0.8
+
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - hugeParam
+
+  gocyclo:
+    min-complexity: 15
+
+  dupl:
+    threshold: 100
+
+  funlen:
+    lines: 100
+    statements: 50
+
+  lll:
+    line-length: 140
+
+  misspell:
+    locale: US
+
+  nakedret:
+    max-func-lines: 30
+
+  prealloc:
+    simple: true
+    for-loops: true
+
+  revive:
+    ignore-generated-header: true
+    severity: warning
+
+  stylecheck:
+    go: "1.21"
+
+  unparam:
+    check-exported: false
+
+linters:
+  disable-all: true
+  enable:
+    # Default linters
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    
+    # Additional linters
+    - bodyclose
+    - contextcheck
+    - dupl
+    - durationcheck
+    - errname
+    - errorlint
+    - exportloopref
+    - funlen
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofmt
+    - goimports
+    - gomnd
+    - goprintffuncname
+    - gosec
+    - lll
+    - misspell
+    - nakedret
+    - nilerr
+    - nilnil
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - stylecheck
+    - tparallel
+    - unconvert
+    - unparam
+    - wastedassign
+    - whitespace
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - funlen
+        - goconst
+        - gomnd
+
+    # Exclude known false positives
+    - linters:
+        - gocritic
+      text: "unnecessaryDefer"
+
+    # Allow magic numbers in tests and constants
+    - path: _test\.go
+      linters:
+        - gomnd
+
+    # Allow long lines in generated files
+    - path: ".*\\.gen\\.go"
+      linters:
+        - lll
+
+  max-issues-per-linter: 50
+  max-same-issues: 3
+  new: false
+
+severity:
+  default-severity: warning
+  rules:
+    - linters:
+        - dupl
+      severity: info

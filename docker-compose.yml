@@ -1,0 +1,156 @@
+# ============================================
+# KubeAtlas Production Docker Compose
+# ============================================
+# Usage: docker-compose up -d
+# Note: Use with external PostgreSQL in production
+
+version: '3.8'
+
+services:
+  # ============================================
+  # Backend API
+  # ============================================
+  backend:
+    image: kubeatlas/backend:${VERSION:-latest}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kubeatlas-backend
+    restart: unless-stopped
+    environment:
+      # Server
+      SERVER_PORT: "8080"
+      SERVER_MODE: release
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://kubeatlas.example.com}
+      
+      # Database
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:-kubeatlas}
+      DB_PASSWORD: ${DB_PASSWORD:?Database password required}
+      DB_NAME: ${DB_NAME:-kubeatlas}
+      DB_SSLMODE: ${DB_SSLMODE:-require}
+      DB_MAX_CONNS: ${DB_MAX_CONNS:-25}
+      
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:?JWT secret required}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
+      JWT_REFRESH_HOURS: ${JWT_REFRESH_HOURS:-168}
+      
+      # Storage
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
+      STORAGE_LOCAL_PATH: /app/data/uploads
+      
+      # Redis (optional)
+      REDIS_HOST: ${REDIS_HOST:-}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    ports:
+      - "8080:8080"
+    volumes:
+      - backend_data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - kubeatlas-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ============================================
+  # Frontend
+  # ============================================
+  frontend:
+    image: kubeatlas/frontend:${VERSION:-latest}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api/v1
+    container_name: kubeatlas-frontend
+    restart: unless-stopped
+    ports:
+      - "80:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - kubeatlas-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # PostgreSQL (Optional - use external in prod)
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: kubeatlas-postgres
+    restart: unless-stopped
+    profiles:
+      - with-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-kubeatlas}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Database password required}
+      POSTGRES_DB: ${DB_NAME:-kubeatlas}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-kubeatlas}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kubeatlas-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # Redis (Optional)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: kubeatlas-redis
+    restart: unless-stopped
+    profiles:
+      - with-cache
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kubeatlas-network
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  kubeatlas-network:
+    driver: bridge
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  backend_data:
+    driver: local
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

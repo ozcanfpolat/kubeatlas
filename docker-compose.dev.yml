@@ -1,0 +1,185 @@
+# ============================================
+# KubeAtlas Development Environment
+# ============================================
+# Usage: docker-compose -f docker-compose.dev.yml up -d
+
+version: '3.8'
+
+services:
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  postgres:
+    image: postgres:14-alpine
+    container_name: kubeatlas-postgres
+    environment:
+      POSTGRES_USER: kubeatlas
+      POSTGRES_PASSWORD: kubeatlas
+      POSTGRES_DB: kubeatlas
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kubeatlas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kubeatlas-network
+
+  # ============================================
+  # Redis Cache
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: kubeatlas-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kubeatlas-network
+
+  # ============================================
+  # Backend API (Development with hot-reload)
+  # ============================================
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api.dev
+    container_name: kubeatlas-api
+    environment:
+      # Server
+      SERVER_PORT: 8080
+      SERVER_MODE: debug
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: kubeatlas
+      DB_PASSWORD: kubeatlas
+      DB_NAME: kubeatlas
+      DB_SSLMODE: disable
+      
+      # JWT
+      JWT_SECRET: dev-secret-change-in-production
+      JWT_EXPIRATION_HOURS: 24
+      
+      # Storage
+      STORAGE_TYPE: local
+      STORAGE_LOCAL_PATH: /app/data/uploads
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - api_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kubeatlas-network
+
+  # ============================================
+  # Frontend UI (Development with hot-reload)
+  # ============================================
+  ui:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ui.dev
+    container_name: kubeatlas-ui
+    environment:
+      VITE_API_URL: http://localhost:8080
+      VITE_APP_NAME: KubeAtlas
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+    networks:
+      - kubeatlas-network
+
+  # ============================================
+  # MinIO (S3-compatible storage for development)
+  # ============================================
+  minio:
+    image: minio/minio:latest
+    container_name: kubeatlas-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - kubeatlas-network
+
+  # ============================================
+  # Adminer (Database UI)
+  # ============================================
+  adminer:
+    image: adminer:latest
+    container_name: kubeatlas-adminer
+    ports:
+      - "8081:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      - postgres
+    networks:
+      - kubeatlas-network
+
+  # ============================================
+  # Mailhog (Email testing)
+  # ============================================
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: kubeatlas-mailhog
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - kubeatlas-network
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  kubeatlas-network:
+    driver: bridge
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  api_data:
+    driver: local
+  minio_data:
+    driver: local

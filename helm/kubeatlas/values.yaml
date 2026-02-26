@@ -1,0 +1,357 @@
+# ============================================
+# KubeAtlas Helm Chart Values
+# ============================================
+
+# Global settings
+global:
+  # Domain for ingress
+  domain: kubeatlas.example.com
+  
+  # TLS configuration
+  tls:
+    enabled: true
+    secretName: kubeatlas-tls
+    # Use cert-manager to generate certificates
+    certManager:
+      enabled: false
+      issuer: letsencrypt-prod
+  
+  # Image pull secrets
+  imagePullSecrets: []
+  
+  # Storage class for persistent volumes
+  storageClass: ""
+
+# ============================================
+# API Server
+# ============================================
+api:
+  replicaCount: 2
+  
+  image:
+    repository: ghcr.io/kubeatlas/kubeatlas-api
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 8080
+  
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Pod configuration
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  
+  # Environment variables
+  env:
+    SERVER_MODE: "release"
+    JWT_EXPIRATION_HOURS: "24"
+  
+  # Extra environment variables from secrets
+  envFromSecrets:
+    - kubeatlas-secrets
+  
+  # Health check configuration
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+  
+  # Autoscaling
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+
+# ============================================
+# UI (Frontend)
+# ============================================
+ui:
+  replicaCount: 2
+  
+  image:
+    repository: ghcr.io/kubeatlas/kubeatlas-ui
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 80
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# ============================================
+# Kubernetes Agent
+# ============================================
+agent:
+  enabled: true
+  
+  image:
+    repository: ghcr.io/kubeatlas/kubeatlas-agent
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  
+  # Sync interval in minutes
+  syncInterval: 5
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  
+  # Service account for Kubernetes API access
+  serviceAccount:
+    create: true
+    name: kubeatlas-agent
+    annotations: {}
+  
+  # RBAC configuration
+  rbac:
+    create: true
+    # Additional cluster role rules
+    extraRules: []
+
+# ============================================
+# PostgreSQL Database
+# ============================================
+postgresql:
+  # Set to false to use external database
+  enabled: true
+  
+  # PostgreSQL image
+  image:
+    repository: postgres
+    tag: "14-alpine"
+  
+  # Database credentials
+  auth:
+    username: kubeatlas
+    password: "" # Will be auto-generated if empty
+    database: kubeatlas
+    existingSecret: "" # Use existing secret for credentials
+  
+  # Storage
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+  
+  # Resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Primary configuration
+  primary:
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+# External database configuration (when postgresql.enabled=false)
+externalDatabase:
+  host: ""
+  port: 5432
+  username: kubeatlas
+  password: ""
+  database: kubeatlas
+  sslMode: require
+  existingSecret: ""
+  existingSecretPasswordKey: password
+
+# ============================================
+# Redis Cache
+# ============================================
+redis:
+  enabled: true
+  
+  image:
+    repository: redis
+    tag: "7-alpine"
+  
+  auth:
+    enabled: false
+    password: ""
+  
+  persistence:
+    enabled: false
+    size: 1Gi
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# ============================================
+# Ingress Configuration
+# ============================================
+ingress:
+  enabled: true
+  className: nginx
+  
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+  
+  # Additional hosts
+  hosts: []
+  #  - host: kubeatlas.example.com
+  #    paths:
+  #      - path: /
+  #        pathType: Prefix
+
+# OpenShift Route (alternative to Ingress)
+route:
+  enabled: false
+  annotations: {}
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+
+# ============================================
+# File Storage
+# ============================================
+storage:
+  # Storage type: local, s3, minio
+  type: local
+  
+  # Local storage
+  local:
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: ""
+      accessMode: ReadWriteOnce
+  
+  # S3 storage
+  s3:
+    bucket: ""
+    region: ""
+    endpoint: ""
+    accessKey: ""
+    secretKey: ""
+    existingSecret: ""
+
+# ============================================
+# Authentication
+# ============================================
+auth:
+  # JWT configuration
+  jwt:
+    # Secret key for JWT signing (auto-generated if empty)
+    secret: ""
+    existingSecret: ""
+    existingSecretKey: jwt-secret
+  
+  # LDAP/AD configuration
+  ldap:
+    enabled: false
+    url: ""
+    bindDN: ""
+    bindPassword: ""
+    baseDN: ""
+    userFilter: "(uid=%s)"
+    groupFilter: "(member=%s)"
+    existingSecret: ""
+  
+  # OIDC configuration
+  oidc:
+    enabled: false
+    issuerUrl: ""
+    clientId: ""
+    clientSecret: ""
+    existingSecret: ""
+
+# ============================================
+# Monitoring
+# ============================================
+monitoring:
+  # Prometheus ServiceMonitor
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    labels: {}
+  
+  # Grafana dashboard ConfigMap
+  grafanaDashboard:
+    enabled: false
+    labels:
+      grafana_dashboard: "1"
+
+# ============================================
+# Security
+# ============================================
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+# Network policies
+networkPolicy:
+  enabled: false
+  # Additional ingress rules
+  ingress: []
+  # Additional egress rules  
+  egress: []
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# ============================================
+# Extra Resources
+# ============================================
+# Additional Kubernetes resources to create
+extraResources: []
+# - apiVersion: v1
+#   kind: ConfigMap
+#   metadata:
+#     name: extra-config
+#   data:
+#     key: value

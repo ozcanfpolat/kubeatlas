@@ -52,7 +52,6 @@ dev-logs:
 build-backend:
 	@echo "Building backend..."
 	cd $(BACKEND_DIR) && $(GO) build $(GOFLAGS) -o ../bin/$(APP_NAME)-api ./cmd/api
-	cd $(BACKEND_DIR) && $(GO) build $(GOFLAGS) -o ../bin/$(APP_NAME)-agent ./cmd/agent
 
 ## test-backend: Run backend tests
 test-backend:
@@ -100,20 +99,17 @@ lint-frontend:
 docker-build:
 	@echo "Building Docker images..."
 	docker build -t $(DOCKER_IMAGE)-api:$(VERSION) -f docker/Dockerfile.api .
-	docker build -t $(DOCKER_IMAGE)-agent:$(VERSION) -f docker/Dockerfile.agent .
 	docker build -t $(DOCKER_IMAGE)-ui:$(VERSION) -f docker/Dockerfile.ui .
 
 ## docker-push: Push Docker images
 docker-push:
 	@echo "Pushing Docker images..."
 	docker push $(DOCKER_IMAGE)-api:$(VERSION)
-	docker push $(DOCKER_IMAGE)-agent:$(VERSION)
 	docker push $(DOCKER_IMAGE)-ui:$(VERSION)
 
 ## docker-build-all: Build all Docker images with latest tag
 docker-build-all: docker-build
 	docker tag $(DOCKER_IMAGE)-api:$(VERSION) $(DOCKER_IMAGE)-api:latest
-	docker tag $(DOCKER_IMAGE)-agent:$(VERSION) $(DOCKER_IMAGE)-agent:latest
 	docker tag $(DOCKER_IMAGE)-ui:$(VERSION) $(DOCKER_IMAGE)-ui:latest
 
 # ============================================
@@ -151,20 +147,15 @@ helm-uninstall:
 # Database
 # ============================================
 
-## db-migrate: Run database migrations
+## db-migrate: Apply schema to local postgres container
 db-migrate:
-	@echo "Running database migrations..."
-	cd $(BACKEND_DIR) && $(GO) run ./cmd/migrate up
+	@echo "Applying schema.sql to local postgres container..."
+	docker compose -f docker-compose.dev.yml exec -T postgres psql -U kubeatlas -d kubeatlas < database/schema.sql
 
-## db-migrate-down: Rollback database migrations
-db-migrate-down:
-	@echo "Rolling back database migrations..."
-	cd $(BACKEND_DIR) && $(GO) run ./cmd/migrate down
-
-## db-seed: Seed database with sample data
+## db-seed: Seed local postgres container
 db-seed:
-	@echo "Seeding database..."
-	cd $(BACKEND_DIR) && $(GO) run ./cmd/seed
+	@echo "Applying seed.sql to local postgres container..."
+	docker compose -f docker-compose.dev.yml exec -T postgres psql -U kubeatlas -d kubeatlas < database/seed.sql
 
 # ============================================
 # Build & Release

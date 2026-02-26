@@ -152,7 +152,7 @@ jobs:
           helm package helm/kubeatlas -d .helm-packages
 
       - name: Upload Helm chart as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: helm-chart
           path: .helm-packages/*.tgz

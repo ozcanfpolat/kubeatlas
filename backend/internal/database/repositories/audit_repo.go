@@ -110,7 +110,7 @@ func (r *AuditRepository) List(ctx context.Context, orgID uuid.UUID, p Paginatio
 	for rows.Next() {
 		var l models.AuditLog
 		var userName *string
-		
+
 		err := rows.Scan(
 			&l.ID, &l.OrganizationID,
 			&l.UserID, &l.UserEmail, &l.UserIP, &l.UserAgent,
@@ -123,13 +123,13 @@ func (r *AuditRepository) List(ctx context.Context, orgID uuid.UUID, p Paginatio
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if userName != nil && l.UserID != nil {
-			l.User = &models.User{ID: *l.UserID}
+			l.User = &models.User{BaseModel: models.BaseModel{ID: *l.UserID}}
 			l.User.FullName.String = *userName
 			l.User.FullName.Valid = true
 		}
-		
+
 		logs = append(logs, l)
 	}
 
@@ -175,7 +175,7 @@ func (r *AuditRepository) ListByResource(ctx context.Context, resourceType strin
 	for rows.Next() {
 		var l models.AuditLog
 		var userName *string
-		
+
 		err := rows.Scan(
 			&l.ID, &l.OrganizationID,
 			&l.UserID, &l.UserEmail, &l.UserIP, &l.UserAgent,
@@ -188,13 +188,13 @@ func (r *AuditRepository) ListByResource(ctx context.Context, resourceType strin
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if userName != nil && l.UserID != nil {
-			l.User = &models.User{ID: *l.UserID}
+			l.User = &models.User{BaseModel: models.BaseModel{ID: *l.UserID}}
 			l.User.FullName.String = *userName
 			l.User.FullName.Valid = true
 		}
-		
+
 		logs = append(logs, l)
 	}
 
@@ -228,7 +228,7 @@ func (r *AuditRepository) GetRecentActivities(ctx context.Context, orgID uuid.UU
 	for rows.Next() {
 		var l models.AuditLog
 		var userName *string
-		
+
 		err := rows.Scan(
 			&l.ID, &l.OrganizationID,
 			&l.UserID, &l.UserEmail,
@@ -240,13 +240,13 @@ func (r *AuditRepository) GetRecentActivities(ctx context.Context, orgID uuid.UU
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if userName != nil && l.UserID != nil {
-			l.User = &models.User{ID: *l.UserID}
+			l.User = &models.User{BaseModel: models.BaseModel{ID: *l.UserID}}
 			l.User.FullName.String = *userName
 			l.User.FullName.Valid = true
 		}
-		
+
 		logs = append(logs, l)
 	}
 

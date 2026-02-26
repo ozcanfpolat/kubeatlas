@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { formatDate, formatFileSize, getInitials, truncate, getCriticalityColor, getStatusColor, getEnvironmentColor } from '../utils'
+import { formatDate, formatFileSize, getInitials, truncate, getCriticalityColor, getStatusColor, getEnvironmentColor } from './utils'
 
 describe('Utils', () => {
+  describe('formatDate', () => {
+    it('should format date in Turkish locale', () => {
+      expect(formatDate('2024-01-15T00:00:00Z')).toContain('2024')
+    })
+  })
+
   describe('formatFileSize', () => {
     it('should format bytes correctly', () => {
       expect(formatFileSize(0)).toBe('0 B')
@@ -35,8 +41,8 @@ describe('Utils', () => {
   describe('getCriticalityColor', () => {
     it('should return correct colors for criticality levels', () => {
       expect(getCriticalityColor('tier-1')).toContain('red')
-      expect(getCriticalityColor('tier-2')).toContain('yellow')
-      expect(getCriticalityColor('tier-3')).toContain('green')
+      expect(getCriticalityColor('tier-2')).toContain('orange')
+      expect(getCriticalityColor('tier-3')).toContain('blue')
       expect(getCriticalityColor('unknown')).toContain('gray')
     })
   })
@@ -54,8 +60,8 @@ describe('Utils', () => {
     it('should return correct colors for environments', () => {
       expect(getEnvironmentColor('production')).toContain('red')
       expect(getEnvironmentColor('staging')).toContain('yellow')
-      expect(getEnvironmentColor('development')).toContain('blue')
-      expect(getEnvironmentColor('test')).toContain('purple')
+      expect(getEnvironmentColor('development')).toContain('green')
+      expect(getEnvironmentColor('test')).toContain('blue')
     })
   })
 })

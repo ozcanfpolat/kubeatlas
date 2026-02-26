@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kubeatlas/kubeatlas/internal/config"
 )
@@ -108,7 +109,7 @@ func (db *DB) Migrate() error {
 
 		// Check if already applied
 		var exists bool
-		err := db.Pool.QueryRow(ctx, 
+		err := db.Pool.QueryRow(ctx,
 			"SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)",
 			version,
 		).Scan(&exists)
@@ -137,7 +138,7 @@ func (db *DB) Migrate() error {
 			return fmt.Errorf("failed to execute migration %s: %w", version, err)
 		}
 
-		_, err = tx.Exec(ctx, 
+		_, err = tx.Exec(ctx,
 			"INSERT INTO schema_migrations (version) VALUES ($1)",
 			version,
 		)
@@ -155,7 +156,7 @@ func (db *DB) Migrate() error {
 }
 
 // Transaction executes a function within a database transaction
-func (db *DB) Transaction(ctx context.Context, fn func(tx pgxpool.Tx) error) error {
+func (db *DB) Transaction(ctx context.Context, fn func(tx pgx.Tx) error) error {
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)

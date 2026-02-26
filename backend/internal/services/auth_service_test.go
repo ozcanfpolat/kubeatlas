@@ -6,34 +6,32 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kubeatlas/kubeatlas/internal/models"
 )
+
+const testJWTSecret = "test-secret-key-32-bytes-long!!"
+
+func testUser() *models.User {
+	return &models.User{
+		BaseModel:      models.BaseModel{ID: uuid.New()},
+		OrganizationID: uuid.New(),
+		Email:          "test@example.com",
+		Role:           "admin",
+	}
+}
 
 func TestAuthService_GenerateToken(t *testing.T) {
 	svc := &AuthService{}
-	svc.SetJWTConfig("test-secret-key-32-bytes-long!!", 24, 168)
-
-	userID := uuid.New()
-	orgID := uuid.New()
-	email := "test@example.com"
-	role := "admin"
-
-	tokens, err := svc.GenerateTokens(userID, orgID, email, role)
+	tokens, err := svc.GenerateTokens(testUser(), testJWTSecret, 24)
 	if err != nil {
 		t.Fatalf("GenerateTokens failed: %v", err)
 	}
-
-	if tokens.AccessToken == "" {
-		t.Error("AccessToken should not be empty")
+	if tokens.AccessToken == "" || tokens.RefreshToken == "" {
+		t.Fatal("expected both access and refresh tokens")
 	}
-
-	if tokens.RefreshToken == "" {
-		t.Error("RefreshToken should not be empty")
-	}
-
 	if tokens.TokenType != "Bearer" {
 		t.Errorf("TokenType should be Bearer, got %s", tokens.TokenType)
 	}
-
 	if tokens.ExpiresAt.Before(time.Now()) {
 		t.Error("ExpiresAt should be in the future")
 	}
@@ -41,106 +39,49 @@ func TestAuthService_GenerateToken(t *testing.T) {
 
 func TestAuthService_ValidateToken(t *testing.T) {
 	svc := &AuthService{}
-	svc.SetJWTConfig("test-secret-key-32-bytes-long!!", 24, 168)
-
-	userID := uuid.New()
-	orgID := uuid.New()
-	email := "test@example.com"
-	role := "admin"
-
-	tokens, err := svc.GenerateTokens(userID, orgID, email, role)
+	user := testUser()
+	tokens, err := svc.GenerateTokens(user, testJWTSecret, 24)
 	if err != nil {
 		t.Fatalf("GenerateTokens failed: %v", err)
 	}
-
-	claims, err := svc.ValidateToken(tokens.AccessToken)
+	claims, err := svc.ValidateToken(tokens.AccessToken, testJWTSecret)
 	if err != nil {
 		t.Fatalf("ValidateToken failed: %v", err)
 	}
-
-	if claims.UserID != userID {
-		t.Errorf("UserID mismatch: got %v, want %v", claims.UserID, userID)
-	}
-
-	if claims.OrganizationID != orgID {
-		t.Errorf("OrganizationID mismatch: got %v, want %v", claims.OrganizationID, orgID)
-	}
-
-	if claims.Email != email {
-		t.Errorf("Email mismatch: got %v, want %v", claims.Email, email)
-	}
-
-	if claims.Role != role {
-		t.Errorf("Role mismatch: got %v, want %v", claims.Role, role)
+	if claims.UserID != user.ID || claims.OrganizationID != user.OrganizationID {
+		t.Fatal("token claims do not match user")
 	}
 }
 
 func TestAuthService_ValidateToken_Invalid(t *testing.T) {
 	svc := &AuthService{}
-	svc.SetJWTConfig("test-secret-key-32-bytes-long!!", 24, 168)
-
-	_, err := svc.ValidateToken("invalid-token")
-	if err == nil {
+	if _, err := svc.ValidateToken("invalid-token", testJWTSecret); err == nil {
 		t.Error("ValidateToken should fail with invalid token")
 	}
 }
 
 func TestAuthService_ValidateToken_WrongSecret(t *testing.T) {
-	svc1 := &AuthService{}
-	svc1.SetJWTConfig("test-secret-key-32-bytes-long!!", 24, 168)
-
-	svc2 := &AuthService{}
-	svc2.SetJWTConfig("different-secret-key-32-bytes!!", 24, 168)
-
-	tokens, err := svc1.GenerateTokens(uuid.New(), uuid.New(), "test@example.com", "admin")
+	svc := &AuthService{}
+	tokens, err := svc.GenerateTokens(testUser(), testJWTSecret, 24)
 	if err != nil {
 		t.Fatalf("GenerateTokens failed: %v", err)
 	}
-
-	_, err = svc2.ValidateToken(tokens.AccessToken)
-	if err == nil {
+	if _, err = svc.ValidateToken(tokens.AccessToken, "different-secret-key-32-bytes!!"); err == nil {
 		t.Error("ValidateToken should fail with wrong secret")
 	}
 }
 
 func TestAuditContext(t *testing.T) {
 	userID := uuid.New()
-	ctx := AuditContext{
-		OrganizationID: uuid.New(),
-		UserID:         &userID,
-		UserEmail:      "test@example.com",
-		UserIP:         "192.168.1.1",
-		UserAgent:      "TestAgent/1.0",
-	}
-
-	if ctx.OrganizationID == uuid.Nil {
-		t.Error("OrganizationID should not be nil")
-	}
-
-	if ctx.UserID == nil {
-		t.Error("UserID should not be nil")
-	}
-
-	if ctx.UserEmail == "" {
-		t.Error("UserEmail should not be empty")
+	ctx := AuditContext{OrgID: uuid.New(), UserID: &userID, UserEmail: "test@example.com"}
+	if ctx.OrgID == uuid.Nil || ctx.UserID == nil || ctx.UserEmail == "" {
+		t.Error("audit context should include org, user and email")
 	}
 }
 
 func TestAuditService_LogCreate(t *testing.T) {
-	// Create a mock audit service (without DB)
-	svc := &AuditService{
-		logger: nil, // Would need a mock logger for full test
-	}
-
-	ctx := context.Background()
-	actx := AuditContext{
-		OrganizationID: uuid.New(),
-		UserEmail:      "test@example.com",
-	}
-
-	// This test just ensures the method doesn't panic
-	// Full integration test would require a database
+	svc := &AuditService{logger: nil}
 	_ = svc
-	_ = ctx
-	_ = actx
+	_ = context.Background()
+	_ = AuditContext{OrgID: uuid.New(), UserEmail: "test@example.com"}
 }

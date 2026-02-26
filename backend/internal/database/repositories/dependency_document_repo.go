@@ -140,8 +140,8 @@ func (r *InternalDependencyRepository) ListByNamespace(ctx context.Context, name
 			return nil, err
 		}
 		// Attach namespace names to metadata for convenience
-		d.SourceNamespace = &models.Namespace{ID: d.SourceNamespaceID, Name: sourceNsName}
-		d.TargetNamespace = &models.Namespace{ID: d.TargetNamespaceID, Name: targetNsName}
+		d.SourceNamespace = &models.Namespace{BaseModel: models.BaseModel{ID: d.SourceNamespaceID}, Name: sourceNsName}
+		d.TargetNamespace = &models.Namespace{BaseModel: models.BaseModel{ID: d.TargetNamespaceID}, Name: targetNsName}
 		deps = append(deps, d)
 	}
 
@@ -476,7 +476,7 @@ func (r *DocumentRepository) GetByID(ctx context.Context, id uuid.UUID) (*models
 
 	doc := &models.Document{}
 	var categoryName, categorySlug *string
-	
+
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&doc.ID, &doc.OrganizationID, &doc.NamespaceID, &doc.ClusterID,
 		&doc.Name, &doc.FileName, &doc.FilePath, &doc.FileSize, &doc.MimeType, &doc.Checksum,
@@ -538,7 +538,7 @@ func (r *DocumentRepository) ListByNamespace(ctx context.Context, namespaceID uu
 	for rows.Next() {
 		var d models.Document
 		var categoryName, uploaderName *string
-		
+
 		err := rows.Scan(
 			&d.ID, &d.OrganizationID, &d.NamespaceID, &d.ClusterID,
 			&d.Name, &d.FileName, &d.FilePath, &d.FileSize, &d.MimeType, &d.Checksum,
@@ -552,16 +552,16 @@ func (r *DocumentRepository) ListByNamespace(ctx context.Context, namespaceID uu
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if categoryName != nil && d.CategoryID != nil {
 			d.Category = &models.DocumentCategory{ID: *d.CategoryID, Name: *categoryName}
 		}
 		if uploaderName != nil {
-			d.UploadedByUser = &models.User{ID: d.UploadedBy}
+			d.UploadedByUser = &models.User{BaseModel: models.BaseModel{ID: d.UploadedBy}}
 			d.UploadedByUser.FullName.String = *uploaderName
 			d.UploadedByUser.FullName.Valid = true
 		}
-		
+
 		docs = append(docs, d)
 	}
 
@@ -597,7 +597,7 @@ func (r *DocumentRepository) GetRecent(ctx context.Context, orgID uuid.UUID, lim
 	for rows.Next() {
 		var d models.Document
 		var namespaceName, uploaderName *string
-		
+
 		err := rows.Scan(
 			&d.ID, &d.OrganizationID, &d.NamespaceID, &d.ClusterID,
 			&d.Name, &d.FileName, &d.FileSize, &d.MimeType,
@@ -609,16 +609,16 @@ func (r *DocumentRepository) GetRecent(ctx context.Context, orgID uuid.UUID, lim
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if namespaceName != nil && d.NamespaceID != nil {
-			d.Namespace = &models.Namespace{ID: *d.NamespaceID, Name: *namespaceName}
+			d.Namespace = &models.Namespace{BaseModel: models.BaseModel{ID: *d.NamespaceID}, Name: *namespaceName}
 		}
 		if uploaderName != nil {
-			d.UploadedByUser = &models.User{ID: d.UploadedBy}
+			d.UploadedByUser = &models.User{BaseModel: models.BaseModel{ID: d.UploadedBy}}
 			d.UploadedByUser.FullName.String = *uploaderName
 			d.UploadedByUser.FullName.Valid = true
 		}
-		
+
 		docs = append(docs, d)
 	}
 

@@ -106,32 +106,129 @@ Complete audit history:
 
 ## 🏗️ Architecture
 
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#3b82f6', 'primaryTextColor': '#fff', 'primaryBorderColor': '#1e40af', 'lineColor': '#6b7280', 'secondaryColor': '#10b981', 'tertiaryColor': '#f59e0b'}}}%%
+
+graph TB
+    subgraph Users["👥 Users"]
+        U1[Platform Engineers]
+        U2[DevOps Teams]
+        U3[Security Teams]
+        U4[Developers]
+    end
+
+    subgraph KubeAtlas["☸️ KubeAtlas Platform"]
+        subgraph UI["🎨 Frontend Layer"]
+            FE[React 18 App<br/>TypeScript + Tailwind]
+        end
+        
+        subgraph API["⚙️ Backend Layer"]
+            BE[Go + Gin API<br/>REST + WebSocket]
+            AUTH[JWT Auth<br/>RBAC]
+            WS[Real-time<br/>Updates]
+        end
+        
+        subgraph Services["🛠️ Services"]
+            DS[Dashboard Service]
+            CS[Cluster Service]
+            NS[Namespace Service]
+            DEPS[Dependency Service]
+            AUDIT[Audit Service]
+            SYNC[Sync Service]
+        end
+        
+        subgraph Data["💾 Data Layer"]
+            DB[(PostgreSQL)]
+            CACHE[(Redis Cache)]
+        end
+    end
+    
+    subgraph Kubernetes["☁️ Kubernetes Clusters"]
+        C1[Production EKS]
+        C2[Staging GKE]
+        C3[On-Premises]
+        AGENT[KubeAtlas Agent]
+    end
+    
+    subgraph External["🔌 External Systems"]
+        LDAP[LDAP/AD]
+        OIDC[OIDC Provider]
+        PROM[Prometheus]
+    end
+
+    Users -->|HTTPS| FE
+    FE -->|API Calls| BE
+    BE --> AUTH
+    BE --> WS
+    BE --> Services
+    Services --> DB
+    Services --> CACHE
+    SYNC -->|Cluster API| AGENT
+    AGENT --> C1
+    AGENT --> C2
+    AGENT --> C3
+    AUTH -.->|SSO| LDAP
+    AUTH -.->|SSO| OIDC
+    WS -.->|Metrics| PROM
+    
+    style FE fill:#3b82f6,stroke:#1e40af,color:#fff
+    style BE fill:#10b981,stroke:#047857,color:#fff
+    style DB fill:#f59e0b,stroke:#b45309,color:#fff
+    style AGENT fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    style C1 fill:#ec4899,stroke:#be185d,color:#fff
+    style C2 fill:#ec4899,stroke:#be185d,color:#fff
+    style C3 fill:#ec4899,stroke:#be185d,color:#fff
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     KubeAtlas Platform                       │
-├─────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │   Web UI     │  │   REST API   │  │   Database   │      │
-│  │   (React)    │  │    (Go)      │  │ (PostgreSQL) │      │
-│  └──────┬───────┘  └──────┬───────┘  └──────────────┘      │
-│         │                 │                                 │
-│         └─────────────────┘                                 │
-│                   │                                          │
-│         ┌─────────▼─────────┐                               │
-│         │  Kubernetes Agent │  ← Connects to K8s clusters   │
-│         └───────────────────┘                               │
-└─────────────────────────────────────────────────────────────┘
+
+### Component Flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as React Frontend
+    participant API as Go API
+    participant Auth as JWT Auth
+    participant Service as Cluster Service
+    participant DB as PostgreSQL
+    participant Agent as K8s Agent
+    participant K8s as Kubernetes
+
+    User->>UI: Access Dashboard
+    UI->>API: GET /api/v1/dashboard/stats
+    API->>Auth: Validate JWT Token
+    Auth-->>API: Token Valid
+    API->>Service: GetDashboardStats()
+    Service->>DB: Query cluster stats
+    DB-->>Service: Return data
+    Service->>DB: Query namespace stats
+    DB-->>Service: Return data
+    Service-->>API: Aggregated stats
+    API-->>UI: JSON Response
+    UI-->>User: Render Dashboard
+
+    User->>UI: Sync Cluster
+    UI->>API: POST /api/v1/clusters/{id}/sync
+    API->>Auth: Validate JWT + RBAC
+    API->>Agent: Trigger sync
+    Agent->>K8s: Query resources
+    K8s-->>Agent: Return namespace list
+    Agent->>API: Send sync results
+    API->>Service: Update cluster data
+    Service->>DB: Insert/Update records
+    Service->>DB: Log audit entry
+    API-->>UI: Sync complete
 ```
 
 ### Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| **Frontend** | React 18, TypeScript, Tailwind CSS, shadcn/ui |
-| **Backend** | Go 1.21, Gin framework, pgx (PostgreSQL driver) |
-| **Database** | PostgreSQL 14+ |
-| **Auth** | JWT-based authentication |
-| **Deployment** | Docker, Docker Compose, Helm |
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Frontend** | React 18, TypeScript, Tailwind CSS, shadcn/ui | Modern UI with type safety |
+| **Backend** | Go 1.21, Gin framework, pgx | High-performance API |
+| **Database** | PostgreSQL 14+, Redis | Persistent & cache storage |
+| **Auth** | JWT + RBAC + LDAP/OIDC | Secure authentication |
+| **Deployment** | Docker, Kubernetes, Helm | Container orchestration |
+| **Monitoring** | Prometheus, Grafana | Observability |
 
 ---
 

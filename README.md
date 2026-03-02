@@ -180,45 +180,6 @@ graph TB
     style C3 fill:#ec4899,stroke:#be185d,color:#fff
 ```
 
-### Component Flow
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant UI as React Frontend
-    participant API as Go API
-    participant Auth as JWT Auth
-    participant Service as Cluster Service
-    participant DB as PostgreSQL
-    participant Agent as K8s Agent
-    participant K8s as Kubernetes
-
-    User->>UI: Access Dashboard
-    UI->>API: GET /api/v1/dashboard/stats
-    API->>Auth: Validate JWT Token
-    Auth-->>API: Token Valid
-    API->>Service: GetDashboardStats()
-    Service->>DB: Query cluster stats
-    DB-->>Service: Return data
-    Service->>DB: Query namespace stats
-    DB-->>Service: Return data
-    Service-->>API: Aggregated stats
-    API-->>UI: JSON Response
-    UI-->>User: Render Dashboard
-
-    User->>UI: Sync Cluster
-    UI->>API: POST /api/v1/clusters/{id}/sync
-    API->>Auth: Validate JWT + RBAC
-    API->>Agent: Trigger sync
-    Agent->>K8s: Query resources
-    K8s-->>Agent: Return namespace list
-    Agent->>API: Send sync results
-    API->>Service: Update cluster data
-    Service->>DB: Insert/Update records
-    Service->>DB: Log audit entry
-    API-->>UI: Sync complete
-```
-
 ### Tech Stack
 
 | Layer | Technology | Purpose |

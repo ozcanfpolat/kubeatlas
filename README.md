@@ -284,10 +284,10 @@ Comprehensive namespace inventory with ownership tracking, cost allocation, and 
 ### 🔗 Dependency Visualization
 Interactive graph showing dependencies between namespaces with drill-down capabilities.
 
-<!-- ![Dependencies](docs/images/dependencies.png) -->
+![Dependencies](docs/images/dependencies.svg)
 
 <details>
-<summary>🕸️ Click to view Dependencies UI Structure</summary>
+<summary>🕸️ Click to view Dependencies UI Details</summary>
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -329,10 +329,10 @@ Interactive graph showing dependencies between namespaces with drill-down capabi
 ### 📄 Document Repository
 Centralized documentation management with version control and access permissions.
 
-<!-- ![Documents](docs/images/documents.png) -->
+![Documents](docs/images/documents.svg)
 
 <details>
-<summary>📚 Click to view Documents UI Structure</summary>
+<summary>📚 Click to view Documents UI Details</summary>
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -367,10 +367,10 @@ Centralized documentation management with version control and access permissions
 ### 👥 Team Management
 Organize teams, assign ownership, and manage access control.
 
-<!-- ![Teams](docs/images/teams.png) -->
+![Teams](docs/images/teams.svg)
 
 <details>
-<summary>👤 Click to view Teams UI Structure</summary>
+<summary>👤 Click to view Teams UI Details</summary>
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -400,10 +400,10 @@ Organize teams, assign ownership, and manage access control.
 ### 📝 Audit Logs
 Complete audit trail for compliance and troubleshooting.
 
-<!-- ![Audit Logs](docs/images/audit-logs.png) -->
+![Audit Logs](docs/images/audit-logs.svg)
 
 <details>
-<summary>📋 Click to view Audit Logs UI Structure</summary>
+<summary>📋 Click to view Audit Logs UI Details</summary>
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐

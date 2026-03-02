@@ -70,8 +70,11 @@ services:
       DB_SSLMODE: disable
       
       # JWT
-      JWT_SECRET: dev-secret-change-in-production
+      JWT_SECRET: dev-secret-change-in-production-min-32-characters
       JWT_EXPIRATION_HOURS: 24
+      
+      # Encryption (for kubeconfig/token security)
+      ENCRYPTION_KEY: dev-encryption-key-must-be-32-characters-long
       
       # Storage
       STORAGE_TYPE: local

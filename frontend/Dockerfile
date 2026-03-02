@@ -51,12 +51,12 @@ RUN addgroup -g 1000 -S kubeatlas && \
 # Switch to non-root user
 USER kubeatlas
 
-# Expose port
-EXPOSE 3000
+# Expose port (nginx default)
+EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]

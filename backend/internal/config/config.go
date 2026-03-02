@@ -8,11 +8,15 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	JWT      JWTConfig
-	Storage  StorageConfig
-	LDAP     LDAPConfig
+	Server      ServerConfig
+	Database    DatabaseConfig
+	JWT         JWTConfig
+	Storage     StorageConfig
+	LDAP        LDAPConfig
+	Redis       RedisConfig
+	Encryption  EncryptionConfig
+	Sync        SyncConfig
+	Log         LogConfig
 }
 
 // ServerConfig holds HTTP server configuration
@@ -60,27 +64,53 @@ type LDAPConfig struct {
 	GroupFilter  string
 }
 
+// RedisConfig holds Redis configuration
+type RedisConfig struct {
+	Host     string
+	Port     int
+	Password string
+	Enabled  bool
+}
+
+// EncryptionConfig holds encryption settings
+type EncryptionConfig struct {
+	Key string
+}
+
+// SyncConfig holds sync settings
+type SyncConfig struct {
+	IntervalMinutes int
+	TimeoutSeconds  int
+}
+
+// LogConfig holds logging configuration
+type LogConfig struct {
+	Level  string
+	Format string
+}
+
 // Load loads configuration from environment variables
+// Supports both .env.example format and docker-compose format for backward compatibility
 func Load() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
 			Port:        getEnvInt("SERVER_PORT", 8080),
-			Mode:        getEnv("SERVER_MODE", "debug"),
+			Mode:        getEnvDefault([]string{"SERVER_MODE", "GIN_MODE"}, "debug"),
 			CORSOrigins: getEnvSlice("CORS_ORIGINS", []string{"http://localhost:3000"}),
 		},
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnvInt("DB_PORT", 5432),
-			User:     getEnv("DB_USER", "kubeatlas"),
-			Password: getEnv("DB_PASSWORD", "kubeatlas"),
-			Database: getEnv("DB_NAME", "kubeatlas"),
-			SSLMode:  getEnv("DB_SSLMODE", "disable"),
-			MaxConns: getEnvInt("DB_MAX_CONNS", 25),
+			Host:     getEnvDefault([]string{"DB_HOST", "DATABASE_HOST"}, "localhost"),
+			Port:     getEnvIntDefault([]string{"DB_PORT", "DATABASE_PORT"}, 5432),
+			User:     getEnvDefault([]string{"DB_USER", "DATABASE_USER"}, "kubeatlas"),
+			Password: getEnvDefault([]string{"DB_PASSWORD", "DATABASE_PASSWORD"}, ""),
+			Database: getEnvDefault([]string{"DB_NAME", "DATABASE_NAME"}, "kubeatlas"),
+			SSLMode:  getEnvDefault([]string{"DB_SSLMODE", "DATABASE_SSL_MODE"}, "disable"),
+			MaxConns: getEnvIntDefault([]string{"DB_MAX_CONNS", "DATABASE_MAX_CONNECTIONS"}, 25),
 		},
 		JWT: JWTConfig{
-			Secret:          getEnv("JWT_SECRET", "change-me-in-production"),
-			ExpirationHours: getEnvInt("JWT_EXPIRATION_HOURS", 24),
-			RefreshHours:    getEnvInt("JWT_REFRESH_HOURS", 168), // 7 days
+			Secret:          getEnv("JWT_SECRET", ""),
+			ExpirationHours: getEnvIntDefault([]string{"JWT_EXPIRATION_HOURS", "JWT_ACCESS_TOKEN_HOURS"}, 24),
+			RefreshHours:    getEnvIntDefault([]string{"JWT_REFRESH_HOURS", "JWT_REFRESH_TOKEN_HOURS"}, 168),
 		},
 		Storage: StorageConfig{
 			Type:       getEnv("STORAGE_TYPE", "local"),
@@ -98,6 +128,23 @@ func Load() (*Config, error) {
 			UserFilter:   getEnv("LDAP_USER_FILTER", "(uid=%s)"),
 			GroupFilter:  getEnv("LDAP_GROUP_FILTER", "(member=%s)"),
 		},
+		Redis: RedisConfig{
+			Host:     getEnv("REDIS_HOST", ""),
+			Port:     getEnvInt("REDIS_PORT", 6379),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			Enabled:  getEnv("REDIS_HOST", "") != "",
+		},
+		Encryption: EncryptionConfig{
+			Key: getEnv("ENCRYPTION_KEY", ""),
+		},
+		Sync: SyncConfig{
+			IntervalMinutes: getEnvInt("SYNC_INTERVAL_MINUTES", 30),
+			TimeoutSeconds:  getEnvInt("SYNC_TIMEOUT_SECONDS", 300),
+		},
+		Log: LogConfig{
+			Level:  getEnv("LOG_LEVEL", "info"),
+			Format: getEnv("LOG_FORMAT", "json"),
+		},
 	}
 
 	return cfg, nil
@@ -111,10 +158,32 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+// getEnvDefault checks multiple env var names and returns the first set value
+func getEnvDefault(keys []string, defaultValue string) string {
+	for _, key := range keys {
+		if value := os.Getenv(key); value != "" {
+			return value
+		}
+	}
+	return defaultValue
+}
+
 func getEnvInt(key string, defaultValue int) int {
 	if value := os.Getenv(key); value != "" {
 		if intVal, err := strconv.Atoi(value); err == nil {
 			return intVal
+		}
+	}
+	return defaultValue
+}
+
+// getEnvIntDefault checks multiple env var names and returns the first valid int value
+func getEnvIntDefault(keys []string, defaultValue int) int {
+	for _, key := range keys {
+		if value := os.Getenv(key); value != "" {
+			if intVal, err := strconv.Atoi(value); err == nil {
+				return intVal
+			}
 		}
 	}
 	return defaultValue

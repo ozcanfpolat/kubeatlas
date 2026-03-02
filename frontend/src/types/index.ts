@@ -159,10 +159,8 @@ export interface Namespace {
   name: string
   display_name?: string
   description?: string
-  environment?: string
+  environment: 'production' | 'staging' | 'development' | 'test'
   criticality: 'tier-1' | 'tier-2' | 'tier-3'
-  
-  // Ownership
   infrastructure_owner_team_id?: string
   infrastructure_owner_user_id?: string
   business_unit_id?: string
@@ -173,29 +171,20 @@ export interface Namespace {
   technical_lead_email?: string
   project_manager_name?: string
   project_manager_email?: string
-  
-  // SLA
   sla_availability?: string
   sla_rto?: string
   sla_rpo?: string
   support_hours?: string
   escalation_path?: string
-  
-  // Status
   status: string
   discovered_at?: string
   last_sync_at?: string
-  
-  // K8s metadata
   k8s_uid?: string
-  k8s_labels?: Record<string, string>
-  k8s_annotations?: Record<string, string>
+  k8s_labels: Record<string, string>
+  k8s_annotations: Record<string, string>
   k8s_created_at?: string
-  
-  // Custom
   tags: string[]
-  custom_fields?: Record<string, unknown>
-  
+  custom_fields: Record<string, unknown>
   created_at: string
   updated_at: string
   
@@ -212,9 +201,9 @@ export interface UpdateNamespaceRequest {
   description?: string
   environment?: string
   criticality?: string
-  infrastructure_owner_team_id?: string | null
-  infrastructure_owner_user_id?: string | null
-  business_unit_id?: string | null
+  infrastructure_owner_team_id?: string
+  infrastructure_owner_user_id?: string
+  business_unit_id?: string
   application_manager_name?: string
   application_manager_email?: string
   application_manager_phone?: string
@@ -244,7 +233,7 @@ export interface InternalDependency {
   target_namespace_id: string
   target_resource_type?: string
   target_resource_name?: string
-  dependency_type: 'api' | 'database' | 'queue' | 'cache' | 'storage'
+  dependency_type: string
   description?: string
   is_critical: boolean
   is_auto_discovered: boolean
@@ -265,7 +254,7 @@ export interface ExternalDependency {
   organization_id: string
   namespace_id: string
   name: string
-  system_type: 'api' | 'database' | 'saas' | 'payment-gateway'
+  system_type: string
   provider?: string
   endpoint?: string
   description?: string
@@ -277,6 +266,9 @@ export interface ExternalDependency {
   status: string
   created_at: string
   updated_at: string
+  
+  // Computed
+  namespace?: Namespace
 }
 
 export interface DependencyGraph {
@@ -286,24 +278,33 @@ export interface DependencyGraph {
 
 export interface DependencyNode {
   id: string
-  name: string
   type: 'namespace' | 'external'
-  cluster_id?: string
-  cluster_name?: string
-  environment?: string
-  criticality?: string
+  name: string
+  data?: Namespace | ExternalDependency
 }
 
 export interface DependencyEdge {
+  id: string
   source: string
   target: string
-  dependency_type: string
+  type: string
   is_critical: boolean
 }
 
 // ============================================
 // Document Types
 // ============================================
+
+export interface DocumentCategory {
+  id: string
+  organization_id: string
+  name: string
+  slug: string
+  description?: string
+  color?: string
+  icon?: string
+  sort_order: number
+}
 
 export interface Document {
   id: string
@@ -319,6 +320,7 @@ export interface Document {
   description?: string
   tags: string[]
   version: number
+  previous_version_id?: string
   uploaded_by: string
   uploaded_at: string
   status: string
@@ -326,20 +328,9 @@ export interface Document {
   updated_at: string
   
   // Computed
+  namespace?: Namespace
   category?: DocumentCategory
   uploaded_by_user?: User
-  namespace?: Namespace
-}
-
-export interface DocumentCategory {
-  id: string
-  organization_id?: string
-  name: string
-  slug: string
-  description?: string
-  color?: string
-  icon?: string
-  sort_order: number
 }
 
 // ============================================
@@ -349,14 +340,9 @@ export interface DocumentCategory {
 export interface DashboardStats {
   total_clusters: number
   total_namespaces: number
-  total_nodes: number
-  active_clusters: number
   namespaces_with_owner: number
-  ownership_percentage: number
   namespaces_documented: number
-  documentation_percentage: number
   namespaces_with_dependencies: number
-  dependency_percentage: number
   orphaned_namespaces: number
   undocumented_namespaces: number
   no_deps_namespaces: number
@@ -369,24 +355,16 @@ export interface EnvironmentDistribution {
 }
 
 export interface BusinessUnitDistribution {
-  business_unit_id?: string
+  business_unit_id: string
   business_unit_name: string
   count: number
 }
 
 export interface MissingInfo {
-  orphaned: MissingInfoItem[]
-  undocumented: MissingInfoItem[]
-  no_dependencies: MissingInfoItem[]
-  no_business_unit: MissingInfoItem[]
-}
-
-export interface MissingInfoItem {
-  id: string
-  name: string
-  cluster_id: string
-  cluster_name?: string
-  missing_type: string
+  orphaned_namespaces: Namespace[]
+  undocumented_namespaces: Namespace[]
+  no_dependencies_namespaces: Namespace[]
+  no_business_unit_namespaces: Namespace[]
 }
 
 // ============================================
@@ -399,6 +377,7 @@ export interface AuditLog {
   user_id?: string
   user_email?: string
   user_ip?: string
+  user_agent?: string
   action: string
   resource_type: string
   resource_id: string
@@ -411,4 +390,34 @@ export interface AuditLog {
   
   // Computed
   user?: User
+}
+
+// ============================================
+// Report Types
+// ============================================
+
+export interface Report {
+  id: string
+  name: string
+  report_type: string
+  format: 'pdf' | 'excel' | 'csv'
+  created_at: string
+  download_url?: string
+}
+
+// ============================================
+// Settings Types
+// ============================================
+
+export interface Settings {
+  session_timeout: number
+  password_policy: {
+    min_length: number
+    require_uppercase: boolean
+    require_lowercase: boolean
+    require_numbers: boolean
+    require_special: boolean
+  }
+  audit_retention_days: number
+  sync_interval_minutes: number
 }

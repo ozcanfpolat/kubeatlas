@@ -483,17 +483,3 @@ CREATE TRIGGER update_namespaces_updated_at BEFORE UPDATE ON namespaces FOR EACH
 CREATE TRIGGER update_internal_dependencies_updated_at BEFORE UPDATE ON internal_dependencies FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER update_external_dependencies_updated_at BEFORE UPDATE ON external_dependencies FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON documents FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- ============================================
--- SEED DATA
--- ============================================
-
--- Default document categories
-INSERT INTO document_categories (id, organization_id, name, slug, description, color, icon, sort_order) VALUES
-    (uuid_generate_v4(), NULL, 'Architecture', 'architecture', 'System architecture diagrams and documentation', '#3B82F6', 'diagram', 1),
-    (uuid_generate_v4(), NULL, 'Runbook', 'runbook', 'Operational runbooks and procedures', '#10B981', 'book', 2),
-    (uuid_generate_v4(), NULL, 'SLA', 'sla', 'Service Level Agreements', '#EF4444', 'shield', 3),
-    (uuid_generate_v4(), NULL, 'Disaster Recovery', 'dr', 'Disaster recovery plans', '#F59E0B', 'alert', 4),
-    (uuid_generate_v4(), NULL, 'API Documentation', 'api', 'API specifications and documentation', '#8B5CF6', 'code', 5),
-    (uuid_generate_v4(), NULL, 'Security', 'security', 'Security policies and assessments', '#EC4899', 'lock', 6),
-    (uuid_generate_v4(), NULL, 'Other', 'other', 'Other documentation', '#6B7280', 'file', 99);

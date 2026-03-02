@@ -2,12 +2,11 @@ package k8s
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
+	"github.com/kubeatlas/kubeatlas/internal/crypto"
 	"github.com/kubeatlas/kubeatlas/internal/models"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
@@ -19,9 +18,20 @@ import (
 
 // Manager manages Kubernetes client connections
 type Manager struct {
-	clients map[string]*Client
-	mu      sync.RWMutex
-	logger  *zap.SugaredLogger
+	clients   map[string]*Client
+	mu        sync.RWMutex
+	logger    *zap.SugaredLogger
+	encryptor *crypto.Encryptor
+}
+
+// ManagerOption is a functional option for Manager
+type ManagerOption func(*Manager)
+
+// WithEncryptor sets the encryptor for the manager
+func WithEncryptor(encryptor *crypto.Encryptor) ManagerOption {
+	return func(m *Manager) {
+		m.encryptor = encryptor
+	}
 }
 
 // Client wraps kubernetes clientset with additional functionality
@@ -59,11 +69,17 @@ type DiscoveredNode struct {
 }
 
 // NewManager creates a new Kubernetes client manager
-func NewManager(logger *zap.SugaredLogger) *Manager {
-	return &Manager{
+func NewManager(logger *zap.SugaredLogger, opts ...ManagerOption) *Manager {
+	m := &Manager{
 		clients: make(map[string]*Client),
 		logger:  logger,
 	}
+	
+	for _, opt := range opts {
+		opt(m)
+	}
+	
+	return m
 }
 
 // GetClient returns a Kubernetes client for the given cluster
@@ -104,8 +120,15 @@ func (m *Manager) createClient(cluster *models.Cluster) (*Client, error) {
 	switch cluster.AuthMethod {
 	case "kubeconfig":
 		if len(cluster.KubeconfigEncrypted) > 0 {
-			// TODO: Decrypt kubeconfig
-			kubeconfig := cluster.KubeconfigEncrypted // Should be decrypted
+			// Decrypt kubeconfig if encryptor is available
+			kubeconfig := cluster.KubeconfigEncrypted
+			if m.encryptor != nil {
+				decrypted, err := m.encryptor.Decrypt(kubeconfig)
+				if err != nil {
+					return nil, fmt.Errorf("failed to decrypt kubeconfig: %w", err)
+				}
+				kubeconfig = decrypted
+			}
 			config, err = clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse kubeconfig: %w", err)
@@ -116,8 +139,15 @@ func (m *Manager) createClient(cluster *models.Cluster) (*Client, error) {
 
 	case "serviceaccount", "token":
 		if len(cluster.ServiceAccountTokenEncrypted) > 0 {
-			// TODO: Decrypt token
-			token := string(cluster.ServiceAccountTokenEncrypted) // Should be decrypted
+			// Decrypt token if encryptor is available
+			token := string(cluster.ServiceAccountTokenEncrypted)
+			if m.encryptor != nil {
+				decrypted, err := m.encryptor.DecryptToken(cluster.ServiceAccountTokenEncrypted)
+				if err != nil {
+					return nil, fmt.Errorf("failed to decrypt service account token: %w", err)
+				}
+				token = decrypted
+			}
 			config = &rest.Config{
 				Host:        cluster.APIServerURL,
 				BearerToken: token,
@@ -137,8 +167,15 @@ func (m *Manager) createClient(cluster *models.Cluster) (*Client, error) {
 
 	// Configure TLS
 	if cluster.SkipTLSVerify {
+		// SECURITY WARNING: Only use in development environments
+		m.logger.Warnw("TLS verification disabled for cluster - this is insecure", "cluster_id", cluster.ID, "cluster_name", cluster.Name)
 		config.TLSClientConfig = rest.TLSClientConfig{
 			Insecure: true,
+		}
+	} else {
+		// Ensure we verify TLS in production
+		config.TLSClientConfig = rest.TLSClientConfig{
+			Insecure: false,
 		}
 	}
 

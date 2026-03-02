@@ -165,7 +165,7 @@ sequenceDiagram
 ### 🎯 Dashboard Overview
 The main dashboard provides a comprehensive overview of your Kubernetes inventory with statistics, charts, and recent activities.
 
-![Dashboard](docs/images/dashboard.svg)
+![Dashboard](https://raw.githubusercontent.com/ozcanfpolat/kubeatlas/main/docs/images/dashboard.svg)
 
 <details>
 <summary>📊 Click to view Dashboard UI Details</summary>

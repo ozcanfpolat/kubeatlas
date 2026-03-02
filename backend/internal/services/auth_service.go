@@ -20,12 +20,19 @@ var (
 )
 
 type AuthService struct {
-	userRepo *repositories.UserRepository
-	logger   *zap.SugaredLogger
+	userRepo        *repositories.UserRepository
+	logger          *zap.SugaredLogger
+	jwtSecret       string
+	expirationHours int
 }
 
-func NewAuthService(userRepo *repositories.UserRepository, logger *zap.SugaredLogger) *AuthService {
-	return &AuthService{userRepo: userRepo, logger: logger}
+func NewAuthService(userRepo *repositories.UserRepository, logger *zap.SugaredLogger, jwtSecret string, expirationHours int) *AuthService {
+	return &AuthService{
+		userRepo:        userRepo,
+		logger:          logger,
+		jwtSecret:       jwtSecret,
+		expirationHours: expirationHours,
+	}
 }
 
 type Claims struct {
@@ -48,7 +55,7 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-func (s *AuthService) Login(ctx context.Context, orgID uuid.UUID, req LoginRequest, jwtSecret string, expirationHours int) (*TokenPair, *models.User, error) {
+func (s *AuthService) Login(ctx context.Context, orgID uuid.UUID, req LoginRequest) (*TokenPair, *models.User, error) {
 	user, err := s.userRepo.GetByEmail(ctx, orgID, req.Email)
 	if err != nil {
 		return nil, nil, err
@@ -65,7 +72,7 @@ func (s *AuthService) Login(ctx context.Context, orgID uuid.UUID, req LoginReque
 
 	s.userRepo.UpdateLastLogin(ctx, user.ID)
 
-	tokens, err := s.GenerateTokens(user, jwtSecret, expirationHours)
+	tokens, err := s.GenerateTokens(user, s.jwtSecret, s.expirationHours)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -143,8 +150,8 @@ func (s *AuthService) ValidateToken(tokenString, jwtSecret string) (*Claims, err
 	return claims, nil
 }
 
-func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenString, jwtSecret string, expirationHours int) (*TokenPair, error) {
-	claims, err := s.ValidateToken(refreshTokenString, jwtSecret)
+func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenString string) (*TokenPair, error) {
+	claims, err := s.ValidateToken(refreshTokenString, s.jwtSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +171,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenString, jwtS
 		return nil, ErrUserInactive
 	}
 
-	return s.GenerateTokens(user, jwtSecret, expirationHours)
+	return s.GenerateTokens(user, s.jwtSecret, s.expirationHours)
 }
 
 func (s *AuthService) GetUserFromToken(ctx context.Context, claims *Claims) (*models.User, error) {

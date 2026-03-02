@@ -53,9 +53,9 @@ func SetupRouter(svc *services.Services, logger *zap.SugaredLogger, jwtSecret st
 			users.GET("/me", handlers.GetCurrentUser(svc))
 			users.GET("", handlers.ListUsers(svc))
 			users.GET("/:id", handlers.GetUser(svc))
-			users.POST("", middleware.RoleRequired("admin"), handlers.CreateUser(svc))
-			users.PUT("/:id", middleware.RoleRequired("admin", "editor"), handlers.UpdateUser(svc))
-			users.DELETE("/:id", middleware.RoleRequired("admin"), handlers.DeleteUser(svc))
+			users.POST("", middleware.RequireRole("admin"), handlers.CreateUser(svc))
+			users.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateUser(svc))
+			users.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteUser(svc))
 		}
 
 		// Dashboard
@@ -73,10 +73,10 @@ func SetupRouter(svc *services.Services, logger *zap.SugaredLogger, jwtSecret st
 			clusters.GET("/stats", handlers.GetClusterStats(svc))
 			clusters.GET("/:id", handlers.GetCluster(svc))
 			clusters.GET("/:id/namespaces", handlers.ListClusterNamespaces(svc))
-			clusters.POST("", middleware.RoleRequired("admin", "editor"), handlers.CreateCluster(svc))
-			clusters.PUT("/:id", middleware.RoleRequired("admin", "editor"), handlers.UpdateCluster(svc))
-			clusters.POST("/:id/sync", middleware.RoleRequired("admin", "editor"), handlers.SyncCluster(svc))
-			clusters.DELETE("/:id", middleware.RoleRequired("admin"), handlers.DeleteCluster(svc))
+			clusters.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateCluster(svc))
+			clusters.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateCluster(svc))
+			clusters.POST("/:id/sync", middleware.RequireRole("admin", "editor"), handlers.SyncCluster(svc))
+			clusters.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteCluster(svc))
 		}
 
 		// Namespaces
@@ -84,7 +84,7 @@ func SetupRouter(svc *services.Services, logger *zap.SugaredLogger, jwtSecret st
 		{
 			namespaces.GET("", handlers.ListNamespaces(svc))
 			namespaces.GET("/:id", handlers.GetNamespace(svc))
-			namespaces.PUT("/:id", middleware.RoleRequired("admin", "editor"), handlers.UpdateNamespace(svc))
+			namespaces.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateNamespace(svc))
 			namespaces.GET("/:id/dependencies", handlers.ListNamespaceDependencies(svc))
 			namespaces.GET("/:id/documents", handlers.ListNamespaceDocuments(svc))
 			namespaces.GET("/:id/history", handlers.ListNamespaceHistory(svc))
@@ -96,11 +96,11 @@ func SetupRouter(svc *services.Services, logger *zap.SugaredLogger, jwtSecret st
 			teams.GET("", handlers.ListTeams(svc))
 			teams.GET("/:id", handlers.GetTeam(svc))
 			teams.GET("/:id/members", handlers.ListTeamMembers(svc))
-			teams.POST("", middleware.RoleRequired("admin", "editor"), handlers.CreateTeam(svc))
-			teams.PUT("/:id", middleware.RoleRequired("admin", "editor"), handlers.UpdateTeam(svc))
-			teams.DELETE("/:id", middleware.RoleRequired("admin"), handlers.DeleteTeam(svc))
-			teams.POST("/:id/members", middleware.RoleRequired("admin", "editor"), handlers.AddTeamMember(svc))
-			teams.DELETE("/:id/members/:userId", middleware.RoleRequired("admin", "editor"), handlers.RemoveTeamMember(svc))
+			teams.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateTeam(svc))
+			teams.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateTeam(svc))
+			teams.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteTeam(svc))
+			teams.POST("/:id/members", middleware.RequireRole("admin", "editor"), handlers.AddTeamMember(svc))
+			teams.DELETE("/:id/members/:userId", middleware.RequireRole("admin", "editor"), handlers.RemoveTeamMember(svc))
 		}
 
 		// Business Units
@@ -108,27 +108,27 @@ func SetupRouter(svc *services.Services, logger *zap.SugaredLogger, jwtSecret st
 		{
 			businessUnits.GET("", handlers.ListBusinessUnits(svc))
 			businessUnits.GET("/:id", handlers.GetBusinessUnit(svc))
-			businessUnits.POST("", middleware.RoleRequired("admin"), handlers.CreateBusinessUnit(svc))
-			businessUnits.PUT("/:id", middleware.RoleRequired("admin"), handlers.UpdateBusinessUnit(svc))
-			businessUnits.DELETE("/:id", middleware.RoleRequired("admin"), handlers.DeleteBusinessUnit(svc))
+			businessUnits.POST("", middleware.RequireRole("admin"), handlers.CreateBusinessUnit(svc))
+			businessUnits.PUT("/:id", middleware.RequireRole("admin"), handlers.UpdateBusinessUnit(svc))
+			businessUnits.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteBusinessUnit(svc))
 		}
 
 		// Internal Dependencies
 		internalDeps := protected.Group("/dependencies/internal")
 		{
 			internalDeps.GET("", handlers.ListInternalDependencies(svc))
-			internalDeps.POST("", middleware.RoleRequired("admin", "editor"), handlers.CreateInternalDependency(svc))
-			internalDeps.PUT("/:id", middleware.RoleRequired("admin", "editor"), handlers.UpdateInternalDependency(svc))
-			internalDeps.DELETE("/:id", middleware.RoleRequired("admin", "editor"), handlers.DeleteInternalDependency(svc))
+			internalDeps.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateInternalDependency(svc))
+			internalDeps.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateInternalDependency(svc))
+			internalDeps.DELETE("/:id", middleware.RequireRole("admin", "editor"), handlers.DeleteInternalDependency(svc))
 		}
 
 		// External Dependencies
 		externalDeps := protected.Group("/dependencies/external")
 		{
 			externalDeps.GET("", handlers.ListExternalDependencies(svc))
-			externalDeps.POST("", middleware.RoleRequired("admin", "editor"), handlers.CreateExternalDependency(svc))
-			externalDeps.PUT("/:id", middleware.RoleRequired("admin", "editor"), handlers.UpdateExternalDependency(svc))
-			externalDeps.DELETE("/:id", middleware.RoleRequired("admin", "editor"), handlers.DeleteExternalDependency(svc))
+			externalDeps.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateExternalDependency(svc))
+			externalDeps.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateExternalDependency(svc))
+			externalDeps.DELETE("/:id", middleware.RequireRole("admin", "editor"), handlers.DeleteExternalDependency(svc))
 		}
 
 		// Dependency Graph
@@ -141,9 +141,9 @@ func SetupRouter(svc *services.Services, logger *zap.SugaredLogger, jwtSecret st
 			documents.GET("/categories", handlers.ListDocumentCategories(svc))
 			documents.GET("/:id", handlers.GetDocument(svc))
 			documents.GET("/:id/download", handlers.DownloadDocument(svc))
-			documents.POST("", middleware.RoleRequired("admin", "editor"), handlers.UploadDocument(svc))
-			documents.PUT("/:id", middleware.RoleRequired("admin", "editor"), handlers.UpdateDocument(svc))
-			documents.DELETE("/:id", middleware.RoleRequired("admin", "editor"), handlers.DeleteDocument(svc))
+			documents.POST("", middleware.RequireRole("admin", "editor"), handlers.UploadDocument(svc))
+			documents.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateDocument(svc))
+			documents.DELETE("/:id", middleware.RequireRole("admin", "editor"), handlers.DeleteDocument(svc))
 		}
 
 		// Reports
@@ -166,7 +166,7 @@ func SetupRouter(svc *services.Services, logger *zap.SugaredLogger, jwtSecret st
 		settings := protected.Group("/settings")
 		{
 			settings.GET("", handlers.GetSettings(svc))
-			settings.PUT("", middleware.RoleRequired("admin"), handlers.UpdateSettings(svc))
+			settings.PUT("", middleware.RequireRole("admin"), handlers.UpdateSettings(svc))
 		}
 	}
 

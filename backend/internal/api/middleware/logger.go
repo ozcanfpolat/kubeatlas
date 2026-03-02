@@ -117,6 +117,49 @@ func Recovery(logger *zap.SugaredLogger) gin.HandlerFunc {
 		defer func() {
 			if err := recover(); err != nil {
 				requestID := GetRequestID(c)
+				logger.Errorw("Panic recovered",
+					"request_id", requestID,
+					"error", err,
+					"path", c.Request.URL.Path,
+				)
+				c.AbortWithStatusJSON(500, gin.H{
+					"error":   "Internal Server Error",
+					"message": "An unexpected error occurred",
+				})
+			}
+		}()
+		c.Next()
+	}
+}
+
+// CORS returns a middleware that handles CORS
+func CORS(origins []string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+		
+		// Check if origin is allowed
+		allowed := false
+		for _, o := range origins {
+			if o == "*" || o == origin {
+				allowed = true
+				break
+			}
+		}
+		
+		if allowed {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Request-ID")
+			c.Header("Access-Control-Expose-Headers", "Content-Length, X-Request-ID")
+			c.Header("Access-Control-Allow-Credentials", "true")
+		}
+		
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		
+		c.Next()
 				
 				logger.Errorw("Panic recovered",
 					"request_id", requestID,

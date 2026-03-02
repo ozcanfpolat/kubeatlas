@@ -37,7 +37,7 @@ type Repositories struct {
 }
 
 // New creates a new Services instance
-func New(pool *pgxpool.Pool, k8sManager *k8s.Manager, logger *zap.SugaredLogger) *Services {
+func New(pool *pgxpool.Pool, k8sManager *k8s.Manager, logger *zap.SugaredLogger, jwtSecret string, jwtExpirationHours int) *Services {
 	repos := &Repositories{
 		Cluster:            repositories.NewClusterRepository(pool),
 		Namespace:          repositories.NewNamespaceRepository(pool),
@@ -55,7 +55,7 @@ func New(pool *pgxpool.Pool, k8sManager *k8s.Manager, logger *zap.SugaredLogger)
 	return &Services{
 		Repos:        repos,
 		Audit:        auditSvc,
-		Auth:         NewAuthService(repos.User, logger),
+		Auth:         NewAuthService(repos.User, logger, jwtSecret, jwtExpirationHours),
 		Team:         NewTeamService(repos.Team, auditSvc, logger),
 		User:         NewUserService(repos.User, auditSvc, logger),
 		BusinessUnit: NewBusinessUnitService(repos.BusinessUnit, auditSvc, logger),

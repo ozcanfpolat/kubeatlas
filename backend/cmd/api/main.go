@@ -60,7 +60,7 @@ func main() {
 	k8sManager := k8s.NewManager(sugar)
 
 	// Initialize services
-	svc := services.New(db, k8sManager, sugar)
+	svc := services.New(db.Pool, k8sManager, sugar, cfg.JWT.Secret, cfg.JWT.ExpirationHours)
 
 	// Initialize Gin router
 	if cfg.Server.Mode == "release" {

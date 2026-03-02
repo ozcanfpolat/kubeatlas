@@ -1,3 +1,7 @@
+{{/*
+ConfigMap for KubeAtlas configuration
+Non-sensitive configuration values
+*/}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -5,73 +9,91 @@ metadata:
   labels:
     {{- include "kubeatlas.labels" . | nindent 4 }}
 data:
-  LOG_LEVEL: {{ .Values.api.logLevel | quote }}
-  LOG_FORMAT: {{ .Values.api.logFormat | quote }}
-  CORS_ORIGINS: {{ .Values.api.corsOrigins | quote }}
-  {{- if .Values.auth.ldap.enabled }}
-  LDAP_ENABLED: "true"
-  LDAP_HOST: {{ .Values.auth.ldap.host | quote }}
-  LDAP_PORT: {{ .Values.auth.ldap.port | quote }}
-  LDAP_BASE_DN: {{ .Values.auth.ldap.baseDN | quote }}
-  LDAP_USER_DN: {{ .Values.auth.ldap.userDN | quote }}
-  {{- end }}
-  {{- if .Values.auth.oidc.enabled }}
-  OIDC_ENABLED: "true"
-  OIDC_ISSUER: {{ .Values.auth.oidc.issuer | quote }}
-  OIDC_CLIENT_ID: {{ .Values.auth.oidc.clientID | quote }}
-  {{- end }}
-  STORAGE_TYPE: {{ .Values.storage.type | quote }}
-  {{- if eq .Values.storage.type "local" }}
-  STORAGE_LOCAL_PATH: {{ .Values.storage.local.path | quote }}
-  {{- end }}
-  {{- if eq .Values.storage.type "s3" }}
+  # Server configuration
+  SERVER_MODE: {{ .Values.api.env.SERVER_MODE | default "release" | quote }}
+  SERVER_PORT: {{ .Values.api.env.SERVER_PORT | default "8080" | quote }}
+  
+  # Logging configuration
+  LOG_LEVEL: {{ .Values.api.env.LOG_LEVEL | default "info" | quote }}
+  LOG_FORMAT: {{ .Values.api.env.LOG_FORMAT | default "json" | quote }}
+  
+  # CORS configuration
+  CORS_ORIGINS: {{ printf "https://%s,https://%s" .Values.global.domain .Values.global.domain | quote }}
+  
+  # Database configuration (non-sensitive)
+  DB_SSLMODE: {{ .Values.api.env.DB_SSLMODE | default "require" | quote }}
+  DB_MAX_CONNS: {{ .Values.api.env.DB_MAX_CONNS | default "25" | quote }}
+  
+  # JWT configuration (non-sensitive)
+  JWT_EXPIRATION_HOURS: {{ .Values.api.env.JWT_EXPIRATION_HOURS | default "24" | quote }}
+  JWT_REFRESH_HOURS: {{ .Values.api.env.JWT_REFRESH_HOURS | default "168" | quote }}
+  
+  # Storage configuration
+  STORAGE_TYPE: {{ .Values.api.env.STORAGE_TYPE | default "local" | quote }}
+  STORAGE_LOCAL_PATH: {{ .Values.api.env.STORAGE_LOCAL_PATH | default "/app/data" | quote }}
+  
+  {{- if eq .Values.api.env.STORAGE_TYPE "s3" }}
+  # S3 Storage configuration
   STORAGE_S3_BUCKET: {{ .Values.storage.s3.bucket | quote }}
   STORAGE_S3_REGION: {{ .Values.storage.s3.region | quote }}
   STORAGE_S3_ENDPOINT: {{ .Values.storage.s3.endpoint | quote }}
   {{- end }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ include "kubeatlas.fullname" . }}-db
-  labels:
-    {{- include "kubeatlas.labels" . | nindent 4 }}
-type: Opaque
-data:
-  username: {{ .Values.postgresql.username | b64enc | quote }}
-  password: {{ .Values.postgresql.password | b64enc | quote }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ include "kubeatlas.fullname" . }}-jwt
-  labels:
-    {{- include "kubeatlas.labels" . | nindent 4 }}
-type: Opaque
-data:
-  secret: {{ .Values.api.jwtSecret | b64enc | quote }}
-{{- if .Values.auth.ldap.enabled }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ include "kubeatlas.fullname" . }}-ldap
-  labels:
-    {{- include "kubeatlas.labels" . | nindent 4 }}
-type: Opaque
-data:
-  bind-dn: {{ .Values.auth.ldap.bindDN | b64enc | quote }}
-  bind-password: {{ .Values.auth.ldap.bindPassword | b64enc | quote }}
-{{- end }}
-{{- if .Values.auth.oidc.enabled }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ include "kubeatlas.fullname" . }}-oidc
-  labels:
-    {{- include "kubeatlas.labels" . | nindent 4 }}
-type: Opaque
-data:
-  client-secret: {{ .Values.auth.oidc.clientSecret | b64enc | quote }}
-{{- end }}
+  
+  {{- if eq .Values.api.env.STORAGE_TYPE "azure" }}
+  # Azure Storage configuration
+  STORAGE_AZURE_ACCOUNT: {{ .Values.storage.azure.accountName | quote }}
+  STORAGE_AZURE_CONTAINER: {{ .Values.storage.azure.containerName | quote }}
+  {{- end }}
+  
+  {{- if eq .Values.api.env.STORAGE_TYPE "gcs" }}
+  # GCS Storage configuration
+  STORAGE_GCS_BUCKET: {{ .Values.storage.gcs.bucket | quote }}
+  STORAGE_GCS_PROJECT: {{ .Values.storage.gcs.projectID | quote }}
+  {{- end }}
+  
+  # LDAP configuration (if enabled)
+  {{- if .Values.auth.ldap.enabled }}
+  LDAP_ENABLED: "true"
+  LDAP_HOST: {{ .Values.auth.ldap.host | quote }}
+  LDAP_PORT: {{ .Values.auth.ldap.port | quote }}
+  LDAP_TLS: {{ .Values.auth.ldap.tls | quote }}
+  LDAP_BASE_DN: {{ .Values.auth.ldap.baseDN | quote }}
+  LDAP_USER_DN: {{ .Values.auth.ldap.userDN | quote }}
+  LDAP_BIND_DN: {{ .Values.auth.ldap.bindDN | quote }}
+  {{- else }}
+  LDAP_ENABLED: "false"
+  {{- end }}
+  
+  # OIDC configuration (if enabled)
+  {{- if .Values.auth.oidc.enabled }}
+  OIDC_ENABLED: "true"
+  OIDC_ISSUER: {{ .Values.auth.oidc.issuer | quote }}
+  OIDC_CLIENT_ID: {{ .Values.auth.oidc.clientID | quote }}
+  OIDC_REDIRECT_URL: {{ .Values.auth.oidc.redirectURL | quote }}
+  OIDC_SCOPES: {{ join "," .Values.auth.oidc.scopes | quote }}
+  {{- else }}
+  OIDC_ENABLED: "false"
+  {{- end }}
+  
+  # Redis configuration (if enabled)
+  {{- if .Values.redis.enabled }}
+  REDIS_ENABLED: "true"
+  {{- else }}
+  REDIS_ENABLED: "false"
+  {{- end }}
+  
+  # Feature flags
+  FEATURE_AUDIT_LOGGING: "true"
+  FEATURE_DOCUMENT_STORAGE: "true"
+  FEATURE_DEPENDENCY_GRAPH: "true"
+  FEATURE_REPORTING: "true"
+  
+  # Rate limiting
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_REQUESTS_PER_MINUTE: "100"
+  
+  # Session configuration
+  SESSION_TIMEOUT_MINUTES: "60"
+  
+  # UI Configuration
+  UI_API_URL: {{ printf "https://%s/api" .Values.global.domain | quote }}

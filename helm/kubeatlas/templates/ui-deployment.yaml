@@ -9,16 +9,23 @@ spec:
   {{- if not .Values.ui.autoscaling.enabled }}
   replicas: {{ .Values.ui.replicaCount }}
   {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 50%
+      maxUnavailable: 0
   selector:
     matchLabels:
       {{- include "kubeatlas.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: ui
   template:
     metadata:
-      {{- with .Values.ui.podAnnotations }}
       annotations:
+        # Force redeployment on config changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.ui.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "kubeatlas.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: ui
@@ -27,42 +34,111 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      
       serviceAccountName: {{ include "kubeatlas.serviceAccountName" . }}
+      
       securityContext:
         {{- toYaml .Values.ui.podSecurityContext | nindent 8 }}
+      
       containers:
         - name: ui
           securityContext:
             {{- toYaml .Values.ui.securityContext | nindent 12 }}
+          
           image: "{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.ui.image.pullPolicy }}
+          
           ports:
             - name: http
-              containerPort: 3000
+              containerPort: 80
               protocol: TCP
+          
+          # Environment variables
+          env:
+            - name: NGINX_WORKER_PROCESSES
+              value: {{ .Values.ui.env.NGINX_WORKER_PROCESSES | quote }}
+            - name: NGINX_WORKER_CONNECTIONS
+              value: {{ .Values.ui.env.NGINX_WORKER_CONNECTIONS | quote }}
+            - name: API_URL
+              value: "http://{{ include "kubeatlas.fullname" . }}-api:{{ .Values.api.service.port }}"
+            - name: API_BASE_URL
+              value: "/api"
+            
+            # Extra environment variables
+            {{- with .Values.ui.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          
+          # Health checks
+          {{- if .Values.ui.livenessProbe.enabled }}
           livenessProbe:
             httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 30
+              path: {{ .Values.ui.livenessProbe.httpGet.path }}
+              port: {{ .Values.ui.livenessProbe.httpGet.port }}
+            initialDelaySeconds: {{ .Values.ui.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.ui.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.ui.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.ui.livenessProbe.failureThreshold }}
+          {{- end }}
+          
+          {{- if .Values.ui.readinessProbe.enabled }}
           readinessProbe:
             httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 3
-            periodSeconds: 10
+              path: {{ .Values.ui.readinessProbe.httpGet.path }}
+              port: {{ .Values.ui.readinessProbe.httpGet.port }}
+            initialDelaySeconds: {{ .Values.ui.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.ui.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.ui.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.ui.readinessProbe.failureThreshold }}
+          {{- end }}
+          
+          # Resource limits
           resources:
             {{- toYaml .Values.ui.resources | nindent 12 }}
+          
+          # Volume mounts
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
+      
+      # Volumes
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi
+        - name: cache
+          emptyDir:
+            sizeLimit: 100Mi
+        - name: run
+          emptyDir:
+            sizeLimit: 10Mi
+      
+      # Scheduling
       {{- with .Values.ui.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.ui.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      
       {{- with .Values.ui.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      
+      {{- with .Values.ui.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      
+      # Topology spread for high availability
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "kubeatlas.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: ui

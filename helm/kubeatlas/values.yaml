@@ -1,5 +1,5 @@
 # ============================================
-# KubeAtlas Helm Chart Values
+# KubeAtlas Production Helm Chart Values
 # ============================================
 
 # Global settings
@@ -11,21 +11,30 @@ global:
   tls:
     enabled: true
     secretName: kubeatlas-tls
-    # Use cert-manager to generate certificates
     certManager:
       enabled: false
       issuer: letsencrypt-prod
   
-  # Image pull secrets
+  # Image pull secrets for private registries
   imagePullSecrets: []
   
   # Storage class for persistent volumes
   storageClass: ""
+  
+  # Node selector for all components
+  nodeSelector: {}
+  
+  # Tolerations for all components
+  tolerations: []
+  
+  # Affinity for all components
+  affinity: {}
 
 # ============================================
-# API Server
+# API Server Configuration
 # ============================================
 api:
+  enabled: true
   replicaCount: 2
   
   image:
@@ -36,55 +45,166 @@ api:
   service:
     type: ClusterIP
     port: 8080
+    annotations: {}
   
   resources:
     requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 500m
+      cpu: 250m
       memory: 512Mi
+      ephemeral-storage: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+      ephemeral-storage: 2Gi
   
-  # Pod configuration
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
+  # Pod Security Context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
   
-  # Environment variables
-  env:
-    SERVER_MODE: "release"
-    JWT_EXPIRATION_HOURS: "24"
+  # Container Security Context
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
   
-  # Extra environment variables from secrets
-  envFromSecrets:
-    - kubeatlas-secrets
-  
-  # Health check configuration
+  # Health checks
   livenessProbe:
+    enabled: true
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  readinessProbe:
+    enabled: true
+    httpGet:
+      path: /ready
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  
+  startupProbe:
+    enabled: true
     httpGet:
       path: /health
       port: http
     initialDelaySeconds: 10
     periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
   
-  readinessProbe:
-    httpGet:
-      path: /ready
-      port: http
-    initialDelaySeconds: 5
-    periodSeconds: 5
+  # Environment variables
+  env:
+    SERVER_MODE: "release"
+    SERVER_PORT: "8080"
+    LOG_LEVEL: "info"
+    LOG_FORMAT: "json"
+    DB_SSLMODE: "require"
+    DB_MAX_CONNS: "25"
+    JWT_EXPIRATION_HOURS: "24"
+    JWT_REFRESH_HOURS: "168"
+    STORAGE_TYPE: "local"
+    STORAGE_LOCAL_PATH: "/app/data"
+  
+  # Extra environment variables
+  extraEnv: []
+  
+  # Environment variables from secrets
+  envFromSecrets:
+    - kubeatlas-jwt
+    - kubeatlas-db
+  
+  # Pod annotations
+  podAnnotations: {}
+  
+  # Node selector
+  nodeSelector: {}
+  
+  # Tolerations
+  tolerations: []
+  
+  # Affinity
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - api
+            topologyKey: kubernetes.io/hostname
   
   # Autoscaling
   autoscaling:
     enabled: false
     minReplicas: 2
     maxReplicas: 10
-    targetCPUUtilizationPercentage: 80
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+    behavior:
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+          - type: Percent
+            value: 10
+            periodSeconds: 60
+      scaleUp:
+        stabilizationWindowSeconds: 0
+        policies:
+          - type: Percent
+            value: 100
+            periodSeconds: 15
+          - type: Pods
+            value: 4
+            periodSeconds: 15
+        selectPolicy: Max
+  
+  # Pod Disruption Budget
+  pdb:
+    enabled: true
+    minAvailable: 1
+    maxUnavailable: ""
+  
+  # Network Policy
+  networkPolicy:
+    enabled: true
+    ingressRules:
+      - from:
+          - namespaceSelector: {}
+        ports:
+          - protocol: TCP
+            port: 8080
+  
+  # Volume mounts for persistence
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 10Gi
+    annotations: {}
 
 # ============================================
-# UI (Frontend)
+# UI (Frontend) Configuration
 # ============================================
 ui:
+  enabled: true
   replicaCount: 2
   
   image:
@@ -95,129 +215,285 @@ ui:
   service:
     type: ClusterIP
     port: 80
-  
-  resources:
-    requests:
-      cpu: 50m
-      memory: 64Mi
-    limits:
-      cpu: 200m
-      memory: 128Mi
-  
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-
-# ============================================
-# Kubernetes Agent
-# ============================================
-agent:
-  enabled: true
-  
-  image:
-    repository: ghcr.io/kubeatlas/kubeatlas-agent
-    tag: "1.0.0"
-    pullPolicy: IfNotPresent
-  
-  # Sync interval in minutes
-  syncInterval: 5
-  
-  resources:
-    requests:
-      cpu: 50m
-      memory: 64Mi
-    limits:
-      cpu: 200m
-      memory: 256Mi
-  
-  # Service account for Kubernetes API access
-  serviceAccount:
-    create: true
-    name: kubeatlas-agent
     annotations: {}
   
-  # RBAC configuration
-  rbac:
-    create: true
-    # Additional cluster role rules
-    extraRules: []
-
-# ============================================
-# PostgreSQL Database
-# ============================================
-postgresql:
-  # Set to false to use external database
-  enabled: true
-  
-  # PostgreSQL image
-  image:
-    repository: postgres
-    tag: "14-alpine"
-  
-  # Database credentials
-  auth:
-    username: kubeatlas
-    password: "" # Will be auto-generated if empty
-    database: kubeatlas
-    existingSecret: "" # Use existing secret for credentials
-  
-  # Storage
-  persistence:
-    enabled: true
-    size: 10Gi
-    storageClass: ""
-  
-  # Resources
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
+      memory: 128Mi
+      ephemeral-storage: 256Mi
     limits:
       cpu: 500m
-      memory: 512Mi
+      memory: 256Mi
+      ephemeral-storage: 512Mi
   
-  # Primary configuration
-  primary:
-    nodeSelector: {}
-    tolerations: []
-    affinity: {}
-
-# External database configuration (when postgresql.enabled=false)
-externalDatabase:
-  host: ""
-  port: 5432
-  username: kubeatlas
-  password: ""
-  database: kubeatlas
-  sslMode: require
-  existingSecret: ""
-  existingSecretPasswordKey: password
+  # Pod Security Context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 101
+    runAsGroup: 101
+    fsGroup: 101
+    seccompProfile:
+      type: RuntimeDefault
+  
+  # Container Security Context
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
+  
+  # Health checks
+  livenessProbe:
+    enabled: true
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  
+  readinessProbe:
+    enabled: true
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  
+  # Environment variables
+  env:
+    NGINX_WORKER_PROCESSES: "auto"
+    NGINX_WORKER_CONNECTIONS: "1024"
+  
+  # Extra environment variables
+  extraEnv: []
+  
+  # Pod annotations
+  podAnnotations: {}
+  
+  # Node selector
+  nodeSelector: {}
+  
+  # Tolerations
+  tolerations: []
+  
+  # Affinity
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - ui
+            topologyKey: kubernetes.io/hostname
+  
+  # Autoscaling
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  
+  # Pod Disruption Budget
+  pdb:
+    enabled: true
+    minAvailable: 1
 
 # ============================================
-# Redis Cache
+# Database Migration Job
 # ============================================
-redis:
+migration:
   enabled: true
-  
   image:
-    repository: redis
-    tag: "7-alpine"
-  
-  auth:
-    enabled: false
-    password: ""
-  
-  persistence:
-    enabled: false
-    size: 1Gi
+    repository: ghcr.io/kubeatlas/kubeatlas-migrate
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
   
   resources:
     requests:
-      cpu: 50m
-      memory: 64Mi
+      cpu: 100m
+      memory: 128Mi
     limits:
-      cpu: 200m
+      cpu: 500m
       memory: 256Mi
+  
+  # Job settings
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  activeDeadlineSeconds: 300
+  
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+# ============================================
+# PostgreSQL Configuration (Bitnami Subchart)
+# ============================================
+postgresql:
+  enabled: true
+  
+  auth:
+    username: kubeatlas
+    password: "change-me-in-production"
+    database: kubeatlas
+    existingSecret: ""
+  
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClass: ""
+    
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+    
+    podSecurityContext:
+      enabled: true
+      fsGroup: 1001
+    
+    containerSecurityContext:
+      enabled: true
+      runAsUser: 1001
+      runAsNonRoot: true
+    
+    # Enable metrics for Prometheus
+    metrics:
+      enabled: false
+      serviceMonitor:
+        enabled: false
+  
+  # Backup configuration
+  backup:
+    enabled: false
+    cronjob:
+      schedule: "0 2 * * *"
+      storage:
+        size: 10Gi
+
+# ============================================
+# External Database (when postgresql.enabled=false)
+# ============================================
+externalDatabase:
+  host: ""
+  port: 5432
+  database: kubeatlas
+  username: kubeatlas
+  password: ""
+  existingSecret: ""
+  sslMode: require
+
+# ============================================
+# Redis Configuration (for caching/sessions)
+# ============================================
+redis:
+  enabled: false
+  
+  auth:
+    enabled: true
+    password: ""
+    existingSecret: ""
+  
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+    
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+# ============================================
+# External Redis (when redis.enabled=false)
+# ============================================
+externalRedis:
+  host: ""
+  port: 6379
+  password: ""
+  existingSecret: ""
+
+# ============================================
+# Authentication Configuration
+# ============================================
+auth:
+  jwt:
+    secret: ""
+    existingSecret: "kubeatlas-jwt"
+    secretKey: "secret"
+  
+  ldap:
+    enabled: false
+    host: ""
+    port: 636
+    tls: true
+    baseDN: ""
+    userDN: ""
+    bindDN: ""
+    bindPassword: ""
+    existingSecret: ""
+  
+  oidc:
+    enabled: false
+    issuer: ""
+    clientID: ""
+    clientSecret: ""
+    existingSecret: ""
+    redirectURL: ""
+    scopes:
+      - openid
+      - email
+      - profile
+
+# ============================================
+# Storage Configuration
+# ============================================
+storage:
+  type: local  # Options: local, s3, azure, gcs
+  
+  local:
+    path: /app/data
+  
+  s3:
+    bucket: ""
+    region: ""
+    endpoint: ""
+    existingSecret: ""
+    accessKey: ""
+    secretKey: ""
+  
+  azure:
+    accountName: ""
+    containerName: ""
+    existingSecret: ""
+  
+  gcs:
+    bucket: ""
+    projectID: ""
+    existingSecret: ""
 
 # ============================================
 # Ingress Configuration
@@ -225,133 +501,114 @@ redis:
 ingress:
   enabled: true
   className: nginx
-  
   annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
   
-  # Additional hosts
-  hosts: []
-  #  - host: kubeatlas.example.com
-  #    paths:
-  #      - path: /
-  #        pathType: Prefix
-
-# OpenShift Route (alternative to Ingress)
-route:
-  enabled: false
-  annotations: {}
+  hosts:
+    - host: kubeatlas.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  
   tls:
-    termination: edge
-    insecureEdgeTerminationPolicy: Redirect
+    - secretName: kubeatlas-tls
+      hosts:
+        - kubeatlas.example.com
 
 # ============================================
-# File Storage
+# OpenShift Route Configuration
 # ============================================
-storage:
-  # Storage type: local, s3, minio
-  type: local
-  
-  # Local storage
-  local:
-    persistence:
+openshift:
+  route:
+    enabled: false
+    host: ""
+    annotations: {}
+    tls:
       enabled: true
-      size: 10Gi
-      storageClass: ""
-      accessMode: ReadWriteOnce
-  
-  # S3 storage
-  s3:
-    bucket: ""
-    region: ""
-    endpoint: ""
-    accessKey: ""
-    secretKey: ""
-    existingSecret: ""
+      termination: edge
+      insecureEdgeTerminationPolicy: Redirect
 
 # ============================================
-# Authentication
+# Service Account
 # ============================================
-auth:
-  # JWT configuration
-  jwt:
-    # Secret key for JWT signing (auto-generated if empty)
-    secret: ""
-    existingSecret: ""
-    existingSecretKey: jwt-secret
-  
-  # LDAP/AD configuration
-  ldap:
-    enabled: false
-    url: ""
-    bindDN: ""
-    bindPassword: ""
-    baseDN: ""
-    userFilter: "(uid=%s)"
-    groupFilter: "(member=%s)"
-    existingSecret: ""
-  
-  # OIDC configuration
-  oidc:
-    enabled: false
-    issuerUrl: ""
-    clientId: ""
-    clientSecret: ""
-    existingSecret: ""
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
 
 # ============================================
-# Monitoring
+# RBAC Configuration
+# ============================================
+rbac:
+  create: true
+  rules: []
+
+# ============================================
+# Monitoring & Observability
 # ============================================
 monitoring:
   # Prometheus ServiceMonitor
   serviceMonitor:
     enabled: false
+    namespace: ""
     interval: 30s
+    scrapeTimeout: 10s
     labels: {}
   
-  # Grafana dashboard ConfigMap
-  grafanaDashboard:
+  # PrometheusRule for alerts
+  prometheusRule:
     enabled: false
-    labels:
-      grafana_dashboard: "1"
+    namespace: ""
+    labels: {}
+    rules: []
+  
+  # Grafana dashboards
+  grafana:
+    enabled: false
+    sidecar:
+      enabled: false
+      label: grafana_dashboard
+      folder: KubeAtlas
 
 # ============================================
-# Security
+# Network Policies
 # ============================================
-podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
-  fsGroup: 1000
-
-securityContext:
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-      - ALL
-  readOnlyRootFilesystem: true
-
-# Network policies
 networkPolicy:
-  enabled: false
-  # Additional ingress rules
-  ingress: []
-  # Additional egress rules  
-  egress: []
-
-# Pod Disruption Budget
-podDisruptionBudget:
-  enabled: false
-  minAvailable: 1
-  # maxUnavailable: 1
+  enabled: true
+  
+  # API server network policy
+  api:
+    ingress:
+      - from:
+          - namespaceSelector: {}
+        ports:
+          - protocol: TCP
+            port: 8080
+  
+  # Database network policy
+  database:
+    ingress:
+      - from:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/component: api
+        ports:
+          - protocol: TCP
+            port: 5432
 
 # ============================================
-# Extra Resources
+# Pod Security Standards
 # ============================================
-# Additional Kubernetes resources to create
-extraResources: []
-# - apiVersion: v1
-#   kind: ConfigMap
-#   metadata:
-#     name: extra-config
-#   data:
-#     key: value
+podSecurityStandard:
+  # Enable Pod Security Standards
+  enabled: true
+  # Level: restricted, baseline, privileged
+  level: restricted
+  # Enforce, Audit, Warn
+  enforce: true
+  audit: true
+  warn: true

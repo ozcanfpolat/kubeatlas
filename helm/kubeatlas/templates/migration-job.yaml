@@ -1,0 +1,140 @@
+{{/*
+Database Migration Job
+Runs before the API deployment to ensure database schema is up to date
+*/}}
+{{- if .Values.migration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "kubeatlas.fullname" . }}-migration-{{ .Release.Revision }}
+  labels:
+    {{- include "kubeatlas.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.migration.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.migration.ttlSecondsAfterFinished }}
+  activeDeadlineSeconds: {{ .Values.migration.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "kubeatlas.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+      annotations:
+        # Force pod recreation on every run
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+    spec:
+      restartPolicy: OnFailure
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "kubeatlas.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.migration.securityContext | nindent 8 }}
+      
+      initContainers:
+        # Wait for database to be ready
+        - name: wait-for-db
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for database to be ready..."
+              until nc -z {{ include "kubeatlas.postgresql.host" . }} 5432; do
+                echo "Database is not ready yet. Waiting..."
+                sleep 2
+              done
+              echo "Database is ready!"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+      
+      containers:
+        - name: migration
+          image: "{{ .Values.migration.image.repository }}:{{ .Values.migration.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.migration.image.pullPolicy }}
+          command:
+            - /app/kubeatlas-migrate
+          args:
+            - up
+          env:
+            # Database configuration from secret
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeatlas.fullname" . }}-db
+                  key: host
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeatlas.fullname" . }}-db
+                  key: port
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeatlas.fullname" . }}-db
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeatlas.fullname" . }}-db
+                  key: password
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeatlas.fullname" . }}-db
+                  key: database
+            - name: DB_SSLMODE
+              value: {{ .Values.externalDatabase.sslMode | quote }}
+            - name: LOG_LEVEL
+              value: "info"
+            - name: LOG_FORMAT
+              value: "json"
+          resources:
+            {{- toYaml .Values.migration.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,138 @@
+{{/*
+Prometheus ServiceMonitor for Metrics Collection
+*/}}
+{{- if and .Values.monitoring.serviceMonitor.enabled .Values.api.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "kubeatlas.fullname" . }}
+  {{- if .Values.monitoring.serviceMonitor.namespace }}
+  namespace: {{ .Values.monitoring.serviceMonitor.namespace }}
+  {{- else }}
+  namespace: {{ .Release.Namespace }}
+  {{- end }}
+  labels:
+    {{- include "kubeatlas.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "kubeatlas.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.monitoring.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout }}
+      honorLabels: true
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: 'go_.*'
+          action: drop
+{{- end }}
+
+---
+{{/*
+PrometheusRule for Alerts
+*/}}
+{{- if and .Values.monitoring.prometheusRule.enabled .Values.api.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "kubeatlas.fullname" . }}
+  {{- if .Values.monitoring.prometheusRule.namespace }}
+  namespace: {{ .Values.monitoring.prometheusRule.namespace }}
+  {{- else }}
+  namespace: {{ .Release.Namespace }}
+  {{- end }}
+  labels:
+    {{- include "kubeatlas.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: kubeatlas
+      rules:
+        # API High Error Rate
+        - alert: KubeAtlasAPIHighErrorRate
+          expr: |
+            (
+              sum(rate(http_requests_total{service="{{ include "kubeatlas.fullname" . }}-api",status=~"5.."}[5m]))
+              /
+              sum(rate(http_requests_total{service="{{ include "kubeatlas.fullname" . }}-api"}[5m]))
+            ) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            service: kubeatlas
+          annotations:
+            summary: "KubeAtlas API has high error rate"
+            description: "The error rate for KubeAtlas API is above 5% for the last 5 minutes."
+        
+        # API High Latency
+        - alert: KubeAtlasAPIHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_request_duration_seconds_bucket{service="{{ include "kubeatlas.fullname" . }}-api"}[5m])) by (le)
+            ) > 1
+          for: 5m
+          labels:
+            severity: warning
+            service: kubeatlas
+          annotations:
+            summary: "KubeAtlas API has high latency"
+            description: "The 95th percentile latency for KubeAtlas API is above 1 second."
+        
+        # API Pod Restart
+        - alert: KubeAtlasAPIPodRestarting
+          expr: |
+            rate(kube_pod_container_status_restarts_total{pod=~"{{ include "kubeatlas.fullname" . }}-api-.*"}[15m]) > 0
+          for: 5m
+          labels:
+            severity: critical
+            service: kubeatlas
+          annotations:
+            summary: "KubeAtlas API pod is restarting"
+            description: "KubeAtlas API pod has restarted in the last 15 minutes."
+        
+        # Database Connection Issues
+        - alert: KubeAtlasDatabaseConnectionFailed
+          expr: |
+            kubeatlas_database_connection_status != 1
+          for: 2m
+          labels:
+            severity: critical
+            service: kubeatlas
+          annotations:
+            summary: "KubeAtlas cannot connect to database"
+            description: "KubeAtlas API cannot establish connection to the database."
+        
+        {{- if .Values.ui.enabled }}
+        # UI High Error Rate
+        - alert: KubeAtlasUIHighErrorRate
+          expr: |
+            (
+              sum(rate(nginx_http_requests_total{service="{{ include "kubeatlas.fullname" . }}-ui",status=~"5.."}[5m]))
+              /
+              sum(rate(nginx_http_requests_total{service="{{ include "kubeatlas.fullname" . }}-ui"}[5m]))
+            ) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            service: kubeatlas
+          annotations:
+            summary: "KubeAtlas UI has high error rate"
+            description: "The error rate for KubeAtlas UI is above 5% for the last 5 minutes."
+        {{- end }}
+        
+        # Custom rules from values
+        {{- with .Values.monitoring.prometheusRule.rules }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}

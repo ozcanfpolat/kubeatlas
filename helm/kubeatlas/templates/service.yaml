@@ -1,3 +1,9 @@
+{{/*
+Services for KubeAtlas components
+*/}}
+
+---
+# API Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -5,6 +11,10 @@ metadata:
   labels:
     {{- include "kubeatlas.labels" . | nindent 4 }}
     app.kubernetes.io/component: api
+  {{- with .Values.api.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.api.service.type }}
   ports:
@@ -12,10 +22,17 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+      {{- if eq .Values.api.service.type "NodePort" }}
+      nodePort: {{ .Values.api.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "kubeatlas.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: api
+  sessionAffinity: None
+  publishNotReadyAddresses: false
+
 ---
+# UI Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -23,6 +40,10 @@ metadata:
   labels:
     {{- include "kubeatlas.labels" . | nindent 4 }}
     app.kubernetes.io/component: ui
+  {{- with .Values.ui.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.ui.service.type }}
   ports:
@@ -30,6 +51,11 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+      {{- if eq .Values.ui.service.type "NodePort" }}
+      nodePort: {{ .Values.ui.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "kubeatlas.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: ui
+  sessionAffinity: None
+  publishNotReadyAddresses: false

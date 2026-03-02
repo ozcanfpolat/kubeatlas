@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#334155;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f8fafc;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16a34a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="redGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ef4444;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="800" fill="#f1f5f9"/>
+
+  <!-- Top Navigation -->
+  <rect width="1200" height="60" fill="url(#headerGrad)"/>
+  <text x="30" y="38" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="bold">☸️ KubeAtlas</text>
+  
+  <!-- Nav Items -->
+  <text x="350" y="38" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="14">Dashboard</text>
+  <text x="450" y="38" fill="white" font-family="system-ui, sans-serif" font-size="14">Clusters</text>
+  <text x="540" y="38" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="14">Namespaces</text>
+  <text x="650" y="38" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="14">Dependencies</text>
+  <text x="770" y="38" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="14">Documents</text>
+  <text x="870" y="38" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="14">Teams</text>
+  <text x="940" y="38" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="14">Settings</text>
+  
+  <!-- User Avatar -->
+  <circle cx="1150" cy="30" r="18" fill="#3b82f6"/>
+  <text x="1150" y="35" fill="white" font-family="system-ui, sans-serif" font-size="12" text-anchor="middle">👤</text>
+
+  <!-- Sidebar -->
+  <rect x="0" y="60" width="240" height="740" fill="white"/>
+  <rect x="0" y="60" width="240" height="740" fill="url(#cardGrad)"/>
+  
+  <!-- Sidebar Menu -->
+  <rect x="15" y="80" width="210" height="40" rx="6" fill="#eff6ff"/>
+  <text x="45" y="105" fill="#3b82f6" font-family="system-ui, sans-serif" font-size="14" font-weight="600">📊 Dashboard</text>
+  
+  <text x="45" y="150" fill="#64748b" font-family="system-ui, sans-serif" font-size="14">🖥️ Clusters</text>
+  <text x="45" y="190" fill="#64748b" font-family="system-ui, sans-serif" font-size="14">📦 Namespaces</text>
+  <text x="45" y="230" fill="#64748b" font-family="system-ui, sans-serif" font-size="14">🔗 Dependencies</text>
+  <text x="45" y="270" fill="#64748b" font-family="system-ui, sans-serif" font-size="14">📄 Documents</text>
+  <text x="45" y="310" fill="#64748b" font-family="system-ui, sans-serif" font-size="14">👥 Teams</text>
+  <text x="45" y="350" fill="#64748b" font-family="system-ui, sans-serif" font-size="14">📝 Audit Logs</text>
+  <text x="45" y="390" fill="#64748b" font-family="system-ui, sans-serif" font-size="14">⚙️ Settings</text>
+
+  <!-- Main Content Area -->
+  <text x="270" y="100" fill="#1e293b" font-family="system-ui, sans-serif" font-size="28" font-weight="bold">Dashboard</text>
+  <text x="270" y="125" fill="#64748b" font-family="system-ui, sans-serif" font-size="14">Overview of your Kubernetes inventory</text>
+
+  <!-- Stats Cards -->
+  <!-- Card 1: Total Clusters -->
+  <rect x="270" y="150" width="210" height="110" rx="10" fill="white" filter="url(#shadow)"/>
+  <rect x="285" y="165" width="40" height="40" rx="8" fill="url(#blueGrad)"/>
+  <text x="305" y="192" fill="white" font-family="system-ui, sans-serif" font-size="20">🖥️</text>
+  <text x="335" y="185" fill="#64748b" font-family="system-ui, sans-serif" font-size="12">Total Clusters</text>
+  <text x="285" y="230" fill="#1e293b" font-family="system-ui, sans-serif" font-size="32" font-weight="bold">12</text>
+  <text x="285" y="248" fill="#22c55e" font-family="system-ui, sans-serif" font-size="12">● 10 active</text>
+
+  <!-- Card 2: Total Namespaces -->
+  <rect x="495" y="150" width="210" height="110" rx="10" fill="white" filter="url(#shadow)"/>
+  <rect x="510" y="165" width="40" height="40" rx="8" fill="url(#greenGrad)"/>
+  <text x="530" y="192" fill="white" font-family="system-ui, sans-serif" font-size="20">📦</text>
+  <text x="560" y="185" fill="#64748b" font-family="system-ui, sans-serif" font-size="12">Total Namespaces</text>
+  <text x="510" y="230" fill="#1e293b" font-family="system-ui, sans-serif" font-size="32" font-weight="bold">156</text>
+  <text x="510" y="248" fill="#64748b" font-family="system-ui, sans-serif" font-size="12">Across all clusters</text>
+
+  <!-- Card 3: Active Teams -->
+  <rect x="720" y="150" width="210" height="110" rx="10" fill="white" filter="url(#shadow)"/>
+  <rect x="735" y="165" width="40" height="40" rx="8" fill="url(#orangeGrad)"/>
+  <text x="755" y="192" fill="white" font-family="system-ui, sans-serif" font-size="20">👥</text>
+  <text x="785" y="185" fill="#64748b" font-family="system-ui, sans-serif" font-size="12">Active Teams</text>
+  <text x="735" y="230" fill="#1e293b" font-family="system-ui, sans-serif" font-size="32" font-weight="bold">8</text>
+  <text x="735" y="248" fill="#64748b" font-family="system-ui, sans-serif" font-size="12">Managing resources</text>
+
+  <!-- Card 4: Orphaned Namespaces -->
+  <rect x="945" y="150" width="210" height="110" rx="10" fill="white" filter="url(#shadow)"/>
+  <rect x="960" y="165" width="40" height="40" rx="8" fill="url(#redGrad)"/>
+  <text x="980" y="192" fill="white" font-family="system-ui, sans-serif" font-size="20">⚠️</text>
+  <text x="1010" y="185" fill="#64748b" font-family="system-ui, sans-serif" font-size="12">Orphaned Namespaces</text>
+  <text x="960" y="230" fill="#1e293b" font-family="system-ui, sans-serif" font-size="32" font-weight="bold">4</text>
+  <text x="960" y="248" fill="#ef4444" font-family="system-ui, sans-serif" font-size="12">Needs attention</text>
+
+  <!-- Charts Section -->
+  <!-- Environment Distribution Chart -->
+  <rect x="270" y="280" width="440" height="250" rx="10" fill="white" filter="url(#shadow)"/>
+  <text x="290" y="310" fill="#1e293b" font-family="system-ui, sans-serif" font-size="16" font-weight="600">Environment Distribution</text>
+  
+  <!-- Bar Chart -->
+  <rect x="290" y="340" width="400" height="170" fill="#f8fafc" rx="4"/>
+  
+  <!-- Production Bar -->
+  <rect x="310" y="360" width="60" height="130" fill="#3b82f6" rx="4"/>
+  <text x="340" y="455" fill="#1e293b" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Production</text>
+  <text x="340" y="355" fill="#1e293b" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">45</text>
+  
+  <!-- Staging Bar -->
+  <rect x="390" y="395" width="60" height="95" fill="#22c55e" rx="4"/>
+  <text x="420" y="455" fill="#1e293b" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Staging</text>
+  <text x="420" y="390" fill="#1e293b" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">28</text>
+  
+  <!-- Development Bar -->
+  <rect x="470" y="380" width="60" height="110" fill="#f59e0b" rx="4"/>
+  <text x="500" y="455" fill="#1e293b" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Development</text>
+  <text x="500" y="375" fill="#1e293b" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">67</text>
+  
+  <!-- Test Bar -->
+  <rect x="550" y="420" width="60" height="70" fill="#8b5cf6" rx="4"/>
+  <text x="580" y="455" fill="#1e293b" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Test</text>
+  <text x="580" y="415" fill="#1e293b" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">16</text>
+
+  <!-- Ownership Coverage (Pie Chart representation) -->
+  <rect x="730" y="280" width="425" height="250" rx="10" fill="white" filter="url(#shadow)"/>
+  <text x="750" y="310" fill="#1e293b" font-family="system-ui, sans-serif" font-size="16" font-weight="600">Ownership Coverage</text>
+  
+  <!-- Pie Chart -->
+  <circle cx="850" cy="415" r="70" fill="none" stroke="#3b82f6" stroke-width="35"/>
+  <circle cx="850" cy="415" r="70" fill="none" stroke="#ef4444" stroke-width="35" stroke-dasharray="44 396"/>
+  
+  <text x="850" y="410" fill="#1e293b" font-family="system-ui, sans-serif" font-size="24" font-weight="bold" text-anchor="middle">85%</text>
+  <text x="850" y="425" fill="#64748b" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">With Owner</text>
+  
+  <!-- Legend -->
+  <rect x="950" y="370" width="12" height="12" fill="#3b82f6" rx="2"/>
+  <text x="970" y="380" fill="#1e293b" font-family="system-ui, sans-serif" font-size="12">With Owner: 132</text>
+  
+  <rect x="950" y="395" width="12" height="12" fill="#ef4444" rx="2"/>
+  <text x="970" y="405" fill="#1e293b" font-family="system-ui, sans-serif" font-size="12">Orphaned: 24</text>
+
+  <!-- Recent Activities -->
+  <rect x="270" y="550" width="440" height="230" rx="10" fill="white" filter="url(#shadow)"/>
+  <text x="290" y="580" fill="#1e293b" font-family="system-ui, sans-serif" font-size="16" font-weight="600">Recent Activities</text>
+  
+  <!-- Activity Items -->
+  <rect x="290" y="600" width="400" height="40" fill="#f8fafc" rx="4"/>
+  <text x="305" y="625" fill="#1e293b" font-family="system-ui, sans-serif" font-size="13">📝 Team updated for payment-service namespace</text>
+  <text x="590" y="625" fill="#64748b" font-family="system-ui, sans-serif" font-size="11">2m ago</text>
+  
+  <rect x="290" y="650" width="400" height="40" fill="#f8fafc" rx="4"/>
+  <text x="305" y="675" fill="#1e293b" font-family="system-ui, sans-serif" font-size="13">🔄 Cluster production-eks synced successfully</text>
+  <text x="590" y="675" fill="#64748b" font-family="system-ui, sans-serif" font-size="11">15m ago</text>
+  
+  <rect x="290" y="700" width="400" height="40" fill="#f8fafc" rx="4"/>
+  <text x="305" y="725" fill="#1e293b" font-family="system-ui, sans-serif" font-size="13">➕ Namespace data-pipeline added to cluster</text>
+  <text x="590" y="725" fill="#64748b" font-family="system-ui, sans-serif" font-size="11">1h ago</text>
+
+  <!-- Missing Information -->
+  <rect x="730" y="550" width="425" height="230" rx="10" fill="white" filter="url(#shadow)"/>
+  <text x="750" y="580" fill="#1e293b" font-family="system-ui, sans-serif" font-size="16" font-weight="600">Missing Information</text>
+  
+  <!-- Missing Item 1 -->
+  <rect x="750" y="600" width="385" height="50" fill="#fef2f2" rx="4" stroke="#fecaca"/>
+  <text x="765" y="625" fill="#dc2626" font-family="system-ui, sans-serif" font-size="13" font-weight="600">⚠️ production-api</text>
+  <text x="765" y="642" fill="#7f1d1d" font-family="system-ui, sans-serif" font-size="11">Missing: owner, cost center</text>
+  
+  <!-- Missing Item 2 -->
+  <rect x="750" y="660" width="385" height="50" fill="#fef2f2" rx="4" stroke="#fecaca"/>
+  <text x="765" y="685" fill="#dc2626" font-family="system-ui, sans-serif" font-size="13" font-weight="600">⚠️ staging-database</text>
+  <text x="765" y="702" fill="#7f1d1d" font-family="system-ui, sans-serif" font-size="11">Missing: documentation</text>
+
+  <!-- Footer -->
+  <text x="600" y="790" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">KubeAtlas v1.0.0 - Kubernetes Inventory & Ownership Platform</text>
+</svg>

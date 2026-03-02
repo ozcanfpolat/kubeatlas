@@ -2,7 +2,9 @@ package k8s
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 

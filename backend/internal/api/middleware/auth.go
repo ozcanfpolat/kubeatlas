@@ -77,6 +77,15 @@ func Auth(jwtSecret string) gin.HandlerFunc {
 			return
 		}
 
+		// Validate issuer to prevent token confusion attacks
+		if claims.Issuer != "kubeatlas" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error":   "unauthorized",
+				"message": "Invalid token issuer",
+			})
+			return
+		}
+
 		// Set user info in context
 		c.Set(ContextUserID, claims.UserID)
 		c.Set(ContextOrganizationID, claims.OrganizationID)

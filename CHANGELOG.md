@@ -32,6 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Token encryption for stored credentials
 - TLS support for cluster connections
 
+### Fixed (Security Review - March 2026)
+- **[CRITICAL]** Fixed missing `crypto/tls` and `net/http` imports in `k8s/manager.go` that caused compilation errors
+- **[CRITICAL]** Added SQL injection protection with whitelist validation in `QueryBuilder.OrderBy()` function
+- **[CRITICAL]** Added mandatory JWT secret validation for production mode (minimum 32 characters required)
+- **[SECURITY]** Added JWT issuer validation in auth middleware to prevent token confusion attacks
+- **[SECURITY]** Added encryption key validation for production deployments
+- **[ENHANCEMENT]** Development mode now uses safe default secrets with clear warnings
+
 ## [1.0.0] - 2024-XX-XX
 
 ### Added

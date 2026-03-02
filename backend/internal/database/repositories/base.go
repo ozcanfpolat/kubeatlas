@@ -75,10 +75,40 @@ func (qb *QueryBuilder) WhereIf(shouldAdd bool, condition string, args ...interf
 	return qb
 }
 
-// OrderBy sets the ORDER BY clause
+// allowedSortFields defines the whitelist of allowed sort fields to prevent SQL injection
+var allowedSortFields = map[string]bool{
+	"id":              true,
+	"name":            true,
+	"display_name":    true,
+	"email":           true,
+	"created_at":      true,
+	"updated_at":      true,
+	"status":          true,
+	"environment":     true,
+	"cluster_type":    true,
+	"platform":        true,
+	"region":          true,
+	"version":         true,
+	"full_name":       true,
+	"role":            true,
+	"last_login_at":   true,
+	"namespace_count": true,
+	"node_count":      true,
+	"action":          true,
+	"resource_type":   true,
+	"timestamp":       true,
+}
+
+// OrderBy sets the ORDER BY clause with SQL injection protection
 func (qb *QueryBuilder) OrderBy(field, order string) *QueryBuilder {
+	// Validate order direction
 	if order != "asc" && order != "desc" {
 		order = "asc"
+	}
+	// Validate field against whitelist to prevent SQL injection
+	if !allowedSortFields[field] {
+		// Default to safe field if invalid field provided
+		field = "created_at"
 	}
 	qb.orderBy = fmt.Sprintf("%s %s", field, order)
 	return qb

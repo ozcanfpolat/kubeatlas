@@ -1,9 +1,15 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"strconv"
 	"strings"
+)
+
+var (
+	ErrMissingJWTSecret     = errors.New("JWT_SECRET environment variable is required and must be at least 32 characters")
+	ErrMissingEncryptionKey = errors.New("ENCRYPTION_KEY environment variable is required for production mode")
 )
 
 // Config holds all configuration for the application
@@ -145,6 +151,26 @@ func Load() (*Config, error) {
 			Level:  getEnv("LOG_LEVEL", "info"),
 			Format: getEnv("LOG_FORMAT", "json"),
 		},
+	}
+
+	// Security validations for production mode
+	if cfg.Server.Mode == "release" {
+		// JWT Secret is required and must be at least 32 characters
+		if len(cfg.JWT.Secret) < 32 {
+			return nil, ErrMissingJWTSecret
+		}
+		// Encryption key is required for production
+		if cfg.Encryption.Key == "" {
+			return nil, ErrMissingEncryptionKey
+		}
+	} else {
+		// Development mode: use default secret if not provided (with warning)
+		if cfg.JWT.Secret == "" {
+			cfg.JWT.Secret = "dev-secret-key-do-not-use-in-production-32chars"
+		}
+		if cfg.Encryption.Key == "" {
+			cfg.Encryption.Key = "dev-encryption-key-do-not-use-in-prod"
+		}
 	}
 
 	return cfg, nil

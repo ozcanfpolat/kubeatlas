@@ -469,6 +469,18 @@ auth:
       - profile
 
 # ============================================
+# Encryption Configuration
+# ============================================
+# Used to encrypt sensitive data like kubeconfig, service account tokens, CA certificates
+# WARNING: If this key changes, all existing encrypted data will become unreadable!
+encryption:
+  # Provide a 32+ character random string
+  # Generate with: openssl rand -hex 32
+  key: ""
+  existingSecret: "kubeatlas-encryption"
+  secretKey: "key"
+
+# ============================================
 # Storage Configuration
 # ============================================
 storage:

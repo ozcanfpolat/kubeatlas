@@ -40,6 +40,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **[SECURITY]** Added encryption key validation for production deployments
 - **[ENHANCEMENT]** Development mode now uses safe default secrets with clear warnings
 
+### Added (Production Ready Update - March 2026)
+- **[FEATURE]** Self-signed CA certificate support for cluster connections
+- **[FEATURE]** Full encryption of kubeconfig, service account tokens, and CA certificates using AES-256-GCM
+- **[FEATURE]** Cluster connection test on creation with async status update
+- **[FEATURE]** Frontend cluster creation form with full authentication options
+- **[FEATURE]** Comprehensive production deployment guide (docs/DEPLOYMENT.md)
+- **[SECURITY]** ENCRYPTION_KEY configuration for sensitive data encryption
+- **[HELM]** Encryption key secret management in Helm chart
+- **[HELM]** Self-signed TLS certificate deployment instructions
+- **[DB]** Added `ca_certificate_encrypted` column for self-signed cluster support
+- **[DOCS]** Multi-cluster setup guide with ServiceAccount RBAC configuration
+- **[DOCS]** Kubernetes and Docker Compose production deployment instructions
+
+### Fixed (Production Ready Update - March 2026)
+- **[CRITICAL]** Fixed TODO in cluster_service.go - kubeconfig and tokens are now properly encrypted before storage
+- **[BUG]** Fixed parameter order mismatch in Cluster.Update handler call
+- **[CONFIG]** Added ENCRYPTION_KEY to .env.example and docker-compose.prod.yml
+
 ## [1.0.0] - 2024-XX-XX
 
 ### Added

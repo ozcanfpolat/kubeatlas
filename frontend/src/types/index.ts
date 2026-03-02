@@ -142,6 +142,7 @@ export interface CreateClusterRequest {
   auth_method?: string
   service_account_token?: string
   kubeconfig?: string
+  ca_certificate?: string  // Base64 encoded CA certificate for self-signed clusters
   skip_tls_verify?: boolean
   owner_team_id?: string
   responsible_user_id?: string

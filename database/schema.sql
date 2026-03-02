@@ -113,6 +113,7 @@ CREATE TABLE clusters (
     auth_method VARCHAR(50) DEFAULT 'serviceaccount', -- serviceaccount, kubeconfig, oidc
     kubeconfig_encrypted BYTEA, -- Encrypted kubeconfig
     service_account_token_encrypted BYTEA,
+    ca_certificate_encrypted BYTEA, -- Encrypted CA certificate for self-signed clusters
     skip_tls_verify BOOLEAN DEFAULT false,
     
     -- Ownership

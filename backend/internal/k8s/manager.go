@@ -175,9 +175,22 @@ func (m *Manager) createClient(cluster *models.Cluster) (*Client, error) {
 			Insecure: true,
 		}
 	} else {
-		// Ensure we verify TLS in production
-		config.TLSClientConfig = rest.TLSClientConfig{
-			Insecure: false,
+		// Use CA certificate if provided (for self-signed clusters)
+		if len(cluster.CACertificateEncrypted) > 0 && m.encryptor != nil {
+			caCert, err := m.encryptor.Decrypt(cluster.CACertificateEncrypted)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decrypt CA certificate: %w", err)
+			}
+			config.TLSClientConfig = rest.TLSClientConfig{
+				Insecure: false,
+				CAData:   caCert,
+			}
+			m.logger.Infow("Using custom CA certificate for cluster", "cluster_id", cluster.ID, "cluster_name", cluster.Name)
+		} else {
+			// Use system CA pool
+			config.TLSClientConfig = rest.TLSClientConfig{
+				Insecure: false,
+			}
 		}
 	}
 

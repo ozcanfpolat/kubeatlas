@@ -146,6 +146,13 @@ spec:
             - name: JWT_REFRESH_HOURS
               value: {{ .Values.api.env.JWT_REFRESH_HOURS | quote }}
             
+            # Encryption key for sensitive data (kubeconfig, tokens, CA certs)
+            - name: ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeatlas.fullname" . }}-encryption
+                  key: key
+            
             # CORS origins
             - name: CORS_ORIGINS
               value: {{ printf "https://%s" .Values.global.domain | quote }}

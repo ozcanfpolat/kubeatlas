@@ -105,7 +105,7 @@ func UpdateCluster(svc *services.Services) gin.HandlerFunc {
 
 		actx := getAuditContext(c)
 
-		cluster, err := svc.Cluster.Update(c.Request.Context(), id, req, actx)
+		cluster, err := svc.Cluster.Update(c.Request.Context(), actx, id, req)
 		if err != nil {
 			if errors.Is(err, services.ErrClusterNotFound) {
 				respondErrorStr(c, http.StatusNotFound, "Cluster not found")

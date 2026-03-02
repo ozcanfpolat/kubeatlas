@@ -74,6 +74,9 @@ services:
       JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
       JWT_REFRESH_HOURS: ${JWT_REFRESH_HOURS:-168}
       
+      # Encryption (for kubeconfig, tokens, CA certs)
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-change-me-in-production-must-be-32-chars}
+      
       # Storage
       STORAGE_TYPE: ${STORAGE_TYPE:-local}
       STORAGE_LOCAL_PATH: /app/data/uploads

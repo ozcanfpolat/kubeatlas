@@ -3,9 +3,11 @@ package services
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/kubeatlas/kubeatlas/internal/crypto"
 	"github.com/kubeatlas/kubeatlas/internal/database/repositories"
 	"github.com/kubeatlas/kubeatlas/internal/k8s"
 	"github.com/kubeatlas/kubeatlas/internal/models"
@@ -16,12 +18,14 @@ var (
 	ErrClusterNotFound     = errors.New("cluster not found")
 	ErrClusterNameExists   = errors.New("cluster name already exists")
 	ErrClusterSyncFailed   = errors.New("cluster sync failed")
+	ErrEncryptionFailed    = errors.New("failed to encrypt sensitive data")
 )
 
 type ClusterService struct {
 	clusterRepo   *repositories.ClusterRepository
 	namespaceRepo *repositories.NamespaceRepository
 	k8sManager    *k8s.Manager
+	encryptor     *crypto.Encryptor
 	auditSvc      *AuditService
 	logger        *zap.SugaredLogger
 }
@@ -30,6 +34,7 @@ func NewClusterService(
 	clusterRepo *repositories.ClusterRepository,
 	namespaceRepo *repositories.NamespaceRepository,
 	k8sManager *k8s.Manager,
+	encryptor *crypto.Encryptor,
 	auditSvc *AuditService,
 	logger *zap.SugaredLogger,
 ) *ClusterService {
@@ -37,6 +42,7 @@ func NewClusterService(
 		clusterRepo:   clusterRepo,
 		namespaceRepo: namespaceRepo,
 		k8sManager:    k8sManager,
+		encryptor:     encryptor,
 		auditSvc:      auditSvc,
 		logger:        logger,
 	}
@@ -44,21 +50,22 @@ func NewClusterService(
 
 // CreateClusterRequest represents cluster creation data
 type CreateClusterRequest struct {
-	Name              string     `json:"name" binding:"required"`
-	DisplayName       string     `json:"display_name"`
-	Description       string     `json:"description"`
-	APIServerURL      string     `json:"api_server_url" binding:"required,url"`
-	ClusterType       string     `json:"cluster_type" binding:"required"`
-	Environment       string     `json:"environment" binding:"required"`
-	Platform          string     `json:"platform"`
-	Region            string     `json:"region"`
-	AuthMethod        string     `json:"auth_method"`
-	Kubeconfig        string     `json:"kubeconfig"`
-	ServiceAccountToken string   `json:"service_account_token"`
-	SkipTLSVerify     bool       `json:"skip_tls_verify"`
-	OwnerTeamID       *uuid.UUID `json:"owner_team_id"`
-	ResponsibleUserID *uuid.UUID `json:"responsible_user_id"`
-	Tags              []string   `json:"tags"`
+	Name                string     `json:"name" binding:"required"`
+	DisplayName         string     `json:"display_name"`
+	Description         string     `json:"description"`
+	APIServerURL        string     `json:"api_server_url" binding:"required,url"`
+	ClusterType         string     `json:"cluster_type" binding:"required"`
+	Environment         string     `json:"environment" binding:"required"`
+	Platform            string     `json:"platform"`
+	Region              string     `json:"region"`
+	AuthMethod          string     `json:"auth_method"`
+	Kubeconfig          string     `json:"kubeconfig"`           // Base64 encoded kubeconfig
+	ServiceAccountToken string     `json:"service_account_token"` // Service account token
+	CACertificate       string     `json:"ca_certificate"`        // Base64 encoded CA certificate for self-signed clusters
+	SkipTLSVerify       bool       `json:"skip_tls_verify"`
+	OwnerTeamID         *uuid.UUID `json:"owner_team_id"`
+	ResponsibleUserID   *uuid.UUID `json:"responsible_user_id"`
+	Tags                []string   `json:"tags"`
 }
 
 // Create creates a new cluster
@@ -82,7 +89,7 @@ func (s *ClusterService) Create(ctx context.Context, ac AuditContext, req Create
 		SkipTLSVerify:     req.SkipTLSVerify,
 		OwnerTeamID:       req.OwnerTeamID,
 		ResponsibleUserID: req.ResponsibleUserID,
-		Status:            "active",
+		Status:            "pending",
 		Tags:              req.Tags,
 		Labels:            make(models.JSONMap),
 		Annotations:       make(models.JSONMap),
@@ -102,13 +109,70 @@ func (s *ClusterService) Create(ctx context.Context, ac AuditContext, req Create
 		cluster.Region = sql.NullString{String: req.Region, Valid: true}
 	}
 
-	// TODO: Encrypt and store kubeconfig/token
-	// cluster.KubeconfigEncrypted = encrypt(req.Kubeconfig)
-	// cluster.ServiceAccountTokenEncrypted = encrypt(req.ServiceAccountToken)
+	// Encrypt and store kubeconfig if provided
+	if req.Kubeconfig != "" {
+		// Decode base64 kubeconfig
+		kubeconfigBytes, err := base64.StdEncoding.DecodeString(req.Kubeconfig)
+		if err != nil {
+			// If not base64, use as-is (for backward compatibility)
+			kubeconfigBytes = []byte(req.Kubeconfig)
+		}
+		
+		encrypted, err := s.encryptor.Encrypt(kubeconfigBytes)
+		if err != nil {
+			s.logger.Errorw("Failed to encrypt kubeconfig", "error", err)
+			return nil, ErrEncryptionFailed
+		}
+		cluster.KubeconfigEncrypted = encrypted
+	}
+
+	// Encrypt and store service account token if provided
+	if req.ServiceAccountToken != "" {
+		encrypted, err := s.encryptor.EncryptToken(req.ServiceAccountToken)
+		if err != nil {
+			s.logger.Errorw("Failed to encrypt service account token", "error", err)
+			return nil, ErrEncryptionFailed
+		}
+		cluster.ServiceAccountTokenEncrypted = encrypted
+	}
+
+	// Encrypt and store CA certificate if provided (for self-signed clusters)
+	if req.CACertificate != "" {
+		// Decode base64 CA certificate
+		caCertBytes, err := base64.StdEncoding.DecodeString(req.CACertificate)
+		if err != nil {
+			// If not base64, use as-is
+			caCertBytes = []byte(req.CACertificate)
+		}
+		
+		encrypted, err := s.encryptor.Encrypt(caCertBytes)
+		if err != nil {
+			s.logger.Errorw("Failed to encrypt CA certificate", "error", err)
+			return nil, ErrEncryptionFailed
+		}
+		cluster.CACertificateEncrypted = encrypted
+	}
 
 	if err := s.clusterRepo.Create(ctx, cluster); err != nil {
 		return nil, err
 	}
+
+	// Test connection and update status
+	go func() {
+		testCtx := context.Background()
+		client, err := s.k8sManager.GetClient(cluster)
+		if err != nil {
+			s.clusterRepo.UpdateSyncStatus(testCtx, cluster.ID, "error", err.Error(), 0, 0)
+			return
+		}
+		
+		if err := client.TestConnection(testCtx); err != nil {
+			s.clusterRepo.UpdateSyncStatus(testCtx, cluster.ID, "error", err.Error(), 0, 0)
+			return
+		}
+		
+		s.clusterRepo.UpdateSyncStatus(testCtx, cluster.ID, "active", "", 0, 0)
+	}()
 
 	s.auditSvc.LogCreate(ctx, ac, "cluster", cluster.ID, cluster.Name, StructToMap(cluster))
 	s.logger.Infow("Cluster created", "cluster_id", cluster.ID, "name", cluster.Name)

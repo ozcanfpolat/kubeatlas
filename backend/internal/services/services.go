@@ -2,6 +2,7 @@ package services
 
 import (
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/kubeatlas/kubeatlas/internal/crypto"
 	"github.com/kubeatlas/kubeatlas/internal/database/repositories"
 	"github.com/kubeatlas/kubeatlas/internal/k8s"
 	"go.uber.org/zap"
@@ -37,7 +38,7 @@ type Repositories struct {
 }
 
 // New creates a new Services instance
-func New(pool *pgxpool.Pool, k8sManager *k8s.Manager, logger *zap.SugaredLogger, jwtSecret string, jwtExpirationHours int) *Services {
+func New(pool *pgxpool.Pool, k8sManager *k8s.Manager, encryptor *crypto.Encryptor, logger *zap.SugaredLogger, jwtSecret string, jwtExpirationHours int) *Services {
 	repos := &Repositories{
 		Cluster:            repositories.NewClusterRepository(pool),
 		Namespace:          repositories.NewNamespaceRepository(pool),
@@ -59,7 +60,7 @@ func New(pool *pgxpool.Pool, k8sManager *k8s.Manager, logger *zap.SugaredLogger,
 		Team:         NewTeamService(repos.Team, auditSvc, logger),
 		User:         NewUserService(repos.User, auditSvc, logger),
 		BusinessUnit: NewBusinessUnitService(repos.BusinessUnit, auditSvc, logger),
-		Cluster:      NewClusterService(repos.Cluster, repos.Namespace, k8sManager, auditSvc, logger),
+		Cluster:      NewClusterService(repos.Cluster, repos.Namespace, k8sManager, encryptor, auditSvc, logger),
 		Namespace:    NewNamespaceService(repos.Namespace, repos.Cluster, auditSvc, logger),
 		Dependency:   NewDependencyService(repos.InternalDependency, repos.ExternalDependency, auditSvc, logger),
 		Document:     NewDocumentService(repos.Document, auditSvc, logger),

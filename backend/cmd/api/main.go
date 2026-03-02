@@ -14,6 +14,7 @@ import (
 	"github.com/kubeatlas/kubeatlas/internal/api/handlers"
 	"github.com/kubeatlas/kubeatlas/internal/api/middleware"
 	"github.com/kubeatlas/kubeatlas/internal/config"
+	"github.com/kubeatlas/kubeatlas/internal/crypto"
 	"github.com/kubeatlas/kubeatlas/internal/database"
 	"github.com/kubeatlas/kubeatlas/internal/k8s"
 	"github.com/kubeatlas/kubeatlas/internal/services"
@@ -44,6 +45,12 @@ func main() {
 		sugar.Fatalw("Failed to load configuration", "error", err)
 	}
 
+	// Initialize encryptor for sensitive data
+	encryptor, err := crypto.NewEncryptor(cfg.Encryption.Key)
+	if err != nil {
+		sugar.Fatalw("Failed to initialize encryptor", "error", err)
+	}
+
 	// Initialize database
 	db, err := database.New(cfg.Database)
 	if err != nil {
@@ -56,11 +63,11 @@ func main() {
 		sugar.Fatalw("Failed to run migrations", "error", err)
 	}
 
-	// Initialize Kubernetes client manager
-	k8sManager := k8s.NewManager(sugar)
+	// Initialize Kubernetes client manager with encryptor
+	k8sManager := k8s.NewManager(sugar, k8s.WithEncryptor(encryptor))
 
-	// Initialize services
-	svc := services.New(db.Pool, k8sManager, sugar, cfg.JWT.Secret, cfg.JWT.ExpirationHours)
+	// Initialize services with encryptor
+	svc := services.New(db.Pool, k8sManager, encryptor, sugar, cfg.JWT.Secret, cfg.JWT.ExpirationHours)
 
 	// Initialize Gin router
 	if cfg.Server.Mode == "release" {

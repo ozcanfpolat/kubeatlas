@@ -35,7 +35,7 @@ func (r *ClusterRepository) Create(ctx context.Context, cluster *models.Cluster)
 		INSERT INTO clusters (
 			id, organization_id, name, display_name, description,
 			api_server_url, cluster_type, version, platform, region, environment,
-			auth_method, kubeconfig_encrypted, service_account_token_encrypted, skip_tls_verify,
+			auth_method, kubeconfig_encrypted, service_account_token_encrypted, ca_certificate_encrypted, skip_tls_verify,
 			owner_team_id, responsible_user_id,
 			status, node_count, namespace_count,
 			tags, labels, annotations, metadata,
@@ -43,18 +43,18 @@ func (r *ClusterRepository) Create(ctx context.Context, cluster *models.Cluster)
 		) VALUES (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8, $9, $10, $11,
-			$12, $13, $14, $15,
-			$16, $17,
-			$18, $19, $20,
-			$21, $22, $23, $24,
-			$25, $26
+			$12, $13, $14, $15, $16,
+			$17, $18,
+			$19, $20, $21,
+			$22, $23, $24, $25,
+			$26, $27
 		)
 	`
 
 	_, err := r.pool.Exec(ctx, query,
 		cluster.ID, cluster.OrganizationID, cluster.Name, cluster.DisplayName, cluster.Description,
 		cluster.APIServerURL, cluster.ClusterType, cluster.Version, cluster.Platform, cluster.Region, cluster.Environment,
-		cluster.AuthMethod, cluster.KubeconfigEncrypted, cluster.ServiceAccountTokenEncrypted, cluster.SkipTLSVerify,
+		cluster.AuthMethod, cluster.KubeconfigEncrypted, cluster.ServiceAccountTokenEncrypted, cluster.CACertificateEncrypted, cluster.SkipTLSVerify,
 		cluster.OwnerTeamID, cluster.ResponsibleUserID,
 		cluster.Status, cluster.NodeCount, cluster.NamespaceCount,
 		cluster.Tags, cluster.Labels, cluster.Annotations, cluster.Metadata,
@@ -70,7 +70,7 @@ func (r *ClusterRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.
 		SELECT 
 			id, organization_id, name, display_name, description,
 			api_server_url, cluster_type, version, platform, region, environment,
-			auth_method, kubeconfig_encrypted, service_account_token_encrypted, skip_tls_verify,
+			auth_method, kubeconfig_encrypted, service_account_token_encrypted, ca_certificate_encrypted, skip_tls_verify,
 			owner_team_id, responsible_user_id,
 			status, last_sync_at, sync_error,
 			node_count, namespace_count,
@@ -84,7 +84,7 @@ func (r *ClusterRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&cluster.ID, &cluster.OrganizationID, &cluster.Name, &cluster.DisplayName, &cluster.Description,
 		&cluster.APIServerURL, &cluster.ClusterType, &cluster.Version, &cluster.Platform, &cluster.Region, &cluster.Environment,
-		&cluster.AuthMethod, &cluster.KubeconfigEncrypted, &cluster.ServiceAccountTokenEncrypted, &cluster.SkipTLSVerify,
+		&cluster.AuthMethod, &cluster.KubeconfigEncrypted, &cluster.ServiceAccountTokenEncrypted, &cluster.CACertificateEncrypted, &cluster.SkipTLSVerify,
 		&cluster.OwnerTeamID, &cluster.ResponsibleUserID,
 		&cluster.Status, &cluster.LastSyncAt, &cluster.SyncError,
 		&cluster.NodeCount, &cluster.NamespaceCount,
@@ -108,7 +108,7 @@ func (r *ClusterRepository) GetByName(ctx context.Context, orgID uuid.UUID, name
 		SELECT 
 			id, organization_id, name, display_name, description,
 			api_server_url, cluster_type, version, platform, region, environment,
-			auth_method, kubeconfig_encrypted, service_account_token_encrypted, skip_tls_verify,
+			auth_method, kubeconfig_encrypted, service_account_token_encrypted, ca_certificate_encrypted, skip_tls_verify,
 			owner_team_id, responsible_user_id,
 			status, last_sync_at, sync_error,
 			node_count, namespace_count,
@@ -122,7 +122,7 @@ func (r *ClusterRepository) GetByName(ctx context.Context, orgID uuid.UUID, name
 	err := r.pool.QueryRow(ctx, query, orgID, name).Scan(
 		&cluster.ID, &cluster.OrganizationID, &cluster.Name, &cluster.DisplayName, &cluster.Description,
 		&cluster.APIServerURL, &cluster.ClusterType, &cluster.Version, &cluster.Platform, &cluster.Region, &cluster.Environment,
-		&cluster.AuthMethod, &cluster.KubeconfigEncrypted, &cluster.ServiceAccountTokenEncrypted, &cluster.SkipTLSVerify,
+		&cluster.AuthMethod, &cluster.KubeconfigEncrypted, &cluster.ServiceAccountTokenEncrypted, &cluster.CACertificateEncrypted, &cluster.SkipTLSVerify,
 		&cluster.OwnerTeamID, &cluster.ResponsibleUserID,
 		&cluster.Status, &cluster.LastSyncAt, &cluster.SyncError,
 		&cluster.NodeCount, &cluster.NamespaceCount,

@@ -5,6 +5,7 @@ import Login from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'
 import Clusters from '@/pages/Clusters'
 import ClusterDetail from '@/pages/ClusterDetail'
+import CreateCluster from '@/pages/CreateCluster'
 import Namespaces from '@/pages/Namespaces'
 import NamespaceDetail from '@/pages/NamespaceDetail'
 import Teams from '@/pages/Teams'
@@ -40,6 +41,7 @@ function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="clusters" element={<Clusters />} />
+        <Route path="clusters/new" element={<CreateCluster />} />
         <Route path="clusters/:id" element={<ClusterDetail />} />
         <Route path="namespaces" element={<Namespaces />} />
         <Route path="namespaces/:id" element={<NamespaceDetail />} />

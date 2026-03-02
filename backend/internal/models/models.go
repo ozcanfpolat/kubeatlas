@@ -135,6 +135,7 @@ type Cluster struct {
 	AuthMethod                   string `json:"auth_method" db:"auth_method"`
 	KubeconfigEncrypted          []byte `json:"-" db:"kubeconfig_encrypted"`
 	ServiceAccountTokenEncrypted []byte `json:"-" db:"service_account_token_encrypted"`
+	CACertificateEncrypted       []byte `json:"-" db:"ca_certificate_encrypted"`
 	SkipTLSVerify                bool   `json:"skip_tls_verify" db:"skip_tls_verify"`
 
 	// Ownership

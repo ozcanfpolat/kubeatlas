@@ -60,8 +60,7 @@ Get real-time insights into your Kubernetes inventory:
 | **Environment Distribution** | Visual breakdown by environment (Prod, Staging, Dev) |
 | **Recent Activities** | Audit trail of all changes |
 
-<!-- Dashboard Screenshot Placeholder -->
-<!-- ![Dashboard](docs/images/dashboard.png) -->
+![Dashboard](https://raw.githubusercontent.com/ozcanfpolat/kubeatlas/main/docs/images/dashboard.svg)
 
 ### 🔐 Ownership Management
 Define and track ownership at multiple levels:

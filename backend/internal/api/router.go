@@ -1,34 +1,84 @@
 package api
 
 import (
+	"context"
+	"net/http"
+	"time"
+
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kubeatlas/kubeatlas/internal/api/handlers"
 	"github.com/kubeatlas/kubeatlas/internal/api/middleware"
 	"github.com/kubeatlas/kubeatlas/internal/services"
 	"go.uber.org/zap"
 )
 
+// Config holds router configuration
+type Config struct {
+	Services    *services.Services
+	Logger      *zap.SugaredLogger
+	DB          *pgxpool.Pool
+	JWTTSecret  string
+	CORSOrigins []string
+	RateLimit   int           // requests per window
+	RateWindow  time.Duration // rate limit window
+}
+
 // SetupRouter configures all routes
-func SetupRouter(svc *services.Services, logger *zap.SugaredLogger, jwtSecret string, corsOrigins []string) *gin.Engine {
+func SetupRouter(cfg *Config) *gin.Engine {
 	// Set Gin mode
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.New()
 
 	// Global middleware
-	r.Use(middleware.Recovery(logger))
+	r.Use(middleware.Recovery(cfg.Logger))
 	r.Use(middleware.RequestID())
-	r.Use(middleware.Logger(logger))
-	r.Use(middleware.CORS(corsOrigins))
+	r.Use(middleware.Logger(cfg.Logger))
+	r.Use(middleware.CORS(cfg.CORSOrigins))
+	r.Use(middleware.Prometheus())
+
+	// Apply rate limiting globally (100 requests per minute)
+	if cfg.RateLimit == 0 {
+		cfg.RateLimit = 100
+	}
+	if cfg.RateWindow == 0 {
+		cfg.RateWindow = time.Minute
+	}
+	r.Use(middleware.RateLimiterMiddleware(cfg.RateLimit, cfg.RateWindow))
 
 	// Health endpoints (no auth)
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		c.JSON(200, gin.H{"status": "ok", "timestamp": time.Now().UTC()})
 	})
+	
 	r.GET("/ready", func(c *gin.Context) {
-		// TODO: Check database connection
-		c.JSON(200, gin.H{"status": "ready"})
+		// Check database connection
+		if cfg.DB != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			
+			if err := cfg.DB.Ping(ctx); err != nil {
+				c.JSON(http.StatusServiceUnavailable, gin.H{
+					"status": "not_ready",
+					"error":  "database connection failed",
+					"timestamp": time.Now().UTC(),
+				})
+				return
+			}
+		}
+		
+		c.JSON(200, gin.H{
+			"status":    "ready",
+			"timestamp": time.Now().UTC(),
+			"checks": gin.H{
+				"database": "ok",
+			},
+		})
 	})
+
+	// Metrics endpoint (Prometheus)
+	r.GET("/metrics", middleware.MetricsHandler())
 
 	// API v1
 	v1 := r.Group("/api/v1")
@@ -36,16 +86,16 @@ func SetupRouter(svc *services.Services, logger *zap.SugaredLogger, jwtSecret st
 	// Public routes (no auth required)
 	auth := v1.Group("/auth")
 	{
-		auth.POST("/login", handlers.Login(svc))
-		auth.POST("/refresh", handlers.RefreshToken(svc))
+		auth.POST("/login", handlers.Login(cfg.Services))
+		auth.POST("/refresh", handlers.RefreshToken(cfg.Services))
 	}
 
 	// Protected routes
 	protected := v1.Group("")
-	protected.Use(middleware.Auth(jwtSecret))
+	protected.Use(middleware.Auth(cfg.JWTTSecret))
 	{
 		// Auth
-		protected.POST("/auth/logout", handlers.Logout(svc))
+		protected.POST("/auth/logout", handlers.Logout(cfg.Services))
 
 		// Users
 		users := protected.Group("/users")

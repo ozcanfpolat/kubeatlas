@@ -1,0 +1,343 @@
+# ============================================
+# KubeAtlas Production Docker Compose
+# ============================================
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+# 
+# Features:
+# - Nginx reverse proxy with SSL
+# - Database backup automation
+# - Prometheus monitoring
+# - Health checks and restart policies
+# - Resource limits
+# ============================================
+
+version: '3.8'
+
+services:
+  # ============================================
+  # Nginx Reverse Proxy
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: kubeatlas-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/ssl:/etc/nginx/ssl:ro
+      - nginx_cache:/var/cache/nginx
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - kubeatlas-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ============================================
+  # Backend API
+  # ============================================
+  backend:
+    image: ghcr.io/kubeatlas/kubeatlas-api:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: kubeatlas-backend
+    restart: unless-stopped
+    environment:
+      # Server
+      SERVER_PORT: "8080"
+      SERVER_MODE: release
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://localhost}
+      
+      # Database
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:-kubeatlas}
+      DB_PASSWORD: ${DB_PASSWORD:-kubeatlas}
+      DB_NAME: ${DB_NAME:-kubeatlas}
+      DB_SSLMODE: ${DB_SSLMODE:-prefer}
+      DB_MAX_CONNS: ${DB_MAX_CONNS:-25}
+      
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
+      JWT_REFRESH_HOURS: ${JWT_REFRESH_HOURS:-168}
+      
+      # Storage
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
+      STORAGE_LOCAL_PATH: /app/data/uploads
+      
+      # Redis (optional)
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+    volumes:
+      - backend_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kubeatlas-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ============================================
+  # Frontend UI
+  # ============================================
+  frontend:
+    image: ghcr.io/kubeatlas/kubeatlas-ui:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ui
+      args:
+        VITE_API_URL: /api/v1
+    container_name: kubeatlas-frontend
+    restart: unless-stopped
+    environment:
+      - NGINX_WORKER_PROCESSES=auto
+      - NGINX_WORKER_CONNECTIONS=1024
+    depends_on:
+      - backend
+    networks:
+      - kubeatlas-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: kubeatlas-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-kubeatlas}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-kubeatlas}
+      POSTGRES_DB: ${DB_NAME:-kubeatlas}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/backups:/backups
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      - kubeatlas-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-kubeatlas} -d ${DB_NAME:-kubeatlas}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ============================================
+  # Redis Cache
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: kubeatlas-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      - kubeatlas-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # Database Migration Job
+  # ============================================
+  migrate:
+    image: ghcr.io/kubeatlas/kubeatlas-migrate:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: kubeatlas-migrate
+    environment:
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:-kubeatlas}
+      DB_PASSWORD: ${DB_PASSWORD:-kubeatlas}
+      DB_NAME: ${DB_NAME:-kubeatlas}
+      DB_SSLMODE: ${DB_SSLMODE:-prefer}
+    command: ["/app/kubeatlas-migrate", "up"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - kubeatlas-network
+    profiles:
+      - migrate
+    restart: "no"
+
+  # ============================================
+  # Database Backup Service
+  # ============================================
+  backup:
+    image: postgres:15-alpine
+    container_name: kubeatlas-backup
+    environment:
+      POSTGRES_USER: ${DB_USER:-kubeatlas}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-kubeatlas}
+      POSTGRES_DB: ${DB_NAME:-kubeatlas}
+      POSTGRES_HOST: ${DB_HOST:-postgres}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+    volumes:
+      - ./database/backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    command: /backup.sh
+    depends_on:
+      - postgres
+    networks:
+      - kubeatlas-network
+    profiles:
+      - backup
+    restart: "no"
+
+  # ============================================
+  # Prometheus Monitoring
+  # ============================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: kubeatlas-prometheus
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - kubeatlas-network
+    profiles:
+      - monitoring
+
+  # ============================================
+  # Grafana Dashboard
+  # ============================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: kubeatlas-grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - kubeatlas-network
+    profiles:
+      - monitoring
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_data:
+    driver: local
+  nginx_cache:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  kubeatlas-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -106,80 +106,6 @@ Complete audit history:
 
 ## 🏗️ Architecture
 
-```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#3b82f6', 'primaryTextColor': '#fff', 'primaryBorderColor': '#1e40af', 'lineColor': '#6b7280', 'secondaryColor': '#10b981', 'tertiaryColor': '#f59e0b'}}}%%
-
-graph TB
-    subgraph Users["👥 Users"]
-        U1[Platform Engineers]
-        U2[DevOps Teams]
-        U3[Security Teams]
-        U4[Developers]
-    end
-
-    subgraph KubeAtlas["☸️ KubeAtlas Platform"]
-        subgraph UI["🎨 Frontend Layer"]
-            FE[React 18 App<br/>TypeScript + Tailwind]
-        end
-        
-        subgraph API["⚙️ Backend Layer"]
-            BE[Go + Gin API<br/>REST + WebSocket]
-            AUTH[JWT Auth<br/>RBAC]
-            WS[Real-time<br/>Updates]
-        end
-        
-        subgraph Services["🛠️ Services"]
-            DS[Dashboard Service]
-            CS[Cluster Service]
-            NS[Namespace Service]
-            DEPS[Dependency Service]
-            AUDIT[Audit Service]
-            SYNC[Sync Service]
-        end
-        
-        subgraph Data["💾 Data Layer"]
-            DB[(PostgreSQL)]
-            CACHE[(Redis Cache)]
-        end
-    end
-    
-    subgraph Kubernetes["☁️ Kubernetes Clusters"]
-        C1[Production EKS]
-        C2[Staging GKE]
-        C3[On-Premises]
-        AGENT[KubeAtlas Agent]
-    end
-    
-    subgraph External["🔌 External Systems"]
-        LDAP[LDAP/AD]
-        OIDC[OIDC Provider]
-        PROM[Prometheus]
-    end
-
-    Users -->|HTTPS| FE
-    FE -->|API Calls| BE
-    BE --> AUTH
-    BE --> WS
-    BE --> Services
-    Services --> DB
-    Services --> CACHE
-    SYNC -->|Cluster API| AGENT
-    AGENT --> C1
-    AGENT --> C2
-    AGENT --> C3
-    AUTH -.->|SSO| LDAP
-    AUTH -.->|SSO| OIDC
-    WS -.->|Metrics| PROM
-    
-    style FE fill:#3b82f6,stroke:#1e40af,color:#fff
-    style BE fill:#10b981,stroke:#047857,color:#fff
-    style DB fill:#f59e0b,stroke:#b45309,color:#fff
-    style AGENT fill:#8b5cf6,stroke:#6d28d9,color:#fff
-    style C1 fill:#ec4899,stroke:#be185d,color:#fff
-    style C2 fill:#ec4899,stroke:#be185d,color:#fff
-    style C3 fill:#ec4899,stroke:#be185d,color:#fff
-```
-
 ### Component Flow
 
 ```mermaid
@@ -325,10 +251,10 @@ View and manage all your Kubernetes clusters from a single interface with filter
 ### 📦 Namespace Management
 Comprehensive namespace inventory with ownership tracking, cost allocation, and compliance status.
 
-<!-- ![Namespaces](docs/images/namespaces.png) -->
+![Namespaces](docs/images/namespaces.svg)
 
 <details>
-<summary>📋 Click to view Namespaces UI Structure</summary>
+<summary>📋 Click to view Namespaces UI Details</summary>
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐

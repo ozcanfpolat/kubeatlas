@@ -182,7 +182,8 @@ func RefreshToken(svc *services.Services) gin.HandlerFunc {
 func ListUsers(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orgID, _ := middleware.GetOrganizationID(c)
-		result, err := svc.User.List(c.Request.Context(), orgID, 1, 100)
+		p := getPagination(c)
+		result, err := svc.User.List(c.Request.Context(), orgID, p)
 		if err != nil {
 			respondError(c, http.StatusInternalServerError, err)
 			return
@@ -216,13 +217,12 @@ func CreateUser(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		orgID, _ := middleware.GetOrganizationID(c)
-		user, err := svc.User.Create(c.Request.Context(), orgID, req, getAuditContext(c))
+		user, err := svc.User.Create(c.Request.Context(), getAuditContext(c), req)
 		if err != nil {
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}
-		c.JSON(http.StatusCreated, user)
+		c.JSON(http.StatusCreated, gin.H{"data": user})
 	}
 }
 
@@ -234,13 +234,13 @@ func UpdateUser(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		var req services.UpdateUserRequest
+		var req services.CreateUserRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			respondError(c, http.StatusBadRequest, err)
 			return
 		}
 
-		user, err := svc.User.Update(c.Request.Context(), id, req, getAuditContext(c))
+		user, err := svc.User.Update(c.Request.Context(), getAuditContext(c), id, req)
 		if err != nil {
 			respondError(c, http.StatusInternalServerError, err)
 			return
@@ -257,7 +257,7 @@ func DeleteUser(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		if err := svc.User.Delete(c.Request.Context(), id, getAuditContext(c)); err != nil {
+		if err := svc.User.Delete(c.Request.Context(), getAuditContext(c), id); err != nil {
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}
@@ -316,13 +316,12 @@ func CreateTeam(svc *services.Services) gin.HandlerFunc {
 			respondError(c, http.StatusBadRequest, err)
 			return
 		}
-		orgID, _ := middleware.GetOrganizationID(c)
-		team, err := svc.Team.Create(c.Request.Context(), orgID, req, getAuditContext(c))
+		team, err := svc.Team.Create(c.Request.Context(), getAuditContext(c), req)
 		if err != nil {
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}
-		c.JSON(http.StatusCreated, team)
+		c.JSON(http.StatusCreated, gin.H{"data": team})
 	}
 }
 
@@ -333,12 +332,12 @@ func UpdateTeam(svc *services.Services) gin.HandlerFunc {
 			respondError(c, http.StatusBadRequest, err)
 			return
 		}
-		var req services.UpdateTeamRequest
+		var req services.CreateTeamRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			respondError(c, http.StatusBadRequest, err)
 			return
 		}
-		team, err := svc.Team.Update(c.Request.Context(), id, req, getAuditContext(c))
+		team, err := svc.Team.Update(c.Request.Context(), getAuditContext(c), id, req)
 		if err != nil {
 			respondError(c, http.StatusInternalServerError, err)
 			return
@@ -354,7 +353,7 @@ func DeleteTeam(svc *services.Services) gin.HandlerFunc {
 			respondError(c, http.StatusBadRequest, err)
 			return
 		}
-		if err := svc.Team.Delete(c.Request.Context(), id, getAuditContext(c)); err != nil {
+		if err := svc.Team.Delete(c.Request.Context(), getAuditContext(c), id); err != nil {
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}

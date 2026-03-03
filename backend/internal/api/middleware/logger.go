@@ -160,23 +160,6 @@ func CORS(origins []string) gin.HandlerFunc {
 		}
 		
 		c.Next()
-				
-				logger.Errorw("Panic recovered",
-					"request_id", requestID,
-					"error", err,
-					"path", c.Request.URL.Path,
-					"method", c.Request.Method,
-				)
-
-				c.AbortWithStatusJSON(500, gin.H{
-					"error":      "internal_server_error",
-					"message":    "An unexpected error occurred",
-					"request_id": requestID,
-				})
-			}
-		}()
-
-		c.Next()
 	}
 }
 

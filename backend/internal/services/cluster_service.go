@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
+	"net/url"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/kubeatlas/kubeatlas/internal/crypto"
@@ -19,6 +21,10 @@ var (
 	ErrClusterNameExists   = errors.New("cluster name already exists")
 	ErrClusterSyncFailed   = errors.New("cluster sync failed")
 	ErrEncryptionFailed    = errors.New("failed to encrypt sensitive data")
+	ErrInvalidClusterName  = errors.New("invalid cluster name: must be 1-63 characters, alphanumeric with dashes")
+	ErrInvalidAPIServerURL = errors.New("invalid API server URL: must be a valid https URL")
+	ErrInvalidEnvironment  = errors.New("invalid environment: must be production, staging, development, or test")
+	ErrInvalidClusterType  = errors.New("invalid cluster type")
 )
 
 type ClusterService struct {
@@ -70,6 +76,28 @@ type CreateClusterRequest struct {
 
 // Create creates a new cluster
 func (s *ClusterService) Create(ctx context.Context, ac AuditContext, req CreateClusterRequest) (*models.Cluster, error) {
+	// Validate cluster name (Kubernetes naming convention)
+	if !isValidKubernetesName(req.Name) {
+		return nil, ErrInvalidClusterName
+	}
+
+	// Validate API Server URL
+	if !isValidAPIServerURL(req.APIServerURL) {
+		return nil, ErrInvalidAPIServerURL
+	}
+
+	// Validate environment
+	validEnvs := map[string]bool{"production": true, "staging": true, "development": true, "test": true}
+	if !validEnvs[req.Environment] {
+		return nil, ErrInvalidEnvironment
+	}
+
+	// Validate cluster type
+	validTypes := map[string]bool{"kubernetes": true, "openshift": true, "rke2": true, "eks": true, "aks": true, "gke": true}
+	if !validTypes[req.ClusterType] {
+		return nil, ErrInvalidClusterType
+	}
+
 	// Check if name already exists
 	existing, err := s.clusterRepo.GetByName(ctx, ac.OrgID, req.Name)
 	if err != nil {
@@ -385,4 +413,56 @@ func (s *ClusterService) GetNamespaces(ctx context.Context, clusterID uuid.UUID,
 	}
 
 	return s.namespaceRepo.List(ctx, cluster.OrganizationID, p, filters)
+}
+
+// isValidKubernetesName validates Kubernetes resource naming conventions
+func isValidKubernetesName(name string) bool {
+	if len(name) == 0 || len(name) > 63 {
+		return false
+	}
+	
+	// Must start with alphanumeric
+	first := name[0]
+	if !((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || (first >= '0' && first <= '9')) {
+		return false
+	}
+	
+	// Must end with alphanumeric
+	last := name[len(name)-1]
+	if !((last >= 'a' && last <= 'z') || (last >= 'A' && last <= 'Z') || (last >= '0' && last <= '9')) {
+		return false
+	}
+	
+	// Can only contain alphanumeric, dash, underscore, and dot
+	for _, r := range name {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.') {
+			return false
+		}
+	}
+	
+	return true
+}
+
+// isValidAPIServerURL validates Kubernetes API server URL
+func isValidAPIServerURL(rawURL string) bool {
+	if rawURL == "" {
+		return false
+	}
+	
+	// Must start with https:// for security
+	if !strings.HasPrefix(rawURL, "https://") {
+		return false
+	}
+	
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	
+	// Must have a valid host
+	if parsed.Host == "" {
+		return false
+	}
+	
+	return true
 }

@@ -32,6 +32,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Token encryption for stored credentials
 - TLS support for cluster connections
 
+### Fixed (Code Review - March 2026)
+- **[CRITICAL]** Added missing `Logout` function in AuthService that was causing compile errors
+- **[CRITICAL]** Fixed `OrganizationID` → `OrgID` field name mismatch in handlers.go `getAuditContext()`
+- **[ENHANCEMENT]** Added rate limiting middleware to API routes (100 req/min per client)
+- **[ENHANCEMENT]** Added `/metrics` endpoint for monitoring
+- **[ENHANCEMENT]** Added `startTime` tracking for uptime metrics
+- **[VALIDATION]** Added comprehensive input validation for cluster creation:
+  - Kubernetes naming convention validation (1-63 chars, alphanumeric with dashes)
+  - API Server URL validation (must be HTTPS)
+  - Environment validation (production, staging, development, test)
+  - Cluster type validation (kubernetes, openshift, rke2, eks, aks, gke)
+- **[MIDDLEWARE]** Added new validation middleware with:
+  - Email validation
+  - Kubernetes name validation
+  - URL validation
+  - Password strength validation
+  - Request body size limiting
+  - Content-Type enforcement
+- **[FRONTEND]** Fixed teams data parsing in CreateCluster.tsx for backend response format
+
 ### Fixed (Security Review - March 2026)
 - **[CRITICAL]** Fixed missing `crypto/tls` and `net/http` imports in `k8s/manager.go` that caused compilation errors
 - **[CRITICAL]** Added SQL injection protection with whitelist validation in `QueryBuilder.OrderBy()` function

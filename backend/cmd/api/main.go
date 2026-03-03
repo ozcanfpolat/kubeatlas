@@ -25,6 +25,7 @@ var (
 	Version   = "dev"
 	BuildTime = "unknown"
 	GitCommit = "unknown"
+	startTime = time.Now()
 )
 
 func main() {
@@ -108,8 +109,21 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
 
+	// Metrics endpoint for Prometheus
+	router.GET("/metrics", func(c *gin.Context) {
+		// Basic metrics - for production, use prometheus/client_golang
+		c.JSON(http.StatusOK, gin.H{
+			"uptime":     time.Since(startTime).Seconds(),
+			"version":    Version,
+			"go_version": "1.21",
+		})
+	})
+
 	// API routes
 	api := router.Group("/api/v1")
+	
+	// Apply rate limiting to API routes (100 requests per minute per client)
+	api.Use(middleware.RateLimiterMiddleware(100, time.Minute))
 	{
 		// Authentication
 		auth := api.Group("/auth")

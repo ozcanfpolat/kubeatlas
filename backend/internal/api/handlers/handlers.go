@@ -43,10 +43,10 @@ func getAuditContext(c *gin.Context) services.AuditContext {
 	email, _ := middleware.GetUserEmail(c)
 
 	actx := services.AuditContext{
-		OrganizationID: orgID,
-		UserEmail:      email,
-		UserIP:         c.ClientIP(),
-		UserAgent:      c.Request.UserAgent(),
+		OrgID:     orgID,
+		UserEmail: email,
+		UserIP:    c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
 	}
 
 	if userID != uuid.Nil {

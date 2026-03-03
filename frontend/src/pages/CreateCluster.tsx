@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { clustersApi, teamsApi } from '@/api'
-import type { CreateClusterRequest } from '@/types'
+import type { CreateClusterRequest, Team } from '@/types'
 
 export default function CreateCluster() {
   const navigate = useNavigate()
@@ -39,7 +39,7 @@ export default function CreateCluster() {
   })
   const [error, setError] = useState<string | null>(null)
 
-  const { data: teamsData } = useQuery({
+  const { data: teamsResponse } = useQuery({
     queryKey: ['teams'],
     queryFn: teamsApi.list,
   })
@@ -96,7 +96,10 @@ export default function CreateCluster() {
     reader.readAsText(file)
   }
 
-  const teams = teamsData || []
+  // Handle different response formats from backend
+  const teams = Array.isArray(teamsResponse) 
+    ? teamsResponse 
+    : (teamsResponse as { items?: Team[] })?.items || []
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto animate-fade-in">

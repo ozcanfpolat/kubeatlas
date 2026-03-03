@@ -177,3 +177,14 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenString strin
 func (s *AuthService) GetUserFromToken(ctx context.Context, claims *Claims) (*models.User, error) {
 	return s.userRepo.GetByID(ctx, claims.UserID)
 }
+
+// Logout logs out a user (for audit purposes, token invalidation would require a blacklist)
+func (s *AuthService) Logout(ctx context.Context, userID, orgID uuid.UUID, userIP, userAgent string) {
+	s.logger.Infow("User logged out", 
+		"user_id", userID, 
+		"organization_id", orgID,
+		"ip", userIP,
+	)
+	// Note: JWT tokens are stateless. For true logout, implement token blacklisting with Redis
+	// or use short-lived tokens with refresh token rotation
+}

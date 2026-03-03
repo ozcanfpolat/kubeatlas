@@ -27,6 +27,11 @@ var (
 	ErrInvalidClusterType  = errors.New("invalid cluster type")
 )
 
+// Cluster name validation constants
+const (
+	maxClusterNameLength = 63
+)
+
 type ClusterService struct {
 	clusterRepo   *repositories.ClusterRepository
 	namespaceRepo *repositories.NamespaceRepository
@@ -417,7 +422,7 @@ func (s *ClusterService) GetNamespaces(ctx context.Context, clusterID uuid.UUID,
 
 // isValidKubernetesName validates Kubernetes resource naming conventions
 func isValidKubernetesName(name string) bool {
-	if len(name) == 0 || len(name) > 63 {
+	if len(name) == 0 || len(name) > maxClusterNameLength {
 		return false
 	}
 	

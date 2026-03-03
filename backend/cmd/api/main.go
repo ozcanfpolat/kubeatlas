@@ -28,6 +28,11 @@ var (
 	startTime = time.Now()
 )
 
+// API configuration constants
+const (
+	rateLimitRequestsPerMinute = 100
+)
+
 func main() {
 	// Initialize logger
 	logger, _ := zap.NewProduction()
@@ -122,8 +127,8 @@ func main() {
 	// API routes
 	api := router.Group("/api/v1")
 	
-	// Apply rate limiting to API routes (100 requests per minute per client)
-	api.Use(middleware.RateLimiterMiddleware(100, time.Minute))
+	// Apply rate limiting to API routes
+	api.Use(middleware.RateLimiterMiddleware(rateLimitRequestsPerMinute, time.Minute))
 	{
 		// Authentication
 		auth := api.Group("/auth")

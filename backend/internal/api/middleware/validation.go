@@ -10,6 +10,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Validation constants
+const (
+	MaxEmailLength           = 254
+	MinSlugLength            = 1
+	MaxSlugLength            = 63
+	MinPasswordLength        = 8
+	MaxPasswordLength        = 128
+	MaxKubernetesNameLength  = 63
+)
+
 var (
 	// emailRegex is a simple email validation regex
 	emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
@@ -42,7 +52,7 @@ func NewValidator() *Validator {
 
 // ValidateEmail validates an email address
 func (v *Validator) ValidateEmail(email string) bool {
-	if len(email) > 254 {
+	if len(email) > MaxEmailLength {
 		return false
 	}
 	return emailRegex.MatchString(email)
@@ -59,7 +69,7 @@ func (v *Validator) ValidateName(name string, minLen, maxLen int) bool {
 
 // ValidateSlug validates a slug
 func (v *Validator) ValidateSlug(slug string) bool {
-	if len(slug) < 1 || len(slug) > 63 {
+	if len(slug) < MinSlugLength || len(slug) > MaxSlugLength {
 		return false
 	}
 	return slugRegex.MatchString(slug)
@@ -92,7 +102,7 @@ func (v *Validator) ValidateURL(rawURL string) bool {
 // ValidateKubernetesName validates Kubernetes resource names
 // Must be lowercase, alphanumeric, dash, max 63 chars, start/end with alphanumeric
 func (v *Validator) ValidateKubernetesName(name string) bool {
-	if len(name) == 0 || len(name) > 63 {
+	if len(name) == 0 || len(name) > MaxKubernetesNameLength {
 		return false
 	}
 	
@@ -115,10 +125,10 @@ func (v *Validator) ValidateKubernetesName(name string) bool {
 func (v *Validator) ValidatePassword(password string) []string {
 	var errors []string
 	
-	if len(password) < 8 {
+	if len(password) < MinPasswordLength {
 		errors = append(errors, "Password must be at least 8 characters")
 	}
-	if len(password) > 128 {
+	if len(password) > MaxPasswordLength {
 		errors = append(errors, "Password must be at most 128 characters")
 	}
 	

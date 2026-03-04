@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -371,6 +372,68 @@ func (r *ExternalDependencyRepository) ListByNamespace(ctx context.Context, name
 	return deps, nil
 }
 
+// List retrieves all external dependencies for an organization with pagination
+func (r *ExternalDependencyRepository) List(ctx context.Context, orgID uuid.UUID, p Pagination) (*PaginatedResult[models.ExternalDependency], error) {
+	// Count total
+	countQuery := `SELECT COUNT(*) FROM external_dependencies WHERE organization_id = $1 AND deleted_at IS NULL`
+	var total int64
+	if err := r.pool.QueryRow(ctx, countQuery, orgID).Scan(&total); err != nil {
+		return nil, err
+	}
+
+	// Get items
+	query := `
+		SELECT 
+			id, organization_id, namespace_id,
+			name, system_type, provider, endpoint, description,
+			is_critical, expected_availability,
+			contact_name, contact_email, documentation_url,
+			status, metadata,
+			created_at, updated_at
+		FROM external_dependencies
+		WHERE organization_id = $1 AND deleted_at IS NULL
+		ORDER BY is_critical DESC, name ASC
+		LIMIT $2 OFFSET $3
+	`
+
+	offset := (p.Page - 1) * p.PageSize
+	rows, err := r.pool.Query(ctx, query, orgID, p.PageSize, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var deps []models.ExternalDependency
+	for rows.Next() {
+		var d models.ExternalDependency
+		err := rows.Scan(
+			&d.ID, &d.OrganizationID, &d.NamespaceID,
+			&d.Name, &d.SystemType, &d.Provider, &d.Endpoint, &d.Description,
+			&d.IsCritical, &d.ExpectedAvailability,
+			&d.ContactName, &d.ContactEmail, &d.DocumentationURL,
+			&d.Status, &d.Metadata,
+			&d.CreatedAt, &d.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		deps = append(deps, d)
+	}
+
+	totalPages := int(total) / p.PageSize
+	if int(total)%p.PageSize > 0 {
+		totalPages++
+	}
+
+	return &PaginatedResult[models.ExternalDependency]{
+		Items:      deps,
+		Total:      total,
+		Page:       p.Page,
+		PageSize:   p.PageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
 // Update updates an external dependency
 func (r *ExternalDependencyRepository) Update(ctx context.Context, dep *models.ExternalDependency) error {
 	dep.UpdatedAt = time.Now()
@@ -685,4 +748,84 @@ func (r *DocumentRepository) GetCategories(ctx context.Context, orgID *uuid.UUID
 	}
 
 	return categories, nil
+}
+
+// List retrieves all documents for an organization with pagination and filters
+func (r *DocumentRepository) List(ctx context.Context, orgID uuid.UUID, p Pagination, filters map[string]interface{}) (*PaginatedResult[models.Document], error) {
+	// Build WHERE clause
+	where := "organization_id = $1 AND deleted_at IS NULL"
+	args := []interface{}{orgID}
+	argCount := 1
+
+	if nsID, ok := filters["namespace_id"].(uuid.UUID); ok {
+		argCount++
+		where += fmt.Sprintf(" AND namespace_id = $%d", argCount)
+		args = append(args, nsID)
+	}
+	if docType, ok := filters["document_type"].(string); ok && docType != "" {
+		argCount++
+		where += fmt.Sprintf(" AND document_type = $%d", argCount)
+		args = append(args, docType)
+	}
+
+	// Count total
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM documents WHERE %s", where)
+	var total int64
+	if err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, err
+	}
+
+	// Get items
+	query := fmt.Sprintf(`
+		SELECT 
+			id, organization_id, namespace_id, cluster_id,
+			name, file_name, file_path, file_size, content_type, checksum,
+			document_type, category_id, description, tags,
+			version, previous_version_id,
+			uploaded_by, status, metadata,
+			created_at, updated_at
+		FROM documents
+		WHERE %s
+		ORDER BY created_at DESC
+		LIMIT $%d OFFSET $%d
+	`, where, argCount+1, argCount+2)
+
+	offset := (p.Page - 1) * p.PageSize
+	args = append(args, p.PageSize, offset)
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var docs []models.Document
+	for rows.Next() {
+		var d models.Document
+		err := rows.Scan(
+			&d.ID, &d.OrganizationID, &d.NamespaceID, &d.ClusterID,
+			&d.Name, &d.Filename, &d.FilePath, &d.FileSize, &d.ContentType, &d.Checksum,
+			&d.DocumentType, &d.CategoryID, &d.Description, &d.Tags,
+			&d.Version, &d.PreviousVersionID,
+			&d.UploadedBy, &d.Status, &d.Metadata,
+			&d.CreatedAt, &d.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		docs = append(docs, d)
+	}
+
+	totalPages := int(total) / p.PageSize
+	if int(total)%p.PageSize > 0 {
+		totalPages++
+	}
+
+	return &PaginatedResult[models.Document]{
+		Items:      docs,
+		Total:      total,
+		Page:       p.Page,
+		PageSize:   p.PageSize,
+		TotalPages: totalPages,
+	}, nil
 }

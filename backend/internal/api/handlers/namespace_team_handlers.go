@@ -19,7 +19,7 @@ import (
 func ListNamespaces(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orgID, _ := middleware.GetOrganizationID(c)
-		page, pageSize := getPageParams(c)
+		p := getPagination(c)
 
 		filters := make(map[string]interface{})
 		if clusterID := c.Query("cluster_id"); clusterID != "" {
@@ -56,7 +56,7 @@ func ListNamespaces(svc *services.Services) gin.HandlerFunc {
 			filters["undocumented"] = true
 		}
 
-		result, err := svc.Namespace.List(c.Request.Context(), orgID, page, pageSize, filters)
+		result, err := svc.Namespace.List(c.Request.Context(), orgID, p, filters)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to list namespaces")
 			return

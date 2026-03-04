@@ -129,3 +129,92 @@ func (s *DependencyService) GetAllByNamespace(ctx context.Context, namespaceID u
 	external, _ := s.ListExternalByNamespace(ctx, namespaceID)
 	return map[string]interface{}{"internal": internal, "external": external}, nil
 }
+
+// ListInternal returns all internal dependencies for an organization with pagination
+func (s *DependencyService) ListInternal(ctx context.Context, orgID uuid.UUID, p repositories.Pagination) (*repositories.PaginatedResult[models.InternalDependency], error) {
+	return s.internalRepo.List(ctx, orgID, p)
+}
+
+// ListExternal returns all external dependencies for an organization with pagination
+func (s *DependencyService) ListExternal(ctx context.Context, orgID uuid.UUID, p repositories.Pagination) (*repositories.PaginatedResult[models.ExternalDependency], error) {
+	return s.externalRepo.List(ctx, orgID, p)
+}
+
+// GetGraph returns dependency graph for a namespace
+func (s *DependencyService) GetGraph(ctx context.Context, namespaceID uuid.UUID) (map[string]interface{}, error) {
+	internal, err := s.ListInternalByNamespace(ctx, namespaceID)
+	if err != nil {
+		return nil, err
+	}
+	external, err := s.ListExternalByNamespace(ctx, namespaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build nodes and edges for graph visualization
+	nodes := make([]map[string]interface{}, 0)
+	edges := make([]map[string]interface{}, 0)
+
+	// Add namespace as central node
+	nodes = append(nodes, map[string]interface{}{
+		"id":   namespaceID.String(),
+		"type": "namespace",
+	})
+
+	// Add internal dependency edges
+	for _, dep := range internal {
+		edges = append(edges, map[string]interface{}{
+			"id":          dep.ID.String(),
+			"source":      dep.SourceNamespaceID.String(),
+			"target":      dep.TargetNamespaceID.String(),
+			"type":        dep.DependencyType,
+			"is_critical": dep.IsCritical,
+		})
+	}
+
+	// Add external dependencies as nodes and edges
+	for _, dep := range external {
+		nodes = append(nodes, map[string]interface{}{
+			"id":   dep.ID.String(),
+			"type": "external",
+			"name": dep.Name,
+		})
+		edges = append(edges, map[string]interface{}{
+			"id":          "ext-" + dep.ID.String(),
+			"source":      dep.NamespaceID.String(),
+			"target":      dep.ID.String(),
+			"type":        dep.SystemType,
+			"is_critical": dep.IsCritical,
+		})
+	}
+
+	return map[string]interface{}{
+		"nodes": nodes,
+		"edges": edges,
+	}, nil
+}
+
+// GetDependencyMatrix returns a dependency matrix for the organization
+func (s *DependencyService) GetDependencyMatrix(ctx context.Context, orgID uuid.UUID) (map[string]interface{}, error) {
+	// Get all internal dependencies
+	result, err := s.internalRepo.List(ctx, orgID, repositories.Pagination{Page: 1, PageSize: 1000})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build matrix
+	matrix := make(map[string][]string)
+	for _, dep := range result.Items {
+		sourceID := dep.SourceNamespaceID.String()
+		targetID := dep.TargetNamespaceID.String()
+		if _, ok := matrix[sourceID]; !ok {
+			matrix[sourceID] = make([]string, 0)
+		}
+		matrix[sourceID] = append(matrix[sourceID], targetID)
+	}
+
+	return map[string]interface{}{
+		"matrix":     matrix,
+		"total_deps": result.Total,
+	}, nil
+}

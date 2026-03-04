@@ -121,6 +121,10 @@ func (s *DocumentService) ListByNamespace(ctx context.Context, namespaceID uuid.
 	return s.repo.ListByNamespace(ctx, namespaceID)
 }
 
+func (s *DocumentService) List(ctx context.Context, orgID uuid.UUID, p repositories.Pagination, filters map[string]interface{}) (*repositories.PaginatedResult[models.Document], error) {
+	return s.repo.List(ctx, orgID, p, filters)
+}
+
 func (s *DocumentService) GetRecent(ctx context.Context, orgID uuid.UUID, limit int) ([]models.Document, error) {
 	return s.repo.GetRecent(ctx, orgID, limit)
 }

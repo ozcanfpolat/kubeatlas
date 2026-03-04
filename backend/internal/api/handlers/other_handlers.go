@@ -19,7 +19,7 @@ import (
 func ListClusters(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orgID, _ := middleware.GetOrganizationID(c)
-		page, pageSize := getPageParams(c)
+		p := getPagination(c)
 
 		filters := make(map[string]interface{})
 		if status := c.Query("status"); status != "" {
@@ -32,7 +32,7 @@ func ListClusters(svc *services.Services) gin.HandlerFunc {
 			filters["cluster_type"] = clusterType
 		}
 
-		result, err := svc.Cluster.List(c.Request.Context(), orgID, page, pageSize, filters)
+		result, err := svc.Cluster.List(c.Request.Context(), orgID, p, filters)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to list clusters")
 			return
@@ -152,7 +152,7 @@ func SyncCluster(svc *services.Services) gin.HandlerFunc {
 
 		actx := getAuditContext(c)
 
-		if err := svc.Cluster.Sync(c.Request.Context(), id, actx); err != nil {
+		if err := svc.Cluster.Sync(c.Request.Context(), actx, id); err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to sync cluster")
 			return
 		}
@@ -184,12 +184,12 @@ func ListClusterNamespaces(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		page, pageSize := getPageParams(c)
+		p := getPagination(c)
 		filters := map[string]interface{}{
 			"cluster_id": id,
 		}
 
-		result, err := svc.Namespace.List(c.Request.Context(), uuid.Nil, page, pageSize, filters)
+		result, err := svc.Namespace.List(c.Request.Context(), uuid.Nil, p, filters)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to list cluster namespaces")
 			return
@@ -372,9 +372,9 @@ func GetMissingInfo(svc *services.Services) gin.HandlerFunc {
 func ListInternalDependencies(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orgID, _ := middleware.GetOrganizationID(c)
-		page, pageSize := getPageParams(c)
+		p := getPagination(c)
 
-		result, err := svc.Dependency.ListInternal(c.Request.Context(), orgID, page, pageSize)
+		result, err := svc.Dependency.ListInternal(c.Request.Context(), orgID, p)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to list internal dependencies")
 			return
@@ -393,10 +393,9 @@ func CreateInternalDependency(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		orgID, _ := middleware.GetOrganizationID(c)
 		actx := getAuditContext(c)
 
-		dep, err := svc.Dependency.CreateInternal(c.Request.Context(), orgID, req, actx)
+		dep, err := svc.Dependency.CreateInternal(c.Request.Context(), actx, req)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to create internal dependency")
 			return
@@ -467,9 +466,9 @@ func DeleteInternalDependency(svc *services.Services) gin.HandlerFunc {
 func ListExternalDependencies(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orgID, _ := middleware.GetOrganizationID(c)
-		page, pageSize := getPageParams(c)
+		p := getPagination(c)
 
-		result, err := svc.Dependency.ListExternal(c.Request.Context(), orgID, page, pageSize)
+		result, err := svc.Dependency.ListExternal(c.Request.Context(), orgID, p)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to list external dependencies")
 			return
@@ -488,10 +487,9 @@ func CreateExternalDependency(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		orgID, _ := middleware.GetOrganizationID(c)
 		actx := getAuditContext(c)
 
-		dep, err := svc.Dependency.CreateExternal(c.Request.Context(), orgID, req, actx)
+		dep, err := svc.Dependency.CreateExternal(c.Request.Context(), actx, req)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to create external dependency")
 			return
@@ -562,7 +560,7 @@ func DeleteExternalDependency(svc *services.Services) gin.HandlerFunc {
 func ListDocuments(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orgID, _ := middleware.GetOrganizationID(c)
-		page, pageSize := getPageParams(c)
+		p := getPagination(c)
 
 		filters := make(map[string]interface{})
 		if namespaceID := c.Query("namespace_id"); namespaceID != "" {
@@ -574,7 +572,7 @@ func ListDocuments(svc *services.Services) gin.HandlerFunc {
 			filters["document_type"] = docType
 		}
 
-		result, err := svc.Document.List(c.Request.Context(), orgID, page, pageSize, filters)
+		result, err := svc.Document.List(c.Request.Context(), orgID, p, filters)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to list documents")
 			return
@@ -689,7 +687,7 @@ func DeleteDocument(svc *services.Services) gin.HandlerFunc {
 func ListAuditLogs(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orgID, _ := middleware.GetOrganizationID(c)
-		page, pageSize := getPageParams(c)
+		p := getPagination(c)
 
 		filters := make(map[string]interface{})
 		if userID := c.Query("user_id"); userID != "" {
@@ -704,7 +702,7 @@ func ListAuditLogs(svc *services.Services) gin.HandlerFunc {
 			filters["resource_type"] = resourceType
 		}
 
-		result, err := svc.Audit.List(c.Request.Context(), orgID, page, pageSize, filters)
+		result, err := svc.Audit.List(c.Request.Context(), orgID, p, filters)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to list audit logs")
 			return

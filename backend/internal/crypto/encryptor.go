@@ -14,7 +14,11 @@ var (
 	ErrInvalidKey        = errors.New("invalid encryption key: must be 32 bytes")
 	ErrInvalidCiphertext = errors.New("invalid ciphertext")
 	ErrDecryptionFailed  = errors.New("decryption failed")
+	ErrKeyTooShort       = errors.New("encryption key must be at least 16 characters")
 )
+
+// MinKeyLength is the minimum required key length
+const MinKeyLength = 16
 
 // Encryptor handles encryption/decryption of sensitive data
 type Encryptor struct {
@@ -22,8 +26,11 @@ type Encryptor struct {
 }
 
 // NewEncryptor creates a new encryptor with the given key
-// Key should be 32 bytes for AES-256
+// Key should be at least 16 characters, will be hashed to 32 bytes for AES-256
 func NewEncryptor(key string) (*Encryptor, error) {
+	if len(key) < MinKeyLength {
+		return nil, ErrKeyTooShort
+	}
 	// Hash the key to ensure it's exactly 32 bytes
 	hash := sha256.Sum256([]byte(key))
 	return &Encryptor{key: hash[:]}, nil

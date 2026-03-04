@@ -10,6 +10,7 @@ import (
 var (
 	ErrMissingJWTSecret     = errors.New("JWT_SECRET environment variable is required and must be at least 32 characters")
 	ErrMissingEncryptionKey = errors.New("ENCRYPTION_KEY environment variable is required for production mode")
+	ErrMissingDBPassword    = errors.New("DB_PASSWORD environment variable is required for production mode")
 )
 
 // Config holds all configuration for the application
@@ -162,6 +163,10 @@ func Load() (*Config, error) {
 		// Encryption key is required for production
 		if cfg.Encryption.Key == "" {
 			return nil, ErrMissingEncryptionKey
+		}
+		// Database password is required for production
+		if cfg.Database.Password == "" {
+			return nil, ErrMissingDBPassword
 		}
 	} else {
 		// Development mode: use default secret if not provided (with warning)

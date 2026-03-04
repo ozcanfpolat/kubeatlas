@@ -99,6 +99,28 @@ var allowedSortFields = map[string]bool{
 	"timestamp":       true,
 }
 
+// allowedTableNames defines valid table names to prevent SQL injection
+var allowedTableNames = map[string]bool{
+	"users":                 true,
+	"teams":                 true,
+	"team_members":          true,
+	"organizations":         true,
+	"business_units":        true,
+	"clusters":              true,
+	"namespaces":            true,
+	"internal_dependencies": true,
+	"external_dependencies": true,
+	"documents":             true,
+	"document_categories":   true,
+	"audit_logs":            true,
+	"settings":              true,
+}
+
+// validateTableName checks if table name is in whitelist
+func validateTableName(table string) bool {
+	return allowedTableNames[table]
+}
+
 // OrderBy sets the ORDER BY clause with SQL injection protection
 func (qb *QueryBuilder) OrderBy(field, order string) *QueryBuilder {
 	// Validate order direction

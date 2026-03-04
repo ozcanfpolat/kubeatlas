@@ -66,6 +66,25 @@ func (s *DependencyService) DeleteInternal(ctx context.Context, ac AuditContext,
 	return nil
 }
 
+func (s *DependencyService) UpdateInternal(ctx context.Context, ac AuditContext, id uuid.UUID, req CreateInternalDependencyRequest) (*models.InternalDependency, error) {
+	dep := &models.InternalDependency{
+		OrganizationID:    ac.OrgID,
+		SourceNamespaceID: req.SourceNamespaceID,
+		TargetNamespaceID: req.TargetNamespaceID,
+		DependencyType:    req.DependencyType,
+		IsCritical:        req.IsCritical,
+	}
+	if req.Description != "" {
+		dep.Description = sql.NullString{String: req.Description, Valid: true}
+	}
+
+	if err := s.internalRepo.Update(ctx, dep); err != nil {
+		return nil, err
+	}
+	s.auditSvc.LogUpdate(ctx, ac, "internal_dependency", dep.ID, req.DependencyType, nil, StructToMap(dep))
+	return dep, nil
+}
+
 // External Dependency
 type CreateExternalDependencyRequest struct {
 	NamespaceID  uuid.UUID `json:"namespace_id" binding:"required"`
@@ -122,6 +141,37 @@ func (s *DependencyService) DeleteExternal(ctx context.Context, ac AuditContext,
 	}
 	s.auditSvc.LogDelete(ctx, ac, "external_dependency", id, "")
 	return nil
+}
+
+func (s *DependencyService) UpdateExternal(ctx context.Context, ac AuditContext, id uuid.UUID, req CreateExternalDependencyRequest) (*models.ExternalDependency, error) {
+	dep := &models.ExternalDependency{
+		OrganizationID: ac.OrgID,
+		NamespaceID:    req.NamespaceID,
+		Name:           req.Name,
+		SystemType:     req.SystemType,
+		IsCritical:     req.IsCritical,
+	}
+	if req.Provider != "" {
+		dep.Provider = sql.NullString{String: req.Provider, Valid: true}
+	}
+	if req.Endpoint != "" {
+		dep.Endpoint = sql.NullString{String: req.Endpoint, Valid: true}
+	}
+	if req.Description != "" {
+		dep.Description = sql.NullString{String: req.Description, Valid: true}
+	}
+	if req.ContactName != "" {
+		dep.ContactName = sql.NullString{String: req.ContactName, Valid: true}
+	}
+	if req.ContactEmail != "" {
+		dep.ContactEmail = sql.NullString{String: req.ContactEmail, Valid: true}
+	}
+
+	if err := s.externalRepo.Update(ctx, dep); err != nil {
+		return nil, err
+	}
+	s.auditSvc.LogUpdate(ctx, ac, "external_dependency", dep.ID, dep.Name, nil, StructToMap(dep))
+	return dep, nil
 }
 
 func (s *DependencyService) GetAllByNamespace(ctx context.Context, namespaceID uuid.UUID) (map[string]interface{}, error) {

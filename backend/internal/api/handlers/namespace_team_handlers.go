@@ -173,7 +173,7 @@ func ListNamespaceHistory(svc *services.Services) gin.HandlerFunc {
 
 		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
-		history, err := svc.Audit.GetByResource(c.Request.Context(), "namespace", id, limit)
+		history, err := svc.Audit.ListByResource(c.Request.Context(), "namespace", id, limit)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to get namespace history")
 			return
@@ -206,7 +206,7 @@ func AddTeamMember(svc *services.Services) gin.HandlerFunc {
 
 		actx := getAuditContext(c)
 
-		if err := svc.Team.AddMember(c.Request.Context(), teamID, req.UserID, req.Role, actx); err != nil {
+		if err := svc.Team.AddMember(c.Request.Context(), actx, teamID, req.UserID, req.Role); err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to add team member")
 			return
 		}
@@ -230,7 +230,7 @@ func RemoveTeamMember(svc *services.Services) gin.HandlerFunc {
 
 		actx := getAuditContext(c)
 
-		if err := svc.Team.RemoveMember(c.Request.Context(), teamID, userID, actx); err != nil {
+		if err := svc.Team.RemoveMember(c.Request.Context(), actx, teamID, userID); err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to remove team member")
 			return
 		}

@@ -413,7 +413,7 @@ func UpdateInternalDependency(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		var req services.UpdateInternalDependencyRequest
+		var req services.CreateInternalDependencyRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			respondErrorStr(c, http.StatusBadRequest, "Invalid request body")
 			return
@@ -421,7 +421,7 @@ func UpdateInternalDependency(svc *services.Services) gin.HandlerFunc {
 
 		actx := getAuditContext(c)
 
-		dep, err := svc.Dependency.UpdateInternal(c.Request.Context(), id, req, actx)
+		dep, err := svc.Dependency.UpdateInternal(c.Request.Context(), actx, id, req)
 		if err != nil {
 			if errors.Is(err, services.ErrDependencyNotFound) {
 				respondErrorStr(c, http.StatusNotFound, "Dependency not found")
@@ -445,7 +445,7 @@ func DeleteInternalDependency(svc *services.Services) gin.HandlerFunc {
 
 		actx := getAuditContext(c)
 
-		if err := svc.Dependency.DeleteInternal(c.Request.Context(), id, actx); err != nil {
+		if err := svc.Dependency.DeleteInternal(c.Request.Context(), actx, id); err != nil {
 			if errors.Is(err, services.ErrDependencyNotFound) {
 				respondErrorStr(c, http.StatusNotFound, "Dependency not found")
 				return
@@ -507,7 +507,7 @@ func UpdateExternalDependency(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		var req services.UpdateExternalDependencyRequest
+		var req services.CreateExternalDependencyRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			respondErrorStr(c, http.StatusBadRequest, "Invalid request body")
 			return
@@ -515,7 +515,7 @@ func UpdateExternalDependency(svc *services.Services) gin.HandlerFunc {
 
 		actx := getAuditContext(c)
 
-		dep, err := svc.Dependency.UpdateExternal(c.Request.Context(), id, req, actx)
+		dep, err := svc.Dependency.UpdateExternal(c.Request.Context(), actx, id, req)
 		if err != nil {
 			if errors.Is(err, services.ErrDependencyNotFound) {
 				respondErrorStr(c, http.StatusNotFound, "Dependency not found")
@@ -539,7 +539,7 @@ func DeleteExternalDependency(svc *services.Services) gin.HandlerFunc {
 
 		actx := getAuditContext(c)
 
-		if err := svc.Dependency.DeleteExternal(c.Request.Context(), id, actx); err != nil {
+		if err := svc.Dependency.DeleteExternal(c.Request.Context(), actx, id); err != nil {
 			if errors.Is(err, services.ErrDependencyNotFound) {
 				respondErrorStr(c, http.StatusNotFound, "Dependency not found")
 				return
@@ -607,22 +607,8 @@ func GetDocument(svc *services.Services) gin.HandlerFunc {
 // CreateDocument creates a new document
 func CreateDocument(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req services.CreateDocumentRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			respondErrorStr(c, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-
-		orgID, _ := middleware.GetOrganizationID(c)
-		actx := getAuditContext(c)
-
-		doc, err := svc.Document.Create(c.Request.Context(), orgID, req, actx)
-		if err != nil {
-			respondErrorStr(c, http.StatusInternalServerError, "Failed to create document")
-			return
-		}
-
-		c.JSON(http.StatusCreated, SuccessResponse{Data: doc})
+		// Document creation is done through UploadDocument endpoint
+		respondErrorStr(c, http.StatusBadRequest, "Use POST /documents with multipart/form-data to upload documents")
 	}
 }
 

@@ -129,7 +129,7 @@ func DeleteCluster(svc *services.Services) gin.HandlerFunc {
 
 		actx := getAuditContext(c)
 
-		if err := svc.Cluster.Delete(c.Request.Context(), id, actx); err != nil {
+		if err := svc.Cluster.Delete(c.Request.Context(), actx, id); err != nil {
 			if errors.Is(err, services.ErrClusterNotFound) {
 				respondErrorStr(c, http.StatusNotFound, "Cluster not found")
 				return
@@ -207,15 +207,14 @@ func ListClusterNamespaces(svc *services.Services) gin.HandlerFunc {
 func ListBusinessUnits(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orgID, _ := middleware.GetOrganizationID(c)
-		page, pageSize := getPageParams(c)
 
-		result, err := svc.BusinessUnit.List(c.Request.Context(), orgID, page, pageSize)
+		result, err := svc.BusinessUnit.List(c.Request.Context(), orgID)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to list business units")
 			return
 		}
 
-		respondPaginated(c, result.Items, result.Total, result.Page, result.PageSize, result.TotalPages)
+		respondSuccess(c, gin.H{"items": result})
 	}
 }
 
@@ -250,10 +249,9 @@ func CreateBusinessUnit(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		orgID, _ := middleware.GetOrganizationID(c)
 		actx := getAuditContext(c)
 
-		bu, err := svc.BusinessUnit.Create(c.Request.Context(), orgID, req, actx)
+		bu, err := svc.BusinessUnit.Create(c.Request.Context(), actx, req)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to create business unit")
 			return
@@ -271,7 +269,7 @@ func UpdateBusinessUnit(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		var req services.UpdateBusinessUnitRequest
+		var req services.CreateBusinessUnitRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			respondErrorStr(c, http.StatusBadRequest, "Invalid request body")
 			return
@@ -279,7 +277,7 @@ func UpdateBusinessUnit(svc *services.Services) gin.HandlerFunc {
 
 		actx := getAuditContext(c)
 
-		bu, err := svc.BusinessUnit.Update(c.Request.Context(), id, req, actx)
+		bu, err := svc.BusinessUnit.Update(c.Request.Context(), actx, id, req)
 		if err != nil {
 			if errors.Is(err, services.ErrBusinessUnitNotFound) {
 				respondErrorStr(c, http.StatusNotFound, "Business unit not found")
@@ -303,7 +301,7 @@ func DeleteBusinessUnit(svc *services.Services) gin.HandlerFunc {
 
 		actx := getAuditContext(c)
 
-		if err := svc.BusinessUnit.Delete(c.Request.Context(), id, actx); err != nil {
+		if err := svc.BusinessUnit.Delete(c.Request.Context(), actx, id); err != nil {
 			if errors.Is(err, services.ErrBusinessUnitNotFound) {
 				respondErrorStr(c, http.StatusNotFound, "Business unit not found")
 				return

@@ -1,0 +1,58 @@
+# PostgreSQL Helm Values for OpenShift
+# Usage: helm install kubeatlas-db bitnami/postgresql -f postgresql-values.yaml -n kubeatlas
+
+global:
+  postgresql:
+    auth:
+      username: kubeatlas
+      database: kubeatlas
+      # Password will be set via --set flag for security
+      # existingSecret: kubeatlas-secrets
+
+# OpenShift specific settings
+primary:
+  # Pod Security Context - OpenShift compatible
+  podSecurityContext:
+    enabled: true
+    fsGroup: null  # Let OpenShift assign
+
+  containerSecurityContext:
+    enabled: true
+    runAsUser: null  # Let OpenShift assign
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop:
+        - ALL
+
+  # Persistence
+  persistence:
+    enabled: true
+    size: 20Gi
+    # storageClass: ""  # Use default, or specify your storage class
+
+  # Resources
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  # Service
+  service:
+    type: ClusterIP
+    ports:
+      postgresql: 5432
+
+# Disable read replicas for simplicity
+architecture: standalone
+
+# Metrics (optional - for Prometheus)
+metrics:
+  enabled: false
+  # serviceMonitor:
+  #   enabled: true

@@ -1,0 +1,145 @@
+# KubeAtlas Helm Values for OpenShift 4.12+
+# Usage: helm install kubeatlas ./helm/kubeatlas -f kubeatlas-openshift-values.yaml -n kubeatlas
+
+global:
+  # Your OpenShift domain - CHANGE THIS!
+  domain: kubeatlas.apps.YOUR_CLUSTER.com
+
+# ============================================
+# API Server
+# ============================================
+api:
+  enabled: true
+  replicaCount: 2
+
+  image:
+    repository: ghcr.io/ozcanfpolat/kubeatlas-api
+    tag: "latest"
+    pullPolicy: Always
+
+  # OpenShift Security Context
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop:
+        - ALL
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  # Environment variables
+  env:
+    SERVER_MODE: "release"
+    SERVER_PORT: "8080"
+    LOG_LEVEL: "info"
+    LOG_FORMAT: "json"
+    DB_HOST: "kubeatlas-db-postgresql"
+    DB_PORT: "5432"
+    DB_USER: "kubeatlas"
+    DB_NAME: "kubeatlas"
+    DB_SSLMODE: "disable"  # Internal cluster, SSL not needed
+    DB_MAX_CONNS: "25"
+    JWT_EXPIRATION_HOURS: "24"
+    JWT_REFRESH_HOURS: "168"
+
+  # Secrets reference
+  envFrom:
+    - secretRef:
+        name: kubeatlas-app-secrets
+
+# ============================================
+# UI (Frontend)
+# ============================================
+ui:
+  enabled: true
+  replicaCount: 2
+
+  image:
+    repository: ghcr.io/ozcanfpolat/kubeatlas-ui
+    tag: "latest"
+    pullPolicy: Always
+
+  # OpenShift Security Context
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop:
+        - ALL
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# ============================================
+# PostgreSQL (Disabled - using separate Helm release)
+# ============================================
+postgresql:
+  enabled: false
+
+# External database config (points to our PostgreSQL Helm release)
+externalDatabase:
+  host: "kubeatlas-db-postgresql"
+  port: 5432
+  database: kubeatlas
+  username: kubeatlas
+  existingSecret: "kubeatlas-secrets"
+  secretPasswordKey: "db-password"
+
+# ============================================
+# Ingress (Disabled - using OpenShift Route)
+# ============================================
+ingress:
+  enabled: false
+
+# ============================================
+# OpenShift Route
+# ============================================
+openshift:
+  route:
+    enabled: true
+    # host will be auto-generated based on global.domain
+    annotations:
+      haproxy.router.openshift.io/timeout: 120s
+    tls:
+      enabled: true
+      termination: edge
+      insecureEdgeTerminationPolicy: Redirect
+
+# ============================================
+# Service Account
+# ============================================
+serviceAccount:
+  create: true
+  annotations: {}
+
+# ============================================
+# Monitoring (Optional)
+# ============================================
+monitoring:
+  serviceMonitor:
+    enabled: false

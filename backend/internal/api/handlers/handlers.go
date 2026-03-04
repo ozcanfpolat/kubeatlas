@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/kubeatlas/kubeatlas/internal/api/middleware"
+	"github.com/kubeatlas/kubeatlas/internal/database/repositories"
 	"github.com/kubeatlas/kubeatlas/internal/services"
 )
 
@@ -111,6 +111,17 @@ func getPageParams(c *gin.Context) (page, pageSize int) {
 	}
 
 	return page, pageSize
+}
+
+// getPagination extracts pagination parameters and returns a Pagination struct
+func getPagination(c *gin.Context) repositories.Pagination {
+	page, pageSize := getPageParams(c)
+	return repositories.Pagination{
+		Page:     page,
+		PageSize: pageSize,
+		Sort:     c.Query("sort"),
+		Order:    c.DefaultQuery("order", "asc"),
+	}
 }
 
 // ============================================

@@ -98,6 +98,31 @@ func parseUUID(c *gin.Context, param string) (uuid.UUID, bool) {
 	return id, true
 }
 
+// getPagination extracts pagination parameters from query string
+func getPagination(c *gin.Context) repositories.Pagination {
+	page := 1
+	pageSize := 20
+
+	if p := c.Query("page"); p != "" {
+		if val, err := strconv.Atoi(p); err == nil && val > 0 {
+			page = val
+		}
+	}
+
+	if ps := c.Query("page_size"); ps != "" {
+		if val, err := strconv.Atoi(ps); err == nil && val > 0 && val <= 100 {
+			pageSize = val
+		}
+	}
+
+	return repositories.Pagination{
+		Page:     page,
+		PageSize: pageSize,
+		Sort:     c.Query("sort"),
+		Order:    c.DefaultQuery("order", "asc"),
+	}
+}
+
 // getPageParams extracts pagination parameters from query
 func getPageParams(c *gin.Context) (page, pageSize int) {
 	page, _ = strconv.Atoi(c.DefaultQuery("page", "1"))

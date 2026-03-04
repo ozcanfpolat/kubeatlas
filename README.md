@@ -7,14 +7,20 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/ozcanfpolat/kubeatlas/actions/workflows/ci.yml">
+    <img src="https://github.com/ozcanfpolat/kubeatlas/actions/workflows/ci.yml/badge.svg" alt="CI/CD">
+  </a>
   <a href="https://github.com/ozcanfpolat/kubeatlas/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">
   </a>
-  <a href="#quick-start">
-    <img src="https://img.shields.io/badge/Quick%20Start-Docker-green" alt="Quick Start">
+  <a href="https://goreportcard.com/report/github.com/ozcanfpolat/kubeatlas">
+    <img src="https://goreportcard.com/badge/github.com/ozcanfpolat/kubeatlas" alt="Go Report Card">
   </a>
   <a href="#helm-installation">
-    <img src="https://img.shields.io/badge/Deploy-Helm-blueviolet" alt="Helm">
+    <img src="https://img.shields.io/badge/Kubernetes-1.26+-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes">
+  </a>
+  <a href="#quick-start">
+    <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker">
   </a>
 </p>
 
@@ -488,25 +494,122 @@ make db-seed
 
 ---
 
-## ☸️ Helm Installation
+## ☸️ Production Kubernetes Deployment
 
-Deploy KubeAtlas to your Kubernetes cluster:
+### Prerequisites
+
+- Kubernetes 1.26+ or OpenShift 4.12+
+- Helm 3.12+
+- kubectl configured for your cluster
+- (Optional) cert-manager for automatic TLS
+
+### Step 1: Create Namespace and Secrets
 
 ```bash
-# Add namespace
+# Create namespace
 kubectl create namespace kubeatlas
 
-# Install with Helm
-helm upgrade --install kubeatlas ./helm/kubeatlas \
+# Create required secrets
+kubectl create secret generic kubeatlas-db \
   --namespace kubeatlas \
-  --set ingress.enabled=true \
-  --set ingress.host=kubeatlas.yourdomain.com
+  --from-literal=DB_HOST=your-postgres-host \
+  --from-literal=DB_PORT=5432 \
+  --from-literal=DB_USER=kubeatlas \
+  --from-literal=DB_PASSWORD=your-secure-password \
+  --from-literal=DB_NAME=kubeatlas
 
-# For OpenShift
+kubectl create secret generic kubeatlas-jwt \
+  --namespace kubeatlas \
+  --from-literal=secret=$(openssl rand -base64 32)
+
+kubectl create secret generic kubeatlas-encryption \
+  --namespace kubeatlas \
+  --from-literal=key=$(openssl rand -hex 32)
+```
+
+### Step 2: Install with Helm
+
+```bash
+# Basic installation
 helm upgrade --install kubeatlas ./helm/kubeatlas \
   --namespace kubeatlas \
-  -f deploy/values-openshift.yaml
+  --set global.domain=kubeatlas.yourdomain.com \
+  --set ingress.enabled=true
+
+# With external PostgreSQL (recommended for production)
+helm upgrade --install kubeatlas ./helm/kubeatlas \
+  --namespace kubeatlas \
+  --set global.domain=kubeatlas.yourdomain.com \
+  --set postgresql.enabled=false \
+  --set externalDatabase.host=your-postgres-host \
+  --set externalDatabase.existingSecret=kubeatlas-db
+
+# For OpenShift with Routes
+helm upgrade --install kubeatlas ./helm/kubeatlas \
+  --namespace kubeatlas \
+  --set ingress.enabled=false \
+  --set openshift.route.enabled=true \
+  --set openshift.route.host=kubeatlas.apps.yourdomain.com
 ```
+
+### Step 3: Add Your First Cluster
+
+Once deployed, login and add clusters to manage:
+
+```bash
+# Get admin credentials (first-time setup)
+kubectl get secret kubeatlas-admin -n kubeatlas -o jsonpath='{.data.password}' | base64 -d
+
+# Or use the default seed credentials:
+# Email: admin@kubeatlas.local
+# Password: admin123 (change immediately!)
+```
+
+### Connecting Target Clusters
+
+KubeAtlas connects to other Kubernetes clusters using **Service Account Tokens**:
+
+```bash
+# On target cluster - create service account
+kubectl create serviceaccount kubeatlas-reader -n kube-system
+
+# Create ClusterRole for read access
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubeatlas-reader
+rules:
+- apiGroups: [""]
+  resources: ["namespaces", "pods", "services", "configmaps", "secrets", "nodes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+  verbs: ["get", "list", "watch"]
+EOF
+
+# Bind role to service account
+kubectl create clusterrolebinding kubeatlas-reader \
+  --clusterrole=kubeatlas-reader \
+  --serviceaccount=kube-system:kubeatlas-reader
+
+# Get the token (Kubernetes 1.24+)
+kubectl create token kubeatlas-reader -n kube-system --duration=8760h
+
+# For older Kubernetes, get token from secret
+kubectl get secret $(kubectl get sa kubeatlas-reader -n kube-system -o jsonpath='{.secrets[0].name}') \
+  -n kube-system -o jsonpath='{.data.token}' | base64 -d
+```
+
+Then in KubeAtlas UI:
+1. Go to **Clusters** → **Add Cluster**
+2. Enter cluster name and API server URL (e.g., `https://api.target-cluster.com:6443`)
+3. Select **Service Account Token** authentication
+4. Paste the token from above
+5. For self-signed certificates, either:
+   - Upload the CA certificate, or
+   - Enable "Skip TLS Verification" (dev only!)
+6. Click **Create** and then **Sync**
 
 ---
 
@@ -542,9 +645,79 @@ kubeatlas/
 ## 📚 Documentation
 
 - [Installation Guide](docs/INSTALLATION.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
 - [Adding Clusters](docs/ADDING_CLUSTERS.md)
 - [API Documentation](docs/api/openapi.yaml)
 - [Project Structure](docs/PROJECT_STRUCTURE.md)
+
+---
+
+## 🔐 Security Considerations
+
+### Encryption at Rest
+- All sensitive data (kubeconfig, service account tokens, CA certificates) is encrypted using **AES-256-GCM**
+- Encryption key must be provided via `ENCRYPTION_KEY` environment variable
+- **Never** commit encryption keys to version control
+
+### Authentication
+- JWT-based authentication with configurable expiration
+- RBAC with three roles: `admin`, `editor`, `viewer`
+- Optional LDAP/OIDC integration for enterprise SSO
+
+### Network Security
+- All API endpoints require authentication (except `/health`, `/ready`)
+- Rate limiting enabled by default (100 req/min per IP)
+- Login endpoint has stricter limits (5 attempts/15 min per IP)
+- CORS configured for specific origins only
+
+### Kubernetes Connections
+- **Production**: Always use TLS with CA certificate verification
+- **Development only**: `skip_tls_verify` can be enabled
+- Service account tokens should have minimal required permissions
+
+### Best Practices
+```bash
+# Generate strong secrets
+JWT_SECRET=$(openssl rand -base64 32)
+ENCRYPTION_KEY=$(openssl rand -hex 32)
+DB_PASSWORD=$(openssl rand -base64 24)
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Cluster Connection Issues
+
+```bash
+# Test connectivity from KubeAtlas pod
+kubectl exec -it deploy/kubeatlas-api -n kubeatlas -- \
+  wget --spider --timeout=5 https://api.target-cluster.com:6443
+
+# Check if token is valid
+curl -k -H "Authorization: Bearer $TOKEN" \
+  https://api.target-cluster.com:6443/api/v1/namespaces
+```
+
+### Database Issues
+
+```bash
+# Check database connectivity
+kubectl exec -it deploy/kubeatlas-api -n kubeatlas -- \
+  nc -zv $DB_HOST $DB_PORT
+
+# View migration status
+kubectl logs deploy/kubeatlas-api -n kubeatlas | grep -i migration
+```
+
+### Common Errors
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `x509: certificate signed by unknown authority` | Self-signed cert | Upload CA cert or enable skip_tls_verify |
+| `401 Unauthorized` | Invalid/expired token | Generate new service account token |
+| `connection refused` | Firewall/network | Check network policies and firewall rules |
+| `encryption key too short` | ENCRYPTION_KEY < 16 chars | Use `openssl rand -hex 32` |
 
 ---
 

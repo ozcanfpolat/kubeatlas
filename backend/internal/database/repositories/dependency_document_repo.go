@@ -762,10 +762,10 @@ func (r *DocumentRepository) List(ctx context.Context, orgID uuid.UUID, p Pagina
 		where += fmt.Sprintf(" AND namespace_id = $%d", argCount)
 		args = append(args, nsID)
 	}
-	if docType, ok := filters["document_type"].(string); ok && docType != "" {
+	if catID, ok := filters["category_id"].(uuid.UUID); ok {
 		argCount++
-		where += fmt.Sprintf(" AND document_type = $%d", argCount)
-		args = append(args, docType)
+		where += fmt.Sprintf(" AND category_id = $%d", argCount)
+		args = append(args, catID)
 	}
 
 	// Count total
@@ -779,8 +779,8 @@ func (r *DocumentRepository) List(ctx context.Context, orgID uuid.UUID, p Pagina
 	query := fmt.Sprintf(`
 		SELECT 
 			id, organization_id, namespace_id, cluster_id,
-			name, file_name, file_path, file_size, content_type, checksum,
-			document_type, category_id, description, tags,
+			name, file_name, file_path, file_size, mime_type, checksum,
+			category_id, description, tags,
 			version, previous_version_id,
 			uploaded_by, status, metadata,
 			created_at, updated_at

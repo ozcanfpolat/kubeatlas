@@ -576,8 +576,10 @@ func ListDocuments(svc *services.Services) gin.HandlerFunc {
 				filters["namespace_id"] = id
 			}
 		}
-		if docType := c.Query("type"); docType != "" {
-			filters["document_type"] = docType
+		if categoryID := c.Query("category_id"); categoryID != "" {
+			if id, err := uuid.Parse(categoryID); err == nil {
+				filters["category_id"] = id
+			}
 		}
 
 		result, err := svc.Document.List(c.Request.Context(), orgID, p, filters)

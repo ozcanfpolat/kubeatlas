@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -209,4 +210,118 @@ func (s *DashboardService) GetRecentActivities(ctx context.Context, orgID uuid.U
 	}
 
 	return result, nil
+}
+
+// GetOwnershipCoverage returns ownership coverage report
+func (s *DashboardService) GetOwnershipCoverage(ctx context.Context, orgID uuid.UUID) (map[string]interface{}, error) {
+	nsStats, err := s.repos.Namespace.GetStats(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+
+	total := nsStats.TotalNamespaces
+	if total == 0 {
+		total = 1 // avoid division by zero
+	}
+
+	return map[string]interface{}{
+		"total_namespaces":      nsStats.TotalNamespaces,
+		"namespaces_with_owner": nsStats.NamespacesWithOwner,
+		"coverage_percentage":   float64(nsStats.NamespacesWithOwner) / float64(total) * 100,
+		"orphaned_namespaces":   nsStats.OrphanedNamespaces,
+	}, nil
+}
+
+// GetOrphanedResources returns orphaned resources report
+func (s *DashboardService) GetOrphanedResources(ctx context.Context, orgID uuid.UUID) (map[string]interface{}, error) {
+	nsStats, err := s.repos.Namespace.GetStats(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"orphaned_namespaces":     nsStats.OrphanedNamespaces,
+		"undocumented_namespaces": nsStats.UndocumentedNamespaces,
+		"no_deps_namespaces":      nsStats.NoDepsNamespaces,
+		"no_business_unit":        nsStats.NoBusinessUnit,
+	}, nil
+}
+
+// ExportReport exports report data
+func (s *DashboardService) ExportReport(ctx context.Context, orgID uuid.UUID, reportType, format string) ([]byte, string, string, error) {
+	// Simple CSV export implementation
+	var filename string
+	var contentType string
+
+	switch format {
+	case "csv":
+		contentType = "text/csv"
+		filename = reportType + "_report.csv"
+	case "json":
+		contentType = "application/json"
+		filename = reportType + "_report.json"
+	default:
+		contentType = "text/csv"
+		filename = reportType + "_report.csv"
+	}
+
+	// Get data based on report type
+	var data []byte
+	var err error
+
+	switch reportType {
+	case "ownership":
+		report, err := s.GetOwnershipCoverage(ctx, orgID)
+		if err != nil {
+			return nil, "", "", err
+		}
+		if format == "json" {
+			data = []byte(`{"report": "ownership", "data": ` + stringifyMap(report) + `}`)
+		} else {
+			data = []byte("ReportType,Total,WithOwner,Coverage\nownership," + 
+				stringify(report["total_namespaces"]) + "," + 
+				stringify(report["namespaces_with_owner"]) + "," + 
+				stringify(report["coverage_percentage"]) + "\n")
+		}
+	case "orphaned":
+		report, err := s.GetOrphanedResources(ctx, orgID)
+		if err != nil {
+			return nil, "", "", err
+		}
+		if format == "json" {
+			data = []byte(`{"report": "orphaned", "data": ` + stringifyMap(report) + `}`)
+		} else {
+			data = []byte("ReportType,Orphaned,Undocumented,NoDeps,NoBU\norphaned," + 
+				stringify(report["orphaned_namespaces"]) + "," + 
+				stringify(report["undocumented_namespaces"]) + "," + 
+				stringify(report["no_deps_namespaces"]) + "," + 
+				stringify(report["no_business_unit"]) + "\n")
+		}
+	default:
+		data = []byte("Report not implemented")
+	}
+
+	return data, contentType, filename, err
+}
+
+// Helper functions
+func stringify(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", v)
+}
+
+func stringifyMap(m map[string]interface{}) string {
+	result := "{"
+	first := true
+	for k, v := range m {
+		if !first {
+			result += ","
+		}
+		result += `"` + k + `":` + stringify(v)
+		first = false
+	}
+	result += "}"
+	return result
 }

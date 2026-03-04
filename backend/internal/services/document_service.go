@@ -165,3 +165,34 @@ func (s *DocumentService) GetFilePath(ctx context.Context, id uuid.UUID) (string
 	}
 	return doc.FilePath, doc.FileName, nil
 }
+
+func (s *DocumentService) Update(ctx context.Context, ac AuditContext, id uuid.UUID, name, description string, categoryID *uuid.UUID, tags []string) (*models.Document, error) {
+	doc, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if doc == nil {
+		return nil, ErrDocumentNotFound
+	}
+
+	// Update fields
+	if name != "" {
+		doc.Name = name
+	}
+	if description != "" {
+		doc.Description = sql.NullString{String: description, Valid: true}
+	}
+	if categoryID != nil {
+		doc.CategoryID = categoryID
+	}
+	if tags != nil {
+		doc.Tags = tags
+	}
+
+	if err := s.repo.Update(ctx, doc); err != nil {
+		return nil, err
+	}
+
+	s.auditSvc.LogUpdate(ctx, ac, "document", doc.ID, doc.Name, nil, StructToMap(doc))
+	return doc, nil
+}

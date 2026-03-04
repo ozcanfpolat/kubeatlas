@@ -11,6 +11,14 @@ import (
 	"github.com/kubeatlas/kubeatlas/internal/services"
 )
 
+// uuidToPtr converts a uuid.UUID to *uuid.UUID if valid, otherwise returns nil
+func uuidToPtr(id uuid.UUID) *uuid.UUID {
+	if id == uuid.Nil {
+		return nil
+	}
+	return &id
+}
+
 // ============================================
 // Cluster Handlers
 // ============================================
@@ -620,7 +628,12 @@ func UpdateDocument(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		var req services.UpdateDocumentRequest
+		var req struct {
+			Name        string   `json:"name"`
+			Description string   `json:"description"`
+			CategoryID  *uuid.UUID `json:"category_id"`
+			Tags        []string `json:"tags"`
+		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			respondErrorStr(c, http.StatusBadRequest, "Invalid request body")
 			return
@@ -628,7 +641,7 @@ func UpdateDocument(svc *services.Services) gin.HandlerFunc {
 
 		actx := getAuditContext(c)
 
-		doc, err := svc.Document.Update(c.Request.Context(), id, req, actx)
+		doc, err := svc.Document.Update(c.Request.Context(), actx, id, req.Name, req.Description, req.CategoryID, req.Tags)
 		if err != nil {
 			if errors.Is(err, services.ErrDocumentNotFound) {
 				respondErrorStr(c, http.StatusNotFound, "Document not found")
@@ -652,7 +665,7 @@ func DeleteDocument(svc *services.Services) gin.HandlerFunc {
 
 		actx := getAuditContext(c)
 
-		if err := svc.Document.Delete(c.Request.Context(), id, actx); err != nil {
+		if err := svc.Document.Delete(c.Request.Context(), actx, id); err != nil {
 			if errors.Is(err, services.ErrDocumentNotFound) {
 				respondErrorStr(c, http.StatusNotFound, "Document not found")
 				return
@@ -709,7 +722,7 @@ func GetResourceAuditLogs(svc *services.Services) gin.HandlerFunc {
 
 		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
-		history, err := svc.Audit.GetByResource(c.Request.Context(), resourceType, resourceID, limit)
+		history, err := svc.Audit.ListByResource(c.Request.Context(), resourceType, resourceID, limit)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to get resource audit logs")
 			return
@@ -768,18 +781,18 @@ func DownloadDocument(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		doc, content, err := svc.Document.Download(c.Request.Context(), id)
+		filePath, fileName, err := svc.Document.GetFilePath(c.Request.Context(), id)
 		if err != nil {
 			if errors.Is(err, services.ErrDocumentNotFound) {
 				respondErrorStr(c, http.StatusNotFound, "Document not found")
 				return
 			}
-			respondErrorStr(c, http.StatusInternalServerError, "Failed to download document")
+			respondErrorStr(c, http.StatusInternalServerError, "Failed to get document")
 			return
 		}
 
-		c.Header("Content-Disposition", "attachment; filename=\""+doc.FileName+"\"")
-		c.Data(http.StatusOK, doc.MimeType, content)
+		c.Header("Content-Disposition", "attachment; filename=\""+fileName+"\"")
+		c.File(filePath)
 	}
 }
 
@@ -809,11 +822,11 @@ func UploadDocument(svc *services.Services) gin.HandlerFunc {
 		description := c.PostForm("description")
 
 		req := services.UploadDocumentRequest{
-			NamespaceID: namespaceID,
-			ClusterID:   clusterID,
+			NamespaceID: uuidToPtr(namespaceID),
+			ClusterID:   uuidToPtr(clusterID),
 			Name:        name,
 			Description: description,
-			CategoryID:  categoryID,
+			CategoryID:  uuidToPtr(categoryID),
 		}
 
 		actx := getAuditContext(c)

@@ -9,7 +9,6 @@ import {
   GitBranch,
   Clock,
   Mail,
-  Phone,
   Building,
   Edit,
 } from 'lucide-react'

@@ -100,123 +100,123 @@ func SetupRouter(cfg *Config) *gin.Engine {
 		// Users
 		users := protected.Group("/users")
 		{
-			users.GET("/me", handlers.GetCurrentUser(svc))
-			users.GET("", handlers.ListUsers(svc))
-			users.GET("/:id", handlers.GetUser(svc))
-			users.POST("", middleware.RequireRole("admin"), handlers.CreateUser(svc))
-			users.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateUser(svc))
-			users.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteUser(svc))
+			users.GET("/me", handlers.GetCurrentUser(cfg.Services))
+			users.GET("", handlers.ListUsers(cfg.Services))
+			users.GET("/:id", handlers.GetUser(cfg.Services))
+			users.POST("", middleware.RequireRole("admin"), handlers.CreateUser(cfg.Services))
+			users.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateUser(cfg.Services))
+			users.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteUser(cfg.Services))
 		}
 
 		// Dashboard
 		dashboard := protected.Group("/dashboard")
 		{
-			dashboard.GET("/stats", handlers.GetDashboardStats(svc))
-			dashboard.GET("/recent-activities", handlers.GetRecentActivities(svc))
-			dashboard.GET("/missing-info", handlers.GetMissingInfo(svc))
+			dashboard.GET("/stats", handlers.GetDashboardStats(cfg.Services))
+			dashboard.GET("/recent-activities", handlers.GetRecentActivities(cfg.Services))
+			dashboard.GET("/missing-info", handlers.GetMissingInfo(cfg.Services))
 		}
 
 		// Clusters
 		clusters := protected.Group("/clusters")
 		{
-			clusters.GET("", handlers.ListClusters(svc))
-			clusters.GET("/stats", handlers.GetClusterStats(svc))
-			clusters.GET("/:id", handlers.GetCluster(svc))
-			clusters.GET("/:id/namespaces", handlers.ListClusterNamespaces(svc))
-			clusters.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateCluster(svc))
-			clusters.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateCluster(svc))
-			clusters.POST("/:id/sync", middleware.RequireRole("admin", "editor"), handlers.SyncCluster(svc))
-			clusters.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteCluster(svc))
+			clusters.GET("", handlers.ListClusters(cfg.Services))
+			clusters.GET("/stats", handlers.GetClusterStats(cfg.Services))
+			clusters.GET("/:id", handlers.GetCluster(cfg.Services))
+			clusters.GET("/:id/namespaces", handlers.ListClusterNamespaces(cfg.Services))
+			clusters.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateCluster(cfg.Services))
+			clusters.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateCluster(cfg.Services))
+			clusters.POST("/:id/sync", middleware.RequireRole("admin", "editor"), handlers.SyncCluster(cfg.Services))
+			clusters.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteCluster(cfg.Services))
 		}
 
 		// Namespaces
 		namespaces := protected.Group("/namespaces")
 		{
-			namespaces.GET("", handlers.ListNamespaces(svc))
-			namespaces.GET("/:id", handlers.GetNamespace(svc))
-			namespaces.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateNamespace(svc))
-			namespaces.GET("/:id/dependencies", handlers.ListNamespaceDependencies(svc))
-			namespaces.GET("/:id/documents", handlers.ListNamespaceDocuments(svc))
-			namespaces.GET("/:id/history", handlers.ListNamespaceHistory(svc))
+			namespaces.GET("", handlers.ListNamespaces(cfg.Services))
+			namespaces.GET("/:id", handlers.GetNamespace(cfg.Services))
+			namespaces.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateNamespace(cfg.Services))
+			namespaces.GET("/:id/dependencies", handlers.ListNamespaceDependencies(cfg.Services))
+			namespaces.GET("/:id/documents", handlers.ListNamespaceDocuments(cfg.Services))
+			namespaces.GET("/:id/history", handlers.ListNamespaceHistory(cfg.Services))
 		}
 
 		// Teams
 		teams := protected.Group("/teams")
 		{
-			teams.GET("", handlers.ListTeams(svc))
-			teams.GET("/:id", handlers.GetTeam(svc))
-			teams.GET("/:id/members", handlers.ListTeamMembers(svc))
-			teams.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateTeam(svc))
-			teams.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateTeam(svc))
-			teams.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteTeam(svc))
-			teams.POST("/:id/members", middleware.RequireRole("admin", "editor"), handlers.AddTeamMember(svc))
-			teams.DELETE("/:id/members/:userId", middleware.RequireRole("admin", "editor"), handlers.RemoveTeamMember(svc))
+			teams.GET("", handlers.ListTeams(cfg.Services))
+			teams.GET("/:id", handlers.GetTeam(cfg.Services))
+			teams.GET("/:id/members", handlers.ListTeamMembers(cfg.Services))
+			teams.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateTeam(cfg.Services))
+			teams.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateTeam(cfg.Services))
+			teams.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteTeam(cfg.Services))
+			teams.POST("/:id/members", middleware.RequireRole("admin", "editor"), handlers.AddTeamMember(cfg.Services))
+			teams.DELETE("/:id/members/:userId", middleware.RequireRole("admin", "editor"), handlers.RemoveTeamMember(cfg.Services))
 		}
 
 		// Business Units
 		businessUnits := protected.Group("/business-units")
 		{
-			businessUnits.GET("", handlers.ListBusinessUnits(svc))
-			businessUnits.GET("/:id", handlers.GetBusinessUnit(svc))
-			businessUnits.POST("", middleware.RequireRole("admin"), handlers.CreateBusinessUnit(svc))
-			businessUnits.PUT("/:id", middleware.RequireRole("admin"), handlers.UpdateBusinessUnit(svc))
-			businessUnits.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteBusinessUnit(svc))
+			businessUnits.GET("", handlers.ListBusinessUnits(cfg.Services))
+			businessUnits.GET("/:id", handlers.GetBusinessUnit(cfg.Services))
+			businessUnits.POST("", middleware.RequireRole("admin"), handlers.CreateBusinessUnit(cfg.Services))
+			businessUnits.PUT("/:id", middleware.RequireRole("admin"), handlers.UpdateBusinessUnit(cfg.Services))
+			businessUnits.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteBusinessUnit(cfg.Services))
 		}
 
 		// Internal Dependencies
 		internalDeps := protected.Group("/dependencies/internal")
 		{
-			internalDeps.GET("", handlers.ListInternalDependencies(svc))
-			internalDeps.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateInternalDependency(svc))
-			internalDeps.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateInternalDependency(svc))
-			internalDeps.DELETE("/:id", middleware.RequireRole("admin", "editor"), handlers.DeleteInternalDependency(svc))
+			internalDeps.GET("", handlers.ListInternalDependencies(cfg.Services))
+			internalDeps.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateInternalDependency(cfg.Services))
+			internalDeps.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateInternalDependency(cfg.Services))
+			internalDeps.DELETE("/:id", middleware.RequireRole("admin", "editor"), handlers.DeleteInternalDependency(cfg.Services))
 		}
 
 		// External Dependencies
 		externalDeps := protected.Group("/dependencies/external")
 		{
-			externalDeps.GET("", handlers.ListExternalDependencies(svc))
-			externalDeps.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateExternalDependency(svc))
-			externalDeps.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateExternalDependency(svc))
-			externalDeps.DELETE("/:id", middleware.RequireRole("admin", "editor"), handlers.DeleteExternalDependency(svc))
+			externalDeps.GET("", handlers.ListExternalDependencies(cfg.Services))
+			externalDeps.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateExternalDependency(cfg.Services))
+			externalDeps.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateExternalDependency(cfg.Services))
+			externalDeps.DELETE("/:id", middleware.RequireRole("admin", "editor"), handlers.DeleteExternalDependency(cfg.Services))
 		}
 
 		// Dependency Graph
-		protected.GET("/dependencies/graph/:namespaceId", handlers.GetDependencyGraph(svc))
+		protected.GET("/dependencies/graph/:namespaceId", handlers.GetDependencyGraph(cfg.Services))
 
 		// Documents
 		documents := protected.Group("/documents")
 		{
-			documents.GET("", handlers.ListDocuments(svc))
-			documents.GET("/categories", handlers.ListDocumentCategories(svc))
-			documents.GET("/:id", handlers.GetDocument(svc))
-			documents.GET("/:id/download", handlers.DownloadDocument(svc))
-			documents.POST("", middleware.RequireRole("admin", "editor"), handlers.UploadDocument(svc))
-			documents.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateDocument(svc))
-			documents.DELETE("/:id", middleware.RequireRole("admin", "editor"), handlers.DeleteDocument(svc))
+			documents.GET("", handlers.ListDocuments(cfg.Services))
+			documents.GET("/categories", handlers.ListDocumentCategories(cfg.Services))
+			documents.GET("/:id", handlers.GetDocument(cfg.Services))
+			documents.GET("/:id/download", handlers.DownloadDocument(cfg.Services))
+			documents.POST("", middleware.RequireRole("admin", "editor"), handlers.UploadDocument(cfg.Services))
+			documents.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateDocument(cfg.Services))
+			documents.DELETE("/:id", middleware.RequireRole("admin", "editor"), handlers.DeleteDocument(cfg.Services))
 		}
 
 		// Reports
 		reports := protected.Group("/reports")
 		{
-			reports.GET("/ownership-coverage", handlers.OwnershipCoverageReport(svc))
-			reports.GET("/orphaned-resources", handlers.OrphanedResourcesReport(svc))
-			reports.GET("/dependency-matrix", handlers.DependencyMatrixReport(svc))
-			reports.GET("/export", handlers.ExportReport(svc))
+			reports.GET("/ownership-coverage", handlers.OwnershipCoverageReport(cfg.Services))
+			reports.GET("/orphaned-resources", handlers.OrphanedResourcesReport(cfg.Services))
+			reports.GET("/dependency-matrix", handlers.DependencyMatrixReport(cfg.Services))
+			reports.GET("/export", handlers.ExportReport(cfg.Services))
 		}
 
 		// Audit
 		audit := protected.Group("/audit")
 		{
-			audit.GET("", handlers.ListAuditLogs(svc))
-			audit.GET("/:resourceType/:resourceId", handlers.GetResourceAuditLogs(svc))
+			audit.GET("", handlers.ListAuditLogs(cfg.Services))
+			audit.GET("/:resourceType/:resourceId", handlers.GetResourceAuditLogs(cfg.Services))
 		}
 
 		// Settings
 		settings := protected.Group("/settings")
 		{
-			settings.GET("", handlers.GetSettings(svc))
-			settings.PUT("", middleware.RequireRole("admin"), handlers.UpdateSettings(svc))
+			settings.GET("", handlers.GetSettings(cfg.Services))
+			settings.PUT("", middleware.RequireRole("admin"), handlers.UpdateSettings(cfg.Services))
 		}
 	}
 

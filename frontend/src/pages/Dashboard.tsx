@@ -4,15 +4,13 @@ import {
   Boxes,
   Users,
   AlertTriangle,
-  FileText,
-  GitBranch,
   TrendingUp,
   Clock,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { dashboardApi, clustersApi } from '@/api'
-import { formatRelativeTime, getEnvironmentColor, getCriticalityColor } from '@/lib/utils'
+import { dashboardApi } from '@/api'
+import { formatRelativeTime } from '@/lib/utils'
 import {
   BarChart,
   Bar,
@@ -29,14 +27,9 @@ import {
 const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
 
 export default function Dashboard() {
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: dashboardApi.getStats,
-  })
-
-  const { data: clusters } = useQuery({
-    queryKey: ['clusters-summary'],
-    queryFn: () => clustersApi.list({ page_size: 100 }),
   })
 
   const { data: activities } = useQuery({

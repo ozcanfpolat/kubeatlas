@@ -7,7 +7,6 @@ import {
   ExternalLink,
   ArrowRight,
   AlertTriangle,
-  Filter,
   Network,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'

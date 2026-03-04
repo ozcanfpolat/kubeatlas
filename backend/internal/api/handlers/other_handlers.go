@@ -792,8 +792,8 @@ func DownloadDocument(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		c.Header("Content-Disposition", "attachment; filename=\""+doc.Filename+"\"")
-		c.Data(http.StatusOK, doc.ContentType, content)
+		c.Header("Content-Disposition", "attachment; filename=\""+doc.FileName+"\"")
+		c.Data(http.StatusOK, doc.MimeType, content)
 	}
 }
 
@@ -814,23 +814,25 @@ func UploadDocument(svc *services.Services) gin.HandlerFunc {
 		defer file.Close()
 
 		namespaceID, _ := uuid.Parse(c.PostForm("namespace_id"))
-		documentType := c.PostForm("document_type")
+		clusterID, _ := uuid.Parse(c.PostForm("cluster_id"))
+		categoryID, _ := uuid.Parse(c.PostForm("category_id"))
+		name := c.PostForm("name")
+		if name == "" {
+			name = header.Filename
+		}
 		description := c.PostForm("description")
 
 		req := services.UploadDocumentRequest{
-			Filename:     header.Filename,
-			Content:      file,
-			Size:         header.Size,
-			ContentType:  header.Header.Get("Content-Type"),
-			NamespaceID:  namespaceID,
-			DocumentType: documentType,
-			Description:  description,
+			NamespaceID: namespaceID,
+			ClusterID:   clusterID,
+			Name:        name,
+			Description: description,
+			CategoryID:  categoryID,
 		}
 
-		orgID, _ := middleware.GetOrganizationID(c)
 		actx := getAuditContext(c)
 
-		doc, err := svc.Document.Upload(c.Request.Context(), orgID, req, actx)
+		doc, err := svc.Document.Upload(c.Request.Context(), actx, req, header)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to upload document")
 			return

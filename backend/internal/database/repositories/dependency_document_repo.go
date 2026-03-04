@@ -804,8 +804,8 @@ func (r *DocumentRepository) List(ctx context.Context, orgID uuid.UUID, p Pagina
 		var d models.Document
 		err := rows.Scan(
 			&d.ID, &d.OrganizationID, &d.NamespaceID, &d.ClusterID,
-			&d.Name, &d.Filename, &d.FilePath, &d.FileSize, &d.ContentType, &d.Checksum,
-			&d.DocumentType, &d.CategoryID, &d.Description, &d.Tags,
+			&d.Name, &d.FileName, &d.FilePath, &d.FileSize, &d.MimeType, &d.Checksum,
+			&d.CategoryID, &d.Description, &d.Tags,
 			&d.Version, &d.PreviousVersionID,
 			&d.UploadedBy, &d.Status, &d.Metadata,
 			&d.CreatedAt, &d.UpdatedAt,

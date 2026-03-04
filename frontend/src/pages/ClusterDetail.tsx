@@ -7,7 +7,6 @@ import {
   Box, 
   Clock, 
   AlertTriangle,
-  CheckCircle,
   ExternalLink,
   Edit,
   Settings

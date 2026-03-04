@@ -1,13 +1,10 @@
 import { useState } from 'react'
 import { 
-  Settings as SettingsIcon, 
   User, 
   Bell, 
   Shield, 
-  Database,
   Palette,
   Key,
-  Globe,
   Save
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'

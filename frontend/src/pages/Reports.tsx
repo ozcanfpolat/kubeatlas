@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { 
   BarChart3, 
-  PieChart, 
   Users, 
   AlertTriangle, 
   FileText,
@@ -11,7 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { dashboardApi, namespacesApi } from '@/api'
+import { dashboardApi } from '@/api'
 import { 
   PieChart as RechartsPie, 
   Pie, 
@@ -25,7 +24,7 @@ import {
   Legend
 } from 'recharts'
 
-const COLORS = ['#3b82f6', '#22c55e', '#eab308', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316']
+
 
 export default function Reports() {
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -65,12 +64,7 @@ export default function Reports() {
     },
   ]
 
-  const envData = [
-    { name: 'Production', value: 45 },
-    { name: 'Staging', value: 30 },
-    { name: 'Development', value: 65 },
-    { name: 'Test', value: 20 },
-  ]
+  
 
   const criticalityData = [
     { name: 'Tier 1', value: 25, color: '#ef4444' },

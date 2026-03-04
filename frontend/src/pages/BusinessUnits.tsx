@@ -29,7 +29,7 @@ export default function BusinessUnits() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
 
-  const { data: businessUnits, isLoading, refetch } = useQuery({
+  const { data: businessUnits, isLoading } = useQuery({
     queryKey: ['business-units'],
     queryFn: businessUnitsApi.list,
   })

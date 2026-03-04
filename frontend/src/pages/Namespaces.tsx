@@ -4,10 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import {
   Search,
   Boxes,
-  Filter,
   Download,
   AlertTriangle,
-  CheckCircle,
   FileText,
   GitBranch,
 } from 'lucide-react'
@@ -21,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { namespacesApi, clustersApi, teamsApi } from '@/api'
+import { namespacesApi, clustersApi } from '@/api'
 import { getEnvironmentColor, getCriticalityColor, formatRelativeTime } from '@/lib/utils'
 
 export default function Namespaces() {

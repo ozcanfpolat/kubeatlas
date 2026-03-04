@@ -31,9 +31,6 @@ linters-settings:
   goimports:
     local-prefixes: github.com/kubeatlas/kubeatlas
 
-  golint:
-    min-confidence: 0.8
-
   goconst:
     min-len: 3
     min-occurrences: 3
@@ -58,52 +55,6 @@ linters-settings:
 
   lll:
     line-length: 160
-
-  gomnd:
-    ignored-numbers:
-      - '0'
-      - '1'
-      - '2'
-      - '3'
-      - '4'
-      - '5'
-      - '10'
-      - '12'
-      - '15'
-      - '20'
-      - '24'
-      - '25'
-      - '30'
-      - '32'
-      - '60'
-      - '64'
-      - '100'
-      - '120'
-      - '128'
-      - '168'
-      - '200'
-      - '204'
-      - '256'
-      - '300'
-      - '400'
-      - '401'
-      - '403'
-      - '404'
-      - '500'
-      - '512'
-      - '1000'
-      - '1024'
-    ignored-functions:
-      - 'time.Duration'
-      - 'time.Sleep'
-      - 'time.Second'
-      - 'time.Minute'
-      - 'time.Hour'
-      - 'strconv.ParseInt'
-      - 'strconv.ParseFloat'
-      - 'strconv.Atoi'
-      - 'strconv.Itoa'
-      - 'make'
 
   misspell:
     locale: US
@@ -144,7 +95,6 @@ linters:
     - durationcheck
     - errname
     - errorlint
-    - exportloopref
     - funlen
     - gochecknoinits
     - goconst
@@ -152,7 +102,6 @@ linters:
     - gocyclo
     - gofmt
     - goimports
-    - gomnd
     - goprintffuncname
     - gosec
     - lll
@@ -185,17 +134,11 @@ issues:
         - gosec
         - funlen
         - goconst
-        - gomnd
 
     # Exclude known false positives
     - linters:
         - gocritic
       text: "unnecessaryDefer"
-
-    # Allow magic numbers in tests and constants
-    - path: _test\.go
-      linters:
-        - gomnd
 
     # Allow long lines in generated files
     - path: ".*\\.gen\\.go"

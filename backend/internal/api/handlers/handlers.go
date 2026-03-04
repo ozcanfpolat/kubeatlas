@@ -123,31 +123,7 @@ func getPagination(c *gin.Context) repositories.Pagination {
 	}
 }
 
-// getPageParams extracts pagination parameters from query
-func getPageParams(c *gin.Context) (page, pageSize int) {
-	page, _ = strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ = strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
-	}
-
-	return page, pageSize
-}
-
-// getPagination extracts pagination parameters and returns a Pagination struct
-func getPagination(c *gin.Context) repositories.Pagination {
-	page, pageSize := getPageParams(c)
-	return repositories.Pagination{
-		Page:     page,
-		PageSize: pageSize,
-		Sort:     c.Query("sort"),
-		Order:    c.DefaultQuery("order", "asc"),
-	}
-}
 
 // ============================================
 // Auth Handlers

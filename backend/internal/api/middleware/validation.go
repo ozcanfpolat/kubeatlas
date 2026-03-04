@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -219,6 +220,47 @@ func ContentTypeJSON() gin.HandlerFunc {
 				})
 				return
 			}
+		}
+		c.Next()
+	}
+}
+
+// SecurityHeaders adds security-related HTTP headers
+func SecurityHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Prevent clickjacking
+		c.Header("X-Frame-Options", "DENY")
+		
+		// Prevent MIME type sniffing
+		c.Header("X-Content-Type-Options", "nosniff")
+		
+		// Enable XSS filter
+		c.Header("X-XSS-Protection", "1; mode=block")
+		
+		// Referrer policy
+		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		
+		// Content Security Policy (adjust as needed for your frontend)
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'")
+		
+		// Permissions Policy (formerly Feature-Policy)
+		c.Header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+		
+		// Cache control for API responses
+		c.Header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+		c.Header("Pragma", "no-cache")
+		c.Header("Expires", "0")
+		
+		c.Next()
+	}
+}
+
+// StrictTransportSecurity adds HSTS header (only use with HTTPS)
+func StrictTransportSecurity(maxAge int) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Only add HSTS if the request is HTTPS
+		if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
+			c.Header("Strict-Transport-Security", fmt.Sprintf("max-age=%d; includeSubDomains; preload", maxAge))
 		}
 		c.Next()
 	}

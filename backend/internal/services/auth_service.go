@@ -86,6 +86,10 @@ func (s *AuthService) GenerateTokens(user *models.User, jwtSecret string, expira
 	accessExpiry := now.Add(time.Duration(expirationHours) * time.Hour)
 	refreshExpiry := now.Add(time.Duration(expirationHours*7) * time.Hour)
 
+	// Generate unique token IDs for potential blacklisting
+	accessJTI := uuid.New().String()
+	refreshJTI := uuid.New().String()
+
 	accessClaims := &Claims{
 		UserID:         user.ID,
 		OrganizationID: user.OrganizationID,
@@ -94,8 +98,11 @@ func (s *AuthService) GenerateTokens(user *models.User, jwtSecret string, expira
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(accessExpiry),
 			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
 			Issuer:    "kubeatlas",
 			Subject:   user.ID.String(),
+			ID:        accessJTI,
+			Audience:  jwt.ClaimStrings{"kubeatlas-api"},
 		},
 	}
 
@@ -111,8 +118,11 @@ func (s *AuthService) GenerateTokens(user *models.User, jwtSecret string, expira
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(refreshExpiry),
 			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
 			Issuer:    "kubeatlas-refresh",
 			Subject:   user.ID.String(),
+			ID:        refreshJTI,
+			Audience:  jwt.ClaimStrings{"kubeatlas-refresh"},
 		},
 	}
 

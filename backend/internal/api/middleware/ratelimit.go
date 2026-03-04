@@ -136,6 +136,50 @@ func RateLimiterByUser(rate int, window time.Duration) gin.HandlerFunc {
 	}
 }
 
+// LoginRateLimiter returns a strict rate limiter for login attempts (brute force protection)
+// Default: 5 attempts per 15 minutes per IP
+func LoginRateLimiter() gin.HandlerFunc {
+	limiter := NewRateLimiter(5, 15*time.Minute)
+
+	return func(c *gin.Context) {
+		clientIP := c.ClientIP()
+
+		if !limiter.Allow(clientIP) {
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":       "too_many_login_attempts",
+				"message":     "Too many login attempts. Please try again later.",
+				"retry_after": 900, // 15 minutes in seconds
+			})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// PasswordResetRateLimiter returns a rate limiter for password reset requests
+// Default: 3 attempts per hour per IP
+func PasswordResetRateLimiter() gin.HandlerFunc {
+	limiter := NewRateLimiter(3, time.Hour)
+
+	return func(c *gin.Context) {
+		clientIP := c.ClientIP()
+
+		if !limiter.Allow(clientIP) {
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":       "too_many_reset_attempts",
+				"message":     "Too many password reset attempts. Please try again later.",
+				"retry_after": 3600, // 1 hour in seconds
+			})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a

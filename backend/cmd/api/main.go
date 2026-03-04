@@ -84,6 +84,13 @@ func main() {
 	router.Use(gin.Recovery())
 	router.Use(middleware.Logger(sugar))
 	router.Use(middleware.RequestID())
+	router.Use(middleware.SecurityHeaders())
+	
+	// Add HSTS header for HTTPS connections (1 year max-age)
+	router.Use(middleware.StrictTransportSecurity(31536000))
+	
+	// Limit request body size to 10MB
+	router.Use(middleware.MaxBodySize(10 << 20))
 
 	// CORS configuration
 	router.Use(cors.New(cors.Config{
@@ -133,7 +140,8 @@ func main() {
 		// Authentication
 		auth := api.Group("/auth")
 		{
-			auth.POST("/login", handlers.Login(svc))
+			// Apply strict rate limiting to login endpoint (brute force protection)
+			auth.POST("/login", middleware.LoginRateLimiter(), handlers.Login(svc))
 			auth.POST("/logout", handlers.Logout(svc))
 			auth.POST("/refresh", handlers.RefreshToken(svc))
 		}

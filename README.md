@@ -569,47 +569,113 @@ kubectl get secret kubeatlas-admin -n kubeatlas -o jsonpath='{.data.password}' |
 
 KubeAtlas connects to other Kubernetes clusters using **Service Account Tokens**:
 
-```bash
-# On target cluster - create service account
-kubectl create serviceaccount kubeatlas-reader -n kube-system
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Hub Cluster (KubeAtlas)                       │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ KubeAtlas API → HTTPS (6443) → Target Cluster API       │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+         ┌────────────────────┼────────────────────┐
+         ▼                    ▼                    ▼
+   ┌───────────┐       ┌───────────┐       ┌───────────┐
+   │ Prod      │       │ Staging   │       │ Dev       │
+   │ Cluster   │       │ Cluster   │       │ Cluster   │
+   └───────────┘       └───────────┘       └───────────┘
+```
 
-# Create ClusterRole for read access
+#### Network Requirements
+- KubeAtlas pod must reach target cluster API server (usually port 6443)
+- Outbound HTTPS from KubeAtlas namespace
+- No inbound connections required on target clusters
+
+#### Step-by-Step: Add a Target Cluster
+
+**On the TARGET cluster:**
+
+```bash
+# 1. Create service account and RBAC
 kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubeatlas-agent
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubeatlas-agent
+  namespace: kubeatlas-agent
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: kubeatlas-reader
 rules:
 - apiGroups: [""]
-  resources: ["namespaces", "pods", "services", "configmaps", "secrets", "nodes"]
+  resources: ["namespaces", "pods", "services", "configmaps", "nodes"]
   verbs: ["get", "list", "watch"]
 - apiGroups: ["apps"]
   resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
   verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/version", "/healthz"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubeatlas-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubeatlas-reader
+subjects:
+- kind: ServiceAccount
+  name: kubeatlas-agent
+  namespace: kubeatlas-agent
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kubeatlas-agent-token
+  namespace: kubeatlas-agent
+  annotations:
+    kubernetes.io/service-account.name: kubeatlas-agent
+type: kubernetes.io/service-account-token
 EOF
 
-# Bind role to service account
-kubectl create clusterrolebinding kubeatlas-reader \
-  --clusterrole=kubeatlas-reader \
-  --serviceaccount=kube-system:kubeatlas-reader
+# 2. Get the service account token
+TOKEN=$(kubectl get secret kubeatlas-agent-token -n kubeatlas-agent \
+  -o jsonpath='{.data.token}' | base64 -d)
+echo "Token: $TOKEN"
 
-# Get the token (Kubernetes 1.24+)
-kubectl create token kubeatlas-reader -n kube-system --duration=8760h
+# 3. Get the API server URL
+API_URL=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
+echo "API URL: $API_URL"
 
-# For older Kubernetes, get token from secret
-kubectl get secret $(kubectl get sa kubeatlas-reader -n kube-system -o jsonpath='{.secrets[0].name}') \
-  -n kube-system -o jsonpath='{.data.token}' | base64 -d
+# 4. Get CA certificate (for self-signed clusters)
+kubectl get secret kubeatlas-agent-token -n kubeatlas-agent \
+  -o jsonpath='{.data.ca\.crt}' | base64 -d > cluster-ca.crt
+echo "CA Certificate saved to: cluster-ca.crt"
+
+# 5. Test connectivity
+curl -s --cacert cluster-ca.crt -H "Authorization: Bearer $TOKEN" \
+  "$API_URL/api/v1/namespaces" | head -20
 ```
 
-Then in KubeAtlas UI:
+**In KubeAtlas UI:**
+
 1. Go to **Clusters** → **Add Cluster**
-2. Enter cluster name and API server URL (e.g., `https://api.target-cluster.com:6443`)
-3. Select **Service Account Token** authentication
-4. Paste the token from above
-5. For self-signed certificates, either:
-   - Upload the CA certificate, or
-   - Enable "Skip TLS Verification" (dev only!)
-6. Click **Create** and then **Sync**
+2. Fill in the form:
+   - **Name:** `prod-cluster-01` (lowercase, no spaces)
+   - **API Server URL:** The URL from step 3
+   - **Auth Method:** Service Account Token
+   - **Token:** The token from step 2
+3. For **self-signed certificates:**
+   - Upload the CA certificate from step 4, OR
+   - Enable "Skip TLS Verification" (⚠️ dev only!)
+4. Click **Create** then **Sync**
 
 ---
 

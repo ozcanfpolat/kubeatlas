@@ -237,6 +237,45 @@ func (s *UserService) Delete(ctx context.Context, ac AuditContext, id uuid.UUID)
 	return nil
 }
 
+// UpdateSettingsRequest represents a request to update organization settings
+type UpdateSettingsRequest struct {
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	LogoURL     string                 `json:"logo_url"`
+	Settings    map[string]interface{} `json:"settings"`
+}
+
+// GetOrganizationSettings returns organization settings for the given org ID
+func (s *UserService) GetOrganizationSettings(ctx context.Context, orgID uuid.UUID) (map[string]interface{}, error) {
+	// Since UserRepository doesn't have organization methods, we'll return default settings
+	// This is a placeholder implementation that should be replaced when Organization repository is added
+	settings := map[string]interface{}{
+		"organization_id": orgID.String(),
+		"default_role":    "viewer",
+		"features": map[string]bool{
+			"audit_logging": true,
+			"sso":           false,
+		},
+	}
+	return settings, nil
+}
+
+// UpdateOrganizationSettings updates organization settings
+func (s *UserService) UpdateOrganizationSettings(ctx context.Context, orgID uuid.UUID, req UpdateSettingsRequest, ac AuditContext) (map[string]interface{}, error) {
+	// This is a placeholder implementation
+	// In a real implementation, this would update organization settings in the database
+	settings := map[string]interface{}{
+		"organization_id": orgID.String(),
+		"name":            req.Name,
+		"description":     req.Description,
+		"logo_url":        req.LogoURL,
+		"settings":        req.Settings,
+	}
+	
+	s.auditSvc.LogUpdate(ctx, ac, "organization_settings", orgID, "settings", nil, settings)
+	return settings, nil
+}
+
 // ============================================
 // Business Unit Service
 // ============================================

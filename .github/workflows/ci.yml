@@ -44,7 +44,9 @@ jobs:
 
       - name: Download dependencies
         working-directory: ./backend
-        run: go mod download
+        run: |
+          go mod tidy
+          go mod download
 
       - name: Build binary
         working-directory: ./backend

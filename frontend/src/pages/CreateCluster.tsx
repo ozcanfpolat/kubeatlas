@@ -99,7 +99,7 @@ export default function CreateCluster() {
   // Handle different response formats from backend
   const teams = Array.isArray(teamsResponse) 
     ? teamsResponse 
-    : (teamsResponse as { items?: Team[] })?.items || []
+    : ((teamsResponse as { items?: Team[] } | undefined)?.items || [])
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto animate-fade-in">

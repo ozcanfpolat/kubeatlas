@@ -92,6 +92,7 @@ export interface BusinessUnit {
   director_email?: string
   cost_center?: string
   parent_id?: string
+  namespace_count?: number
   created_at: string
   updated_at: string
 }
@@ -248,6 +249,8 @@ export interface InternalDependency {
   // Computed
   source_namespace?: Namespace
   target_namespace?: Namespace
+  source_namespace_name?: string
+  target_namespace_name?: string
 }
 
 export interface ExternalDependency {
@@ -281,6 +284,8 @@ export interface DependencyNode {
   id: string
   type: 'namespace' | 'external'
   name: string
+  environment?: string
+  criticality?: string
   data?: Namespace | ExternalDependency
 }
 
@@ -289,6 +294,7 @@ export interface DependencyEdge {
   source: string
   target: string
   type: string
+  dependency_type?: string
   is_critical: boolean
 }
 
@@ -340,6 +346,7 @@ export interface Document {
 
 export interface DashboardStats {
   total_clusters: number
+  active_clusters: number
   total_namespaces: number
   namespaces_with_owner: number
   namespaces_documented: number
@@ -348,6 +355,8 @@ export interface DashboardStats {
   undocumented_namespaces: number
   no_deps_namespaces: number
   no_business_unit: number
+  ownership_percentage: number
+  documentation_percentage: number
 }
 
 export interface EnvironmentDistribution {
@@ -362,6 +371,10 @@ export interface BusinessUnitDistribution {
 }
 
 export interface MissingInfo {
+  orphaned: number
+  undocumented: number
+  no_dependencies: number
+  no_business_unit: number
   orphaned_namespaces: Namespace[]
   undocumented_namespaces: Namespace[]
   no_dependencies_namespaces: Namespace[]

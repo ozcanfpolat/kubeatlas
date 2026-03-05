@@ -217,6 +217,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./backend
+          file: ./backend/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:latest
@@ -227,7 +228,8 @@ jobs:
       - name: Build and push frontend
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend
+          context: .
+          file: ./docker/Dockerfile.ui
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-ui:latest

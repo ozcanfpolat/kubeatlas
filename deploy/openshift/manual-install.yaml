@@ -231,26 +231,5 @@ spec:
     insecureEdgeTerminationPolicy: Redirect
   wildcardPolicy: None
 
----
-# ============================================
-# 6. API ROUTE (Opsiyonel - API'ye direkt erişim için)
-# ============================================
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: kubeatlas-api
-  labels:
-    app: kubeatlas
-    component: api
-spec:
-  path: /api
-  to:
-    kind: Service
-    name: kubeatlas-api
-    weight: 100
-  port:
-    targetPort: http
-  tls:
-    termination: edge
-    insecureEdgeTerminationPolicy: Redirect
-  wildcardPolicy: None
+# Note: API route removed - all traffic goes through UI nginx proxy
+# Frontend calls /api/* which nginx proxies to kubeatlas-api service

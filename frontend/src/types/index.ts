@@ -371,14 +371,14 @@ export interface BusinessUnitDistribution {
 }
 
 export interface MissingInfo {
-  orphaned: number
-  undocumented: number
+  orphaned: Namespace[]
+  undocumented: Namespace[]
   no_dependencies: number
   no_business_unit: number
-  orphaned_namespaces: Namespace[]
-  undocumented_namespaces: Namespace[]
-  no_dependencies_namespaces: Namespace[]
-  no_business_unit_namespaces: Namespace[]
+  orphaned_namespaces?: Namespace[]
+  undocumented_namespaces?: Namespace[]
+  no_dependencies_namespaces?: Namespace[]
+  no_business_unit_namespaces?: Namespace[]
 }
 
 // ============================================

@@ -226,7 +226,7 @@ export default function Reports() {
                   {missingInfo.orphaned.slice(0, 10).map((item) => (
                     <tr key={item.id} className="border-b border-border">
                       <td className="p-3 font-mono text-sm">{item.name}</td>
-                      <td className="p-3">{item.cluster_name || '-'}</td>
+                      <td className="p-3">{item.cluster?.name || '-'}</td>
                       <td className="p-3">
                         <Badge variant="outline" className="text-yellow-500 border-yellow-500/30">
                           Sahip Atanmamış
@@ -275,7 +275,7 @@ export default function Reports() {
                   {missingInfo.undocumented.slice(0, 10).map((item) => (
                     <tr key={item.id} className="border-b border-border">
                       <td className="p-3 font-mono text-sm">{item.name}</td>
-                      <td className="p-3">{item.cluster_name || '-'}</td>
+                      <td className="p-3">{item.cluster?.name || '-'}</td>
                       <td className="p-3">
                         <Badge variant="outline" className="text-blue-500 border-blue-500/30">
                           Doküman Yok

@@ -7,6 +7,23 @@
 
 ---
 # ============================================
+# 0. PERSISTENT VOLUME CLAIM (Döküman Depolama)
+# ============================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kubeatlas-uploads
+  labels:
+    app: kubeatlas
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+# ============================================
 # 1. API DEPLOYMENT
 # ============================================
 apiVersion: apps/v1
@@ -52,6 +69,8 @@ spec:
               value: "kubeatlas"
             - name: DB_SSLMODE
               value: "disable"
+            - name: STORAGE_LOCAL_PATH
+              value: "/app/data/uploads"
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -67,6 +86,9 @@ spec:
                 secretKeyRef:
                   name: kubeatlas-secrets
                   key: ENCRYPTION_KEY
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/data/uploads
           resources:
             requests:
               memory: "256Mi"
@@ -86,6 +108,10 @@ spec:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 5
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: kubeatlas-uploads
 
 ---
 # ============================================

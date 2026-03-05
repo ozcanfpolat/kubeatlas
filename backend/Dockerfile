@@ -12,18 +12,15 @@ RUN apk add --no-cache git ca-certificates tzdata
 # Set working directory
 WORKDIR /app
 
-# Copy go mod files
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod tidy && go mod download
-
-# Copy source code
+# Copy all source code first
 COPY . .
+
+# Download and verify dependencies
+RUN go mod tidy && go mod download && go mod verify
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-w -s -X main.Version=$(git describe --tags --always --dirty 2>/dev/null || echo 'dev')" \
+    -ldflags="-w -s" \
     -o /app/kubeatlas \
     ./cmd/api
 

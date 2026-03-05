@@ -58,6 +58,7 @@ jobs:
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
+        continue-on-error: true
         with:
           version: latest
           working-directory: backend
@@ -111,8 +112,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm install

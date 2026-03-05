@@ -29,11 +29,12 @@ VALUES (
 ) ON CONFLICT (organization_id, email) DO NOTHING;
 
 -- Insert default admin team
-INSERT INTO teams (id, organization_id, name, description, created_at, updated_at)
+INSERT INTO teams (id, organization_id, name, slug, description, created_at, updated_at)
 VALUES (
     'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
     'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
     'Platform Team',
+    'platform-team',
     'Default platform administration team',
     NOW(),
     NOW()

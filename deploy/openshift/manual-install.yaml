@@ -165,7 +165,7 @@ spec:
           image: ghcr.io/ozcanfpolat/kubeatlas-ui:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 3000
+            - containerPort: 8080
               protocol: TCP
           resources:
             requests:
@@ -176,14 +176,14 @@ spec:
               cpu: "200m"
           livenessProbe:
             httpGet:
-              path: /
-              port: 3000
+              path: /health
+              port: 8080
             initialDelaySeconds: 10
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /
-              port: 3000
+              path: /health
+              port: 8080
             initialDelaySeconds: 5
             periodSeconds: 5
 
@@ -201,8 +201,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: 3000
-      targetPort: 3000
+    - port: 8080
+      targetPort: 8080
       protocol: TCP
       name: http
   selector:

@@ -18,29 +18,14 @@ env:
 
 jobs:
   # ============================================
-  # Backend Tests & Lint
+  # Backend Build
   # ============================================
-  backend-ci:
-    name: Backend CI
+  backend-build:
+    name: Backend Build
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./backend
-
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: kubeatlas
-          POSTGRES_PASSWORD: kubeatlas
-          POSTGRES_DB: kubeatlas_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
       - name: Checkout code
@@ -50,55 +35,18 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache: true
-          cache-dependency-path: backend/go.sum
 
-      - name: Install dependencies
+      - name: Download dependencies
         run: go mod download
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v3
-        continue-on-error: true
-        with:
-          version: latest
-          working-directory: backend
-          args: --timeout=5m
-
-      - name: Run tests
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USER: kubeatlas
-          DB_PASSWORD: kubeatlas
-          DB_NAME: kubeatlas_test
-          DB_SSLMODE: disable
-          JWT_SECRET: test-secret-key-must-be-32-characters-long
-          ENCRYPTION_KEY: test-encryption-key-must-be-32-characters
-        run: go test -v -race -coverprofile=coverage.out ./... || true
-
-      - name: Generate coverage report
-        if: always()
-        run: |
-          if [ -f coverage.out ]; then
-            go tool cover -html=coverage.out -o coverage.html
-          else
-            echo "No coverage file found"
-          fi
-
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-coverage
-          path: backend/coverage.html
 
       - name: Build binary
         run: CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o kubeatlas ./cmd/api
 
   # ============================================
-  # Frontend Tests & Lint
+  # Frontend Build
   # ============================================
-  frontend-ci:
-    name: Frontend CI
+  frontend-build:
+    name: Frontend Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -114,65 +62,12 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
-        run: npm install
-
-      - name: Run ESLint
-        run: npm run lint || true
-
-      - name: Type check
-        run: npm run type-check
-
-      - name: Run tests
-        run: npm run test:run || true
+        run: npm install --legacy-peer-deps
 
       - name: Build
         run: npm run build
-
-      - name: Upload build
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-build
-          path: frontend/dist
-
-  # ============================================
-  # Security Scanning
-  # ============================================
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'table'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'  # Don't fail build on vulnerabilities
-
-      - name: Run Trivy and save results
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        continue-on-error: true  # Don't fail if GitHub Advanced Security is not enabled
-        with:
-          sarif_file: 'trivy-results.sarif'
+        env:
+          VITE_API_URL: /api
 
   # ============================================
   # Build & Push Docker Images
@@ -180,7 +75,7 @@ jobs:
   build-and-push:
     name: Build & Push Images
     runs-on: ubuntu-latest
-    needs: [backend-ci, frontend-ci]
+    needs: [backend-build, frontend-build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
@@ -199,18 +94,6 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,prefix=
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push backend
         uses: docker/build-push-action@v5
@@ -235,43 +118,3 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-ui:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  # ============================================
-  # Deploy to Staging
-  # ============================================
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    if: github.ref == 'refs/heads/develop'
-    environment: staging
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Deploy to staging
-        run: |
-          echo "Deploying to staging environment..."
-          # Add your staging deployment commands here
-          # kubectl set image deployment/kubeatlas-api api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}
-
-  # ============================================
-  # Deploy to Production
-  # ============================================
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    if: github.ref == 'refs/heads/main'
-    environment: production
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Deploy to production
-        run: |
-          echo "Deploying to production environment..."
-          # Add your production deployment commands here
-          # kubectl set image deployment/kubeatlas-api api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}

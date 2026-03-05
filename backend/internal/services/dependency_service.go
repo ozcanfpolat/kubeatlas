@@ -74,6 +74,7 @@ func (s *DependencyService) UpdateInternal(ctx context.Context, ac AuditContext,
 		DependencyType:    req.DependencyType,
 		IsCritical:        req.IsCritical,
 	}
+	dep.ID = id
 	if req.Description != "" {
 		dep.Description = sql.NullString{String: req.Description, Valid: true}
 	}
@@ -151,6 +152,7 @@ func (s *DependencyService) UpdateExternal(ctx context.Context, ac AuditContext,
 		SystemType:     req.SystemType,
 		IsCritical:     req.IsCritical,
 	}
+	dep.ID = id
 	if req.Provider != "" {
 		dep.Provider = sql.NullString{String: req.Provider, Valid: true}
 	}

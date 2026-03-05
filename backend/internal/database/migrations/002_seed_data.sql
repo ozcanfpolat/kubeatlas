@@ -5,7 +5,7 @@
 -- Insert default organization
 INSERT INTO organizations (id, name, slug, settings, created_at, updated_at)
 VALUES (
-    'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    '00000000-0000-0000-0000-000000000001',
     'Default Organization',
     'default',
     '{"theme": "light", "timezone": "UTC"}',
@@ -18,7 +18,7 @@ VALUES (
 INSERT INTO users (id, organization_id, email, password_hash, full_name, role, is_active, created_at, updated_at)
 VALUES (
     'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
-    'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    '00000000-0000-0000-0000-000000000001',
     'admin@kubeatlas.local',
     '$2a$10$5eko.ZWBBQmNyZYKyRKW/uX28i/CYhqMK.VklBpmhQskLY6P4UtPi',
     'System Administrator',
@@ -32,7 +32,7 @@ VALUES (
 INSERT INTO teams (id, organization_id, name, slug, description, created_at, updated_at)
 VALUES (
     'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
-    'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    '00000000-0000-0000-0000-000000000001',
     'Platform Team',
     'platform-team',
     'Default platform administration team',

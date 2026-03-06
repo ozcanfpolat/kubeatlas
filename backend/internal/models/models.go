@@ -677,26 +677,16 @@ type TeamResponse struct {
 
 // ToResponse converts Team to TeamResponse
 func (t *Team) ToResponse() TeamResponse {
-	var desc, email, slack *string
-	if t.Description.Valid {
-		desc = &t.Description.String
-	}
-	if t.ContactEmail.Valid {
-		email = &t.ContactEmail.String
-	}
-	if t.ContactSlack.Valid {
-		slack = &t.ContactSlack.String
-	}
 	return TeamResponse{
 		ID:             t.ID,
 		OrganizationID: t.OrganizationID,
 		Name:           t.Name,
 		Slug:           t.Slug,
-		Description:    desc,
+		Description:    t.Description.Ptr(),
 		ParentID:       t.ParentID,
 		TeamType:       t.TeamType,
-		ContactEmail:   email,
-		ContactSlack:   slack,
+		ContactEmail:   t.ContactEmail.Ptr(),
+		ContactSlack:   t.ContactSlack.Ptr(),
 		MemberCount:    t.MemberCount,
 		CreatedAt:      t.CreatedAt,
 		UpdatedAt:      t.UpdatedAt,
@@ -730,31 +720,15 @@ type BusinessUnitResponse struct {
 
 // ToResponse converts BusinessUnit to BusinessUnitResponse
 func (b *BusinessUnit) ToResponse() BusinessUnitResponse {
-	var code, desc, dirName, dirEmail, costCenter *string
-	if b.Code.Valid {
-		code = &b.Code.String
-	}
-	if b.Description.Valid {
-		desc = &b.Description.String
-	}
-	if b.DirectorName.Valid {
-		dirName = &b.DirectorName.String
-	}
-	if b.DirectorEmail.Valid {
-		dirEmail = &b.DirectorEmail.String
-	}
-	if b.CostCenter.Valid {
-		costCenter = &b.CostCenter.String
-	}
 	return BusinessUnitResponse{
 		ID:             b.ID,
 		OrganizationID: b.OrganizationID,
 		Name:           b.Name,
-		Code:           code,
-		Description:    desc,
-		DirectorName:   dirName,
-		DirectorEmail:  dirEmail,
-		CostCenter:     costCenter,
+		Code:           b.Code.Ptr(),
+		Description:    b.Description.Ptr(),
+		DirectorName:   b.DirectorName.Ptr(),
+		DirectorEmail:  b.DirectorEmail.Ptr(),
+		CostCenter:     b.CostCenter.Ptr(),
 		ParentID:       b.ParentID,
 		CreatedAt:      b.CreatedAt,
 		UpdatedAt:      b.UpdatedAt,

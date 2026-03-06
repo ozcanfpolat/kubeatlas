@@ -55,11 +55,11 @@ func toTeamResponse(t models.Team) TeamResponse {
 		OrganizationID: t.OrganizationID,
 		Name:           t.Name,
 		Slug:           t.Slug,
-		Description:    t.Description.String,
+		Description:    t.Description.ValueOrEmpty(),
 		ParentID:       t.ParentID,
 		TeamType:       t.TeamType,
-		ContactEmail:   t.ContactEmail.String,
-		ContactSlack:   t.ContactSlack.String,
+		ContactEmail:   t.ContactEmail.ValueOrEmpty(),
+		ContactSlack:   t.ContactSlack.ValueOrEmpty(),
 		MemberCount:    t.MemberCount,
 	}
 }

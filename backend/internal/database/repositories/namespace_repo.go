@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -308,6 +309,65 @@ func (r *NamespaceRepository) List(ctx context.Context, orgID uuid.UUID, p Pagin
 // Update updates a namespace
 func (r *NamespaceRepository) Update(ctx context.Context, ns *models.Namespace) error {
 	ns.UpdatedAt = time.Now()
+
+	// Sanitize all string fields to remove NULL bytes
+	sanitizeString := func(s string) string {
+		return strings.ReplaceAll(s, "\x00", "")
+	}
+	
+	// Sanitize NullString
+	sanitizeNullString := func(ns *models.NullString) {
+		if ns.Valid {
+			ns.String = sanitizeString(ns.String)
+		}
+	}
+	
+	sanitizeNullString(&ns.DisplayName)
+	sanitizeNullString(&ns.Description)
+	sanitizeNullString(&ns.ApplicationManagerName)
+	sanitizeNullString(&ns.ApplicationManagerEmail)
+	sanitizeNullString(&ns.ApplicationManagerPhone)
+	sanitizeNullString(&ns.TechnicalLeadName)
+	sanitizeNullString(&ns.TechnicalLeadEmail)
+	sanitizeNullString(&ns.ProjectManagerName)
+	sanitizeNullString(&ns.ProjectManagerEmail)
+	sanitizeNullString(&ns.SLAAvailability)
+	sanitizeNullString(&ns.SLARTO)
+	sanitizeNullString(&ns.SLARPO)
+	sanitizeNullString(&ns.SupportHours)
+	sanitizeNullString(&ns.EscalationPath)
+	
+	// Sanitize environment and criticality
+	ns.Environment = sanitizeString(ns.Environment)
+	ns.Criticality = sanitizeString(ns.Criticality)
+	
+	// Sanitize Tags
+	if ns.Tags != nil {
+		sanitizedTags := make([]string, len(ns.Tags))
+		for i, t := range ns.Tags {
+			sanitizedTags[i] = sanitizeString(t)
+		}
+		ns.Tags = sanitizedTags
+	}
+	
+	// Sanitize JSONMap fields
+	sanitizeJSONMap := func(m models.JSONMap) models.JSONMap {
+		if m == nil {
+			return make(models.JSONMap)
+		}
+		sanitized := make(models.JSONMap)
+		for k, v := range m {
+			cleanKey := sanitizeString(k)
+			if str, ok := v.(string); ok {
+				sanitized[cleanKey] = sanitizeString(str)
+			} else {
+				sanitized[cleanKey] = v
+			}
+		}
+		return sanitized
+	}
+	ns.CustomFields = sanitizeJSONMap(ns.CustomFields)
+	ns.Metadata = sanitizeJSONMap(ns.Metadata)
 
 	query := `
 		UPDATE namespaces SET

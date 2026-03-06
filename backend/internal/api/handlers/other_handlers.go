@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/kubeatlas/kubeatlas/internal/api/middleware"
+	"github.com/kubeatlas/kubeatlas/internal/models"
 	"github.com/kubeatlas/kubeatlas/internal/services"
 )
 

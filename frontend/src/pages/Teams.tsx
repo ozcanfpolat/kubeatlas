@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Users, MoreVertical, Trash, Edit, Mail, MessageSquare } from 'lucide-react'
+import { Plus, Users, MoreVertical, Trash, Edit, Mail, MessageSquare, RefreshCw, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -27,13 +27,14 @@ export default function Teams() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [newTeamName, setNewTeamName] = useState('')
 
-  const { data: teams, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['teams'],
     queryFn: teamsApi.list,
+    retry: 1,
   })
 
   const createMutation = useMutation({
-    mutationFn: (data: Partial<Team>) => teamsApi.create(data),
+    mutationFn: (teamData: Partial<Team>) => teamsApi.create(teamData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teams'] })
       setIsCreateDialogOpen(false)
@@ -52,6 +53,34 @@ export default function Teams() {
     if (newTeamName.trim()) {
       createMutation.mutate({ name: newTeamName })
     }
+  }
+
+  // Defensive: ensure teams is always an array
+  const teams: Team[] = Array.isArray(data) ? data : []
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Teams</h1>
+            <p className="text-muted-foreground">Manage teams and their namespace ownership</p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-medium">Failed to load teams</h3>
+            <p className="text-muted-foreground mb-4">There was an error loading the team data.</p>
+            <Button onClick={() => refetch()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -73,7 +102,7 @@ export default function Teams() {
       {/* Teams Grid */}
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card key={i} className="animate-pulse">
               <CardContent className="p-6">
                 <div className="h-24 bg-muted rounded" />
@@ -81,7 +110,7 @@ export default function Teams() {
             </Card>
           ))}
         </div>
-      ) : !teams?.length ? (
+      ) : teams.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Users className="h-12 w-12 text-muted-foreground mb-4" />

@@ -66,9 +66,10 @@ export default function Clusters() {
     },
   })
 
-  const clusters = data?.items || data?.data || []
+  // Defensive: ensure clusters is always an array
+  const clusters: Cluster[] = Array.isArray(data?.items) ? data.items : []
 
-  // Show error state
+  // Error state
   if (isError) {
     return (
       <div className="space-y-6">
@@ -149,7 +150,7 @@ export default function Clusters() {
       {/* Cluster Grid */}
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card key={i} className="animate-pulse">
               <CardContent className="p-6">
                 <div className="h-32 bg-muted rounded" />
@@ -163,11 +164,11 @@ export default function Clusters() {
             <Server className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium">No clusters found</h3>
             <p className="text-muted-foreground mb-4">
-              {search || statusFilter || envFilter
+              {search || statusFilter !== 'all' || envFilter !== 'all'
                 ? 'Try adjusting your filters'
                 : 'Add your first cluster to get started'}
             </p>
-            {!search && !statusFilter && !envFilter && (
+            {!search && statusFilter === 'all' && envFilter === 'all' && (
               <Button onClick={() => navigate('/clusters/new')}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Cluster
@@ -251,23 +252,27 @@ function ClusterCard({ cluster, onSync, onDelete, onClick }: ClusterCardProps) {
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <Badge className={getEnvironmentColor(cluster.environment)}>
-            {cluster.environment}
-          </Badge>
-          <div className="flex items-center gap-1">
-            <div className={`h-2 w-2 rounded-full ${getStatusColor(cluster.status)}`} />
-            <span className="text-xs text-muted-foreground">{cluster.status}</span>
-          </div>
+          {cluster.environment && (
+            <Badge className={getEnvironmentColor(cluster.environment)}>
+              {cluster.environment}
+            </Badge>
+          )}
+          {cluster.status && (
+            <div className="flex items-center gap-1">
+              <div className={`h-2 w-2 rounded-full ${getStatusColor(cluster.status)}`} />
+              <span className="text-xs text-muted-foreground">{cluster.status}</span>
+            </div>
+          )}
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-muted-foreground">Namespaces</p>
-            <p className="font-semibold">{cluster.namespace_count}</p>
+            <p className="font-semibold">{cluster.namespace_count || 0}</p>
           </div>
           <div>
             <p className="text-muted-foreground">Nodes</p>
-            <p className="font-semibold">{cluster.node_count}</p>
+            <p className="font-semibold">{cluster.node_count || 0}</p>
           </div>
         </div>
 

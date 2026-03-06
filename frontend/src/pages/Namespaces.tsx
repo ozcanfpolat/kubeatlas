@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select'
 import { namespacesApi, clustersApi } from '@/api'
 import { getEnvironmentColor, getCriticalityColor, formatRelativeTime } from '@/lib/utils'
+import type { Namespace, Cluster } from '@/types'
 
 export default function Namespaces() {
   const navigate = useNavigate()
@@ -34,7 +35,7 @@ export default function Namespaces() {
   const [orphanedFilter, setOrphanedFilter] = useState(false)
   const [page, setPage] = useState(1)
 
-  const { data: clusters } = useQuery({
+  const { data: clustersData } = useQuery({
     queryKey: ['clusters-list'],
     queryFn: () => clustersApi.list({ page_size: 100 }),
     retry: 1,
@@ -55,12 +56,13 @@ export default function Namespaces() {
     retry: 1,
   })
 
-  const clusterList = clusters?.items || clusters?.data || []
-  const namespaces = data?.items || data?.data || []
+  // Defensive: ensure arrays are always arrays
+  const clusterList: Cluster[] = Array.isArray(clustersData?.items) ? clustersData.items : []
+  const namespaces: Namespace[] = Array.isArray(data?.items) ? data.items : []
   const total = data?.total || 0
   const totalPages = data?.total_pages || 1
 
-  // Show error state
+  // Error state
   if (isError) {
     return (
       <div className="space-y-6">
@@ -173,7 +175,7 @@ export default function Namespaces() {
           </thead>
           <tbody>
             {isLoading ? (
-              [...Array(10)].map((_, i) => (
+              [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
                 <tr key={i} className="border-b">
                   <td colSpan={7} className="px-4 py-4">
                     <div className="h-6 bg-muted animate-pulse rounded" />
@@ -218,9 +220,13 @@ export default function Namespaces() {
                     )}
                   </td>
                   <td className="px-4 py-4">
-                    <Badge className={getCriticalityColor(ns.criticality)}>
-                      {ns.criticality}
-                    </Badge>
+                    {ns.criticality ? (
+                      <Badge className={getCriticalityColor(ns.criticality)}>
+                        {ns.criticality}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </td>
                   <td className="px-4 py-4 text-sm">
                     {ns.infrastructure_owner_team ? (
@@ -247,7 +253,7 @@ export default function Namespaces() {
                     </div>
                   </td>
                   <td className="px-4 py-4 text-sm text-muted-foreground">
-                    {formatRelativeTime(ns.updated_at)}
+                    {ns.updated_at ? formatRelativeTime(ns.updated_at) : '-'}
                   </td>
                 </tr>
               ))

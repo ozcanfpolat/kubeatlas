@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"reflect"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/kubeatlas/kubeatlas/internal/database/repositories"
@@ -28,18 +29,49 @@ type AuditContext struct {
 	OrgID     uuid.UUID
 }
 
+// sanitizeForAudit removes problematic fields and characters from audit data
+func sanitizeForAudit(data map[string]interface{}) map[string]interface{} {
+	if data == nil {
+		return nil
+	}
+	
+	// Fields to exclude from audit log (contain problematic K8s data)
+	excludeFields := map[string]bool{
+		"K8sLabels":      true,
+		"K8sAnnotations": true,
+		"k8s_labels":     true,
+		"k8s_annotations": true,
+	}
+	
+	sanitized := make(map[string]interface{})
+	for k, v := range data {
+		if excludeFields[k] {
+			continue
+		}
+		// Sanitize string values
+		if str, ok := v.(string); ok {
+			sanitized[k] = strings.ReplaceAll(str, "\x00", "")
+		} else {
+			sanitized[k] = v
+		}
+	}
+	return sanitized
+}
+
 // LogCreate logs a create action
 func (s *AuditService) LogCreate(ctx context.Context, ac AuditContext, resourceType string, resourceID uuid.UUID, resourceName string, newValues map[string]interface{}) {
-	s.log(ctx, ac, "create", resourceType, resourceID, resourceName, nil, newValues, nil, "Created "+resourceType)
+	s.log(ctx, ac, "create", resourceType, resourceID, resourceName, nil, sanitizeForAudit(newValues), nil, "Created "+resourceType)
 }
 
 // LogUpdate logs an update action with diff
 func (s *AuditService) LogUpdate(ctx context.Context, ac AuditContext, resourceType string, resourceID uuid.UUID, resourceName string, oldValues, newValues map[string]interface{}) {
-	changedFields := s.getChangedFields(oldValues, newValues)
+	sanitizedOld := sanitizeForAudit(oldValues)
+	sanitizedNew := sanitizeForAudit(newValues)
+	changedFields := s.getChangedFields(sanitizedOld, sanitizedNew)
 	if len(changedFields) == 0 {
 		return // No changes
 	}
-	s.log(ctx, ac, "update", resourceType, resourceID, resourceName, oldValues, newValues, changedFields, "Updated "+resourceType)
+	s.log(ctx, ac, "update", resourceType, resourceID, resourceName, sanitizedOld, sanitizedNew, changedFields, "Updated "+resourceType)
 }
 
 // LogDelete logs a delete action

@@ -673,6 +673,42 @@ type AuditLog struct {
 // JSONMap is a helper type for JSONB columns
 type JSONMap map[string]interface{}
 
+// Scan implements the sql.Scanner interface for pgx compatibility
+func (j *JSONMap) Scan(src interface{}) error {
+	if src == nil {
+		*j = make(JSONMap)
+		return nil
+	}
+
+	switch v := src.(type) {
+	case []byte:
+		if len(v) == 0 {
+			*j = make(JSONMap)
+			return nil
+		}
+		return json.Unmarshal(v, j)
+	case string:
+		if v == "" {
+			*j = make(JSONMap)
+			return nil
+		}
+		return json.Unmarshal([]byte(v), j)
+	case map[string]interface{}:
+		*j = JSONMap(v)
+		return nil
+	default:
+		return errors.New("JSONMap: cannot scan type")
+	}
+}
+
+// Value implements the driver.Valuer interface
+func (j JSONMap) Value() (driver.Value, error) {
+	if j == nil {
+		return []byte("{}"), nil
+	}
+	return json.Marshal(j)
+}
+
 // DashboardStats represents dashboard statistics
 type DashboardStats struct {
 	TotalClusters          int `json:"total_clusters"`

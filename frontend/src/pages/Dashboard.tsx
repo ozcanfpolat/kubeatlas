@@ -288,49 +288,65 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-4">
               {/* Orphaned Namespaces */}
-              {missingInfo?.orphaned && missingInfo.orphaned.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">
-                    Orphaned Namespaces ({missingInfo.orphaned.length})
-                  </p>
-                  <div className="space-y-2">
-                    {missingInfo.orphaned.slice(0, 3).map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between rounded-lg bg-muted p-2"
-                      >
-                        <span className="text-sm font-medium">{item.name}</span>
-                        <Badge variant="outline">No owner</Badge>
-                      </div>
-                    ))}
+              {(stats?.orphaned_namespaces || 0) > 0 && (
+                <div className="flex items-center justify-between rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 p-3">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-5 w-5 text-orange-500" />
+                    <div>
+                      <p className="font-medium">Orphaned Namespaces</p>
+                      <p className="text-sm text-muted-foreground">No infrastructure owner assigned</p>
+                    </div>
                   </div>
+                  <Badge variant="outline" className="text-orange-600 border-orange-300">
+                    {stats?.orphaned_namespaces || 0}
+                  </Badge>
                 </div>
               )}
 
               {/* Undocumented */}
-              {missingInfo?.undocumented && missingInfo.undocumented.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">
-                    Missing Documentation ({missingInfo.undocumented.length})
-                  </p>
-                  <div className="space-y-2">
-                    {missingInfo.undocumented.slice(0, 3).map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between rounded-lg bg-muted p-2"
-                      >
-                        <span className="text-sm font-medium">{item.name}</span>
-                        <Badge variant="outline">No docs</Badge>
-                      </div>
-                    ))}
+              {(stats?.undocumented_namespaces || 0) > 0 && (
+                <div className="flex items-center justify-between rounded-lg bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 p-3">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                    <div>
+                      <p className="font-medium">Missing Documentation</p>
+                      <p className="text-sm text-muted-foreground">No runbooks or docs attached</p>
+                    </div>
                   </div>
+                  <Badge variant="outline" className="text-yellow-600 border-yellow-300">
+                    {stats?.undocumented_namespaces || 0}
+                  </Badge>
                 </div>
               )}
 
-              {(!missingInfo?.orphaned?.length && !missingInfo?.undocumented?.length) && (
+              {/* No Dependencies */}
+              {(stats?.namespaces_with_dependencies === 0 && (stats?.total_namespaces || 0) > 0) && (
+                <div className="flex items-center justify-between rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-5 w-5 text-blue-500" />
+                    <div>
+                      <p className="font-medium">No Dependencies Mapped</p>
+                      <p className="text-sm text-muted-foreground">Add internal/external dependencies</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-blue-600 border-blue-300">
+                    {(stats?.total_namespaces || 0) - (stats?.namespaces_with_dependencies || 0)}
+                  </Badge>
+                </div>
+              )}
+
+              {((stats?.orphaned_namespaces || 0) === 0 && 
+                (stats?.undocumented_namespaces || 0) === 0 && 
+                (stats?.total_namespaces || 0) > 0) && (
                 <div className="flex items-center justify-center py-8 text-muted-foreground">
                   <TrendingUp className="mr-2 h-5 w-5 text-green-500" />
                   All namespaces are in good shape!
+                </div>
+              )}
+
+              {(stats?.total_namespaces || 0) === 0 && (
+                <div className="flex items-center justify-center py-8 text-muted-foreground">
+                  No namespaces found. Sync a cluster to get started.
                 </div>
               )}
             </div>

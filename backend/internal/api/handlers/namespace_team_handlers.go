@@ -115,6 +115,8 @@ func UpdateNamespace(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
+		log.Printf("DEBUG UpdateNamespace: id=%s, req=%+v", id, req)
+
 		actx := getAuditContext(c)
 
 		ns, err := svc.Namespace.Update(c.Request.Context(), actx, id, req)

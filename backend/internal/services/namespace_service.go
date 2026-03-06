@@ -125,6 +125,23 @@ func (s *NamespaceService) Update(ctx context.Context, ac AuditContext, id uuid.
 		return nil, ErrNamespaceNotFound
 	}
 
+	// Ensure Tags, CustomFields, Metadata are not nil (pgx requires non-nil for array/json types)
+	if ns.Tags == nil {
+		ns.Tags = models.StringArray{}
+	}
+	if ns.CustomFields == nil {
+		ns.CustomFields = make(models.JSONMap)
+	}
+	if ns.Metadata == nil {
+		ns.Metadata = make(models.JSONMap)
+	}
+	if ns.K8sLabels == nil {
+		ns.K8sLabels = make(models.JSONMap)
+	}
+	if ns.K8sAnnotations == nil {
+		ns.K8sAnnotations = make(models.JSONMap)
+	}
+
 	oldValues := StructToMap(ns)
 
 	// Apply updates

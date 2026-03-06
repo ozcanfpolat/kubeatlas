@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { 
   BarChart3, 
   Users, 
   AlertTriangle, 
   FileText,
   Download,
-  TrendingUp
+  TrendingUp,
+  ExternalLink
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -225,7 +227,11 @@ export default function Reports() {
                 <tbody>
                   {missingInfo.orphaned.slice(0, 10).map((item) => (
                     <tr key={item.id} className="border-b border-border">
-                      <td className="p-3 font-mono text-sm">{item.name}</td>
+                      <td className="p-3 font-mono text-sm">
+                        <Link to={`/namespaces/${item.id}`} className="hover:text-primary">
+                          {item.name}
+                        </Link>
+                      </td>
                       <td className="p-3">{item.cluster?.name || '-'}</td>
                       <td className="p-3">
                         <Badge variant="outline" className="text-yellow-500 border-yellow-500/30">
@@ -233,9 +239,12 @@ export default function Reports() {
                         </Badge>
                       </td>
                       <td className="p-3 text-right">
-                        <Button variant="outline" size="sm">
-                          Düzenle
-                        </Button>
+                        <Link to={`/namespaces/${item.id}`}>
+                          <Button variant="outline" size="sm">
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            Düzenle
+                          </Button>
+                        </Link>
                       </td>
                     </tr>
                   ))}
@@ -274,7 +283,11 @@ export default function Reports() {
                 <tbody>
                   {missingInfo.undocumented.slice(0, 10).map((item) => (
                     <tr key={item.id} className="border-b border-border">
-                      <td className="p-3 font-mono text-sm">{item.name}</td>
+                      <td className="p-3 font-mono text-sm">
+                        <Link to={`/namespaces/${item.id}`} className="hover:text-primary">
+                          {item.name}
+                        </Link>
+                      </td>
                       <td className="p-3">{item.cluster?.name || '-'}</td>
                       <td className="p-3">
                         <Badge variant="outline" className="text-blue-500 border-blue-500/30">
@@ -282,9 +295,12 @@ export default function Reports() {
                         </Badge>
                       </td>
                       <td className="p-3 text-right">
-                        <Button variant="outline" size="sm">
-                          Doküman Ekle
-                        </Button>
+                        <Link to={`/namespaces/${item.id}?tab=documents`}>
+                          <Button variant="outline" size="sm">
+                            <FileText className="h-3 w-3 mr-1" />
+                            Doküman Ekle
+                          </Button>
+                        </Link>
                       </td>
                     </tr>
                   ))}

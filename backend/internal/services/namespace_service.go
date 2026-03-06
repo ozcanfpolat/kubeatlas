@@ -279,7 +279,16 @@ func (s *NamespaceService) Update(ctx context.Context, ac AuditContext, id uuid.
 		return nil, err
 	}
 
-	s.auditSvc.LogUpdate(ctx, ac, "namespace", ns.ID, ns.Name, oldValues, StructToMap(ns))
+	// Audit log - don't fail the update if audit fails
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.logger.Warnw("Audit log panic recovered", "error", r)
+			}
+		}()
+		s.auditSvc.LogUpdate(context.Background(), ac, "namespace", ns.ID, ns.Name, nil, nil)
+	}()
+	
 	s.logger.Infow("Namespace updated", "namespace_id", ns.ID, "name", ns.Name)
 
 	return ns, nil

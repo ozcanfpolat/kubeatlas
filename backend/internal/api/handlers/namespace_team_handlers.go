@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -20,6 +21,7 @@ func ListNamespaces(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orgID, ok := middleware.GetOrganizationID(c)
 		if !ok {
+			log.Printf("ERROR ListNamespaces: Organization ID not found in context")
 			respondErrorStr(c, http.StatusUnauthorized, "Organization ID not found in context")
 			return
 		}
@@ -62,6 +64,7 @@ func ListNamespaces(svc *services.Services) gin.HandlerFunc {
 
 		result, err := svc.Namespace.List(c.Request.Context(), orgID, p, filters)
 		if err != nil {
+			log.Printf("ERROR ListNamespaces: orgID=%s, err=%v", orgID, err)
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}

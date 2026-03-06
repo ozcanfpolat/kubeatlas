@@ -211,8 +211,8 @@ func (qb *QueryBuilder) BuildCount() (string, []interface{}) {
 		countQuery += " WHERE " + strings.Join(qb.conditions, " AND ")
 	}
 
-	// For count, we only need the WHERE args, not LIMIT/OFFSET
-	return countQuery, qb.args[:len(qb.args)-countOffsetArgs(qb)]
+	// Return only WHERE args - LIMIT/OFFSET args are added in Build() which hasn't been called yet
+	return countQuery, qb.args
 }
 
 func countOffsetArgs(qb *QueryBuilder) int {

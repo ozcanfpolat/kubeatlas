@@ -301,7 +301,7 @@ func ListTeams(svc *services.Services) gin.HandlerFunc {
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}
-		respondSuccess(c, gin.H{"items": teams})
+		respondSuccess(c, teams)
 	}
 }
 

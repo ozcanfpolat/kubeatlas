@@ -222,7 +222,7 @@ func ListBusinessUnits(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		respondSuccess(c, gin.H{"items": result})
+		respondSuccess(c, result)
 	}
 }
 

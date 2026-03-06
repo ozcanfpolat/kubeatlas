@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -359,6 +360,7 @@ func (r *NamespaceRepository) Update(ctx context.Context, ns *models.Namespace) 
 	)
 
 	if err != nil {
+		log.Printf("ERROR NamespaceRepository.Update: id=%s, err=%v", ns.ID, err)
 		return err
 	}
 

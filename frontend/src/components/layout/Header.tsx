@@ -13,10 +13,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAuthStore } from '@/store/authStore'
 import { getInitials } from '@/lib/utils'
+import { useTheme } from '@/lib/useTheme'
 
 export default function Header() {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+  const { theme, toggleTheme } = useTheme()
 
   const handleLogout = () => {
     logout()
@@ -40,9 +42,12 @@ export default function Header() {
       {/* Right Side */}
       <div className="flex items-center gap-4">
         {/* Theme Toggle */}
-        <Button variant="ghost" size="icon">
-          <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+        <Button variant="ghost" size="icon" onClick={toggleTheme}>
+          {theme === 'dark' ? (
+            <Sun className="h-5 w-5" />
+          ) : (
+            <Moon className="h-5 w-5" />
+          )}
           <span className="sr-only">Toggle theme</span>
         </Button>
 

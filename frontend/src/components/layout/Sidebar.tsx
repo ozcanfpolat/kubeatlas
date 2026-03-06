@@ -4,9 +4,12 @@ import {
   Server,
   Boxes,
   Users,
+  Building2,
   FileText,
+  GitBranch,
   BarChart3,
   Settings,
+  History,
   HelpCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -16,8 +19,11 @@ const navigation = [
   { name: 'Clusters', href: '/clusters', icon: Server },
   { name: 'Namespaces', href: '/namespaces', icon: Boxes },
   { name: 'Teams', href: '/teams', icon: Users },
+  { name: 'Business Units', href: '/business-units', icon: Building2 },
+  { name: 'Dependencies', href: '/dependencies', icon: GitBranch },
   { name: 'Documents', href: '/documents', icon: FileText },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
+  { name: 'Audit Logs', href: '/audit', icon: History },
 ]
 
 const secondaryNavigation = [

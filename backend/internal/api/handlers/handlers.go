@@ -183,7 +183,7 @@ func Login(svc *services.Services) gin.HandlerFunc {
 			"user": gin.H{
 				"id":        user.ID,
 				"email":     user.Email,
-				"full_name": user.FullName.String,
+				"full_name": user.FullName.ValueOrEmpty(),
 				"role":      user.Role,
 			},
 		})

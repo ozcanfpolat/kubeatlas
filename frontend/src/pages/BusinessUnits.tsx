@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Building2,
   Plus,
@@ -9,10 +9,12 @@ import {
   Boxes,
   RefreshCw,
   AlertTriangle,
+  Trash,
+  Edit,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -20,15 +22,29 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { businessUnitsApi } from '@/api'
 import { BusinessUnit } from '@/types'
 import { Label } from '@/components/ui/label'
 
 export default function BusinessUnits() {
+  const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [editingUnit, setEditingUnit] = useState<BusinessUnit | null>(null)
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    description: '',
+  })
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['business-units'],
@@ -36,7 +52,59 @@ export default function BusinessUnits() {
     retry: 1,
   })
 
-  // Defensive: ensure businessUnits is always an array
+  const createMutation = useMutation({
+    mutationFn: (unitData: Partial<BusinessUnit>) => businessUnitsApi.create(unitData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['business-units'] })
+      setIsCreateOpen(false)
+      resetForm()
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<BusinessUnit> }) => 
+      businessUnitsApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['business-units'] })
+      setIsEditOpen(false)
+      setEditingUnit(null)
+      resetForm()
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => businessUnitsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['business-units'] })
+    },
+  })
+
+  const resetForm = () => {
+    setFormData({ name: '', code: '', description: '' })
+  }
+
+  const handleCreate = () => {
+    if (formData.name.trim()) {
+      createMutation.mutate(formData)
+    }
+  }
+
+  const handleEdit = (unit: BusinessUnit) => {
+    setEditingUnit(unit)
+    setFormData({
+      name: unit.name || '',
+      code: unit.code || '',
+      description: unit.description || '',
+    })
+    setIsEditOpen(true)
+  }
+
+  const handleUpdate = () => {
+    if (editingUnit && formData.name.trim()) {
+      updateMutation.mutate({ id: editingUnit.id, data: formData })
+    }
+  }
+
   const businessUnits: BusinessUnit[] = Array.isArray(data) ? data : []
 
   const filteredUnits = businessUnits.filter((unit) =>
@@ -44,19 +112,6 @@ export default function BusinessUnits() {
     unit.code?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Build tree structure
-  const buildTree = (units: BusinessUnit[], parentId: string | null = null): (BusinessUnit & { children?: BusinessUnit[] })[] => {
-    return units
-      .filter((unit) => unit.parent_id === parentId)
-      .map((unit) => ({
-        ...unit,
-        children: buildTree(units, unit.id),
-      }))
-  }
-
-  const tree = buildTree(businessUnits)
-
-  // Loading state
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -74,7 +129,6 @@ export default function BusinessUnits() {
     )
   }
 
-  // Error state
   if (isError) {
     return (
       <div className="space-y-6">
@@ -101,7 +155,6 @@ export default function BusinessUnits() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Business Units</h1>
@@ -109,49 +162,12 @@ export default function BusinessUnits() {
             Manage organizational structure and namespace assignments
           </p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Business Unit
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Business Unit</DialogTitle>
-              <DialogDescription>
-                Add a new business unit to your organization structure
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" placeholder="e.g., Digital Banking" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="code">Code</Label>
-                <Input id="code" placeholder="e.g., DB" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Input id="description" placeholder="Brief description" />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreateOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="button">Create</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => { resetForm(); setIsCreateOpen(true) }}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Business Unit
+        </Button>
       </div>
 
-      {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -165,7 +181,63 @@ export default function BusinessUnits() {
       {filteredUnits.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredUnits.map((unit) => (
-            <BusinessUnitCard key={unit.id} unit={unit} />
+            <Card key={unit.id} className="hover:border-primary/50 transition-colors">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                      <Building2 className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">{unit.name}</CardTitle>
+                      {unit.code && (
+                        <Badge variant="outline" className="mt-1">
+                          {unit.code}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleEdit(unit)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this business unit?')) {
+                            deleteMutation.mutate(unit.id)
+                          }
+                        }}
+                        className="text-destructive"
+                      >
+                        <Trash className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {unit.description && (
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                    {unit.description}
+                  </p>
+                )}
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Boxes className="h-4 w-4" />
+                    <span>{unit.namespace_count || 0} namespaces</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4" />
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       ) : (
@@ -179,7 +251,7 @@ export default function BusinessUnits() {
                 : 'Create your first business unit to get started'}
             </p>
             {!searchQuery && (
-              <Button onClick={() => setIsCreateOpen(true)}>
+              <Button onClick={() => { resetForm(); setIsCreateOpen(true) }}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Business Unit
               </Button>
@@ -188,99 +260,105 @@ export default function BusinessUnits() {
         </Card>
       )}
 
-      {/* Tree View */}
-      {tree.length > 0 && (
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>Organization Structure</CardTitle>
-            <CardDescription>Hierarchical view of business units</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              {tree.map((unit) => (
-                <TreeNode key={unit.id} unit={unit} level={0} />
-              ))}
+      {/* Create Dialog */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Business Unit</DialogTitle>
+            <DialogDescription>
+              Add a new business unit to your organization structure
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="create-name">Name *</Label>
+              <Input
+                id="create-name"
+                placeholder="e.g., Digital Banking"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  )
-}
-
-function BusinessUnitCard({ unit }: { unit: BusinessUnit }) {
-  return (
-    <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Building2 className="h-5 w-5 text-primary" />
+            <div className="space-y-2">
+              <Label htmlFor="create-code">Code</Label>
+              <Input
+                id="create-code"
+                placeholder="e.g., DB"
+                value={formData.code}
+                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+              />
             </div>
-            <div>
-              <CardTitle className="text-base">{unit.name}</CardTitle>
-              {unit.code && (
-                <Badge variant="outline" className="mt-1">
-                  {unit.code}
-                </Badge>
-              )}
+            <div className="space-y-2">
+              <Label htmlFor="create-description">Description</Label>
+              <Input
+                id="create-description"
+                placeholder="Brief description of the business unit"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                
+              />
             </div>
           </div>
-          <Button variant="ghost" size="icon">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        {unit.description && (
-          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-            {unit.description}
-          </p>
-        )}
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Boxes className="h-4 w-4" />
-            <span>{unit.namespace_count || 0} namespaces</span>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreate} disabled={createMutation.isPending || !formData.name.trim()}>
+              {createMutation.isPending ? 'Creating...' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Business Unit</DialogTitle>
+            <DialogDescription>
+              Update business unit information
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name *</Label>
+              <Input
+                id="edit-name"
+                placeholder="e.g., Digital Banking"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-code">Code</Label>
+              <Input
+                id="edit-code"
+                placeholder="e.g., DB"
+                value={formData.code}
+                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Input
+                id="edit-description"
+                placeholder="Brief description of the business unit"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                
+              />
+            </div>
           </div>
-          <ChevronRight className="h-4 w-4" />
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function TreeNode({ unit, level }: { unit: BusinessUnit & { children?: BusinessUnit[] }; level: number }) {
-  const [isExpanded, setIsExpanded] = useState(level === 0)
-  const hasChildren = unit.children && unit.children.length > 0
-
-  return (
-    <div>
-      <div
-        className="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-muted cursor-pointer"
-        style={{ paddingLeft: `${level * 24 + 12}px` }}
-        onClick={() => hasChildren && setIsExpanded(!isExpanded)}
-      >
-        {hasChildren ? (
-          <ChevronRight
-            className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-          />
-        ) : (
-          <div className="w-4" />
-        )}
-        <Building2 className="h-4 w-4 text-muted-foreground" />
-        <span className="font-medium">{unit.name}</span>
-        {unit.code && (
-          <Badge variant="outline" className="text-xs">
-            {unit.code}
-          </Badge>
-        )}
-        <span className="ml-auto text-xs text-muted-foreground">
-          {unit.namespace_count || 0} namespaces
-        </span>
-      </div>
-      {isExpanded && unit.children?.map((child) => (
-        <TreeNode key={child.id} unit={child as BusinessUnit & { children?: BusinessUnit[] }} level={level + 1} />
-      ))}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdate} disabled={updateMutation.isPending || !formData.name.trim()}>
+              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

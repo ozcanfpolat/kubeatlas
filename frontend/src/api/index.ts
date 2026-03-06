@@ -250,6 +250,20 @@ export const businessUnitsApi = {
     const response = await apiClient.get<ApiResponse<BusinessUnit>>(`/business-units/${id}`)
     return response.data.data
   },
+
+  create: async (data: Partial<BusinessUnit>): Promise<BusinessUnit> => {
+    const response = await apiClient.post<ApiResponse<BusinessUnit>>('/business-units', data)
+    return response.data.data
+  },
+
+  update: async (id: string, data: Partial<BusinessUnit>): Promise<BusinessUnit> => {
+    const response = await apiClient.put<ApiResponse<BusinessUnit>>(`/business-units/${id}`, data)
+    return response.data.data
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete(`/business-units/${id}`)
+  },
 }
 
 // ============================================

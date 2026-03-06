@@ -44,7 +44,6 @@ export default function Documents() {
   const [isUploadOpen, setIsUploadOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [selectedCluster, setSelectedCluster] = useState<string>('')
   const [uploadData, setUploadData] = useState({
     name: '',
     description: '',

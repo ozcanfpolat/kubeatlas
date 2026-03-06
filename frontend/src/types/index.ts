@@ -348,6 +348,7 @@ export interface Document {
 export interface DashboardStats {
   total_clusters: number
   active_clusters: number
+  total_nodes?: number
   total_namespaces: number
   namespaces_with_owner: number
   namespaces_documented: number
@@ -358,6 +359,7 @@ export interface DashboardStats {
   no_business_unit: number
   ownership_percentage: number
   documentation_percentage: number
+  environment_distribution?: { name: string; count: number }[]
 }
 
 export interface EnvironmentDistribution {

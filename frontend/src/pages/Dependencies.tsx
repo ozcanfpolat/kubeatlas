@@ -33,8 +33,8 @@ import {
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
-import { dependenciesApi, namespacesApi } from '@/api'
-import type { InternalDependency, ExternalDependency } from '@/types'
+import { dependenciesApi, namespacesApi, clustersApi } from '@/api'
+import type { InternalDependency, ExternalDependency, Cluster } from '@/types'
 
 const dependencyTypeColors: Record<string, string> = {
   api: 'bg-blue-500',
@@ -50,6 +50,8 @@ export default function Dependencies() {
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [clusterFilter, setClusterFilter] = useState<string>('all')
+  const [_criticalOnly, _setCriticalOnly] = useState(false)
   const [isAddInternalOpen, setIsAddInternalOpen] = useState(false)
   const [isAddExternalOpen, setIsAddExternalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -84,8 +86,17 @@ export default function Dependencies() {
   })
 
   const { data: namespacesData } = useQuery({
-    queryKey: ['namespaces-for-deps'],
-    queryFn: () => namespacesApi.list({ page: 1, page_size: 100 }),
+    queryKey: ['namespaces-for-deps', clusterFilter],
+    queryFn: () => namespacesApi.list({ 
+      page: 1, 
+      page_size: 100,
+      cluster_id: clusterFilter === 'all' ? undefined : clusterFilter,
+    }),
+  })
+
+  const { data: clustersData } = useQuery({
+    queryKey: ['clusters-for-deps'],
+    queryFn: () => clustersApi.list({ page_size: 100 }),
   })
 
   const createInternalMutation = useMutation({
@@ -153,6 +164,7 @@ export default function Dependencies() {
 
   const isLoading = loadingInternal || loadingExternal
   const namespaces = namespacesData?.items || []
+  const clusters: Cluster[] = clustersData?.items || []
 
   // Error state
   if (isError) {
@@ -233,6 +245,31 @@ export default function Dependencies() {
           </Button>
         </div>
       )}
+
+      {/* Cluster Filter */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Label className="text-sm font-medium">Cluster:</Label>
+          <Select value={clusterFilter} onValueChange={setClusterFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="All Clusters" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Clusters</SelectItem>
+              {clusters.map((cluster) => (
+                <SelectItem key={cluster.id} value={cluster.id}>
+                  {cluster.display_name || cluster.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {clusterFilter !== 'all' && (
+          <Button variant="ghost" size="sm" onClick={() => setClusterFilter('all')}>
+            Clear Filter
+          </Button>
+        )}
+      </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">

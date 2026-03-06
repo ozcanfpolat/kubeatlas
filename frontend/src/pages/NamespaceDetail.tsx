@@ -110,7 +110,7 @@ export default function NamespaceDetail() {
   })
 
   const teams = Array.isArray(teamsData) ? teamsData : []
-  const businessUnits = Array.isArray(businessUnitsData) ? businessUnitsData : (businessUnitsData?.items || [])
+  const businessUnits: any[] = Array.isArray(businessUnitsData) ? businessUnitsData : (businessUnitsData as any)?.items || []
 
   const handleEditClick = () => {
     if (namespace) {
@@ -139,7 +139,7 @@ export default function NamespaceDetail() {
   }
 
   const handleSave = () => {
-    const data: Partial<Namespace> = {
+    const data: any = {
       display_name: editForm.display_name || undefined,
       description: editForm.description || undefined,
       environment: editForm.environment || undefined,
@@ -415,7 +415,7 @@ export default function NamespaceDetail() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {dependencies?.internal?.length > 0 ? (
+                {dependencies?.internal && dependencies.internal.length > 0 ? (
                   <ul className="space-y-2">
                     {dependencies.internal.map((dep: any) => (
                       <li key={dep.id} className="flex items-center justify-between p-2 bg-muted rounded">
@@ -438,7 +438,7 @@ export default function NamespaceDetail() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {dependencies?.external?.length > 0 ? (
+                {dependencies?.external && dependencies.external.length > 0 ? (
                   <ul className="space-y-2">
                     {dependencies.external.map((dep: any) => (
                       <li key={dep.id} className="flex items-center justify-between p-2 bg-muted rounded">
@@ -464,7 +464,7 @@ export default function NamespaceDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {documents?.length > 0 ? (
+              {documents && documents.length > 0 ? (
                 <ul className="space-y-2">
                   {documents.map((doc: any) => (
                     <li key={doc.id} className="flex items-center justify-between p-2 bg-muted rounded">
@@ -491,7 +491,7 @@ export default function NamespaceDetail() {
               <CardTitle>Change History</CardTitle>
             </CardHeader>
             <CardContent>
-              {history?.length > 0 ? (
+              {history && history.length > 0 ? (
                 <ul className="space-y-3">
                   {history.map((entry: any) => (
                     <li key={entry.id} className="flex items-start gap-3 p-2 border-b last:border-0">

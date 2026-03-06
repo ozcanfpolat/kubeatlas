@@ -30,16 +30,28 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { businessUnitsApi } from '@/api'
-import { BusinessUnit } from '@/types'
+import { businessUnitsApi, namespacesApi, clustersApi } from '@/api'
+import { BusinessUnit, Namespace, Cluster } from '@/types'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 
 export default function BusinessUnits() {
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isAssignOpen, setIsAssignOpen] = useState(false)
+  const [assigningUnit, setAssigningUnit] = useState<BusinessUnit | null>(null)
+  const [selectedNamespaces, setSelectedNamespaces] = useState<string[]>([])
+  const [clusterFilter, setClusterFilter] = useState<string>('all')
   const [editingUnit, setEditingUnit] = useState<BusinessUnit | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -52,6 +64,21 @@ export default function BusinessUnits() {
     queryKey: ['business-units'],
     queryFn: businessUnitsApi.list,
     retry: 1,
+  })
+
+  const { data: clustersData } = useQuery({
+    queryKey: ['clusters-for-bu'],
+    queryFn: () => clustersApi.list({ page_size: 100 }),
+  })
+
+  const { data: namespacesData } = useQuery({
+    queryKey: ['namespaces-for-bu', clusterFilter],
+    queryFn: () => namespacesApi.list({ 
+      page: 1, 
+      page_size: 500,
+      cluster_id: clusterFilter === 'all' ? undefined : clusterFilter,
+    }),
+    enabled: isAssignOpen,
   })
 
   const createMutation = useMutation({
@@ -93,10 +120,59 @@ export default function BusinessUnits() {
     },
   })
 
+  const assignNamespacesMutation = useMutation({
+    mutationFn: async ({ namespaceIds, businessUnitId }: { namespaceIds: string[], businessUnitId: string }) => {
+      // Update each namespace's business_unit_id
+      await Promise.all(
+        namespaceIds.map(nsId => 
+          namespacesApi.update(nsId, { business_unit_id: businessUnitId })
+        )
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['business-units'] })
+      queryClient.invalidateQueries({ queryKey: ['namespaces'] })
+      setIsAssignOpen(false)
+      setAssigningUnit(null)
+      setSelectedNamespaces([])
+      setError(null)
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'Failed to assign namespaces')
+    },
+  })
+
   const resetForm = () => {
     setFormData({ name: '', code: '', description: '' })
     setError(null)
   }
+
+  const handleOpenAssign = (unit: BusinessUnit) => {
+    setAssigningUnit(unit)
+    setSelectedNamespaces([])
+    setClusterFilter('all')
+    setIsAssignOpen(true)
+  }
+
+  const handleAssignNamespaces = () => {
+    if (assigningUnit && selectedNamespaces.length > 0) {
+      assignNamespacesMutation.mutate({
+        namespaceIds: selectedNamespaces,
+        businessUnitId: assigningUnit.id,
+      })
+    }
+  }
+
+  const toggleNamespace = (nsId: string) => {
+    setSelectedNamespaces(prev => 
+      prev.includes(nsId) 
+        ? prev.filter(id => id !== nsId)
+        : [...prev, nsId]
+    )
+  }
+
+  const clusters: Cluster[] = clustersData?.items || []
+  const namespaces: Namespace[] = namespacesData?.items || []
 
   const handleCreate = () => {
     if (formData.name.trim()) {
@@ -245,6 +321,10 @@ export default function BusinessUnits() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleOpenAssign(unit)}>
+                        <Boxes className="mr-2 h-4 w-4" />
+                        Assign Namespaces
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleEdit(unit)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
@@ -404,6 +484,86 @@ export default function BusinessUnits() {
             </Button>
             <Button onClick={handleUpdate} disabled={updateMutation.isPending || !formData.name.trim()}>
               {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Namespaces Dialog */}
+      <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Assign Namespaces to {assigningUnit?.name}</DialogTitle>
+            <DialogDescription>
+              Select namespaces to assign to this business unit
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Cluster Filter */}
+          <div className="flex items-center gap-4 py-2">
+            <Label className="text-sm font-medium">Filter by Cluster:</Label>
+            <Select value={clusterFilter} onValueChange={setClusterFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="All Clusters" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Clusters</SelectItem>
+                {clusters.map((cluster) => (
+                  <SelectItem key={cluster.id} value={cluster.id}>
+                    {cluster.display_name || cluster.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Namespace List */}
+          <div className="flex-1 overflow-auto border rounded-lg p-2 min-h-[300px]">
+            {namespaces.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">
+                No namespaces found
+              </p>
+            ) : (
+              <div className="space-y-1">
+                {namespaces.map((ns) => {
+                  const cluster = clusters.find(c => c.id === ns.cluster_id)
+                  return (
+                    <div
+                      key={ns.id}
+                      className="flex items-center gap-3 p-2 rounded hover:bg-muted cursor-pointer"
+                      onClick={() => toggleNamespace(ns.id)}
+                    >
+                      <Checkbox
+                        checked={selectedNamespaces.includes(ns.id)}
+                        onCheckedChange={() => toggleNamespace(ns.id)}
+                      />
+                      <Boxes className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{ns.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {cluster?.name || 'Unknown cluster'}
+                          {ns.business_unit_id && ' • Already assigned'}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="pt-4">
+            <div className="flex-1 text-sm text-muted-foreground">
+              {selectedNamespaces.length} namespace(s) selected
+            </div>
+            <Button variant="outline" onClick={() => setIsAssignOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAssignNamespaces} 
+              disabled={assignNamespacesMutation.isPending || selectedNamespaces.length === 0}
+            >
+              {assignNamespacesMutation.isPending ? 'Assigning...' : 'Assign'}
             </Button>
           </DialogFooter>
         </DialogContent>

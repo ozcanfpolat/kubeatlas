@@ -3,6 +3,8 @@ package services
 import (
 	"context"
 	"errors"
+	"regexp"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/kubeatlas/kubeatlas/internal/database/repositories"
@@ -14,6 +16,21 @@ var (
 	ErrTeamNotFound         = errors.New("team not found")
 	ErrBusinessUnitNotFound = errors.New("business unit not found")
 )
+
+// generateSlug creates a URL-friendly slug from a name
+func generateSlug(name string) string {
+	slug := strings.ToLower(name)
+	slug = strings.ReplaceAll(slug, " ", "-")
+	// Remove non-alphanumeric characters except hyphens
+	reg := regexp.MustCompile("[^a-z0-9-]+")
+	slug = reg.ReplaceAllString(slug, "")
+	// Remove multiple consecutive hyphens
+	reg = regexp.MustCompile("-+")
+	slug = reg.ReplaceAllString(slug, "-")
+	// Trim hyphens from start and end
+	slug = strings.Trim(slug, "-")
+	return slug
+}
 
 // ============================================
 // Team Service
@@ -31,7 +48,7 @@ func NewTeamService(repo *repositories.TeamRepository, auditSvc *AuditService, l
 
 type CreateTeamRequest struct {
 	Name         string `json:"name" binding:"required"`
-	Slug         string `json:"slug" binding:"required"`
+	Slug         string `json:"slug"`
 	Description  string `json:"description"`
 	TeamType     string `json:"team_type"`
 	ContactEmail string `json:"contact_email"`
@@ -39,10 +56,14 @@ type CreateTeamRequest struct {
 }
 
 func (s *TeamService) Create(ctx context.Context, ac AuditContext, req CreateTeamRequest) (*models.Team, error) {
+	slug := req.Slug
+	if slug == "" {
+		slug = generateSlug(req.Name)
+	}
 	team := &models.Team{
 		OrganizationID: ac.OrgID,
 		Name:           req.Name,
-		Slug:           req.Slug,
+		Slug:           slug,
 		TeamType:       req.TeamType,
 		Metadata:       make(models.JSONMap),
 	}
@@ -91,7 +112,9 @@ func (s *TeamService) Update(ctx context.Context, ac AuditContext, id uuid.UUID,
 	}
 
 	team.Name = req.Name
-	team.Slug = req.Slug
+	if req.Slug != "" {
+		team.Slug = req.Slug
+	}
 	if req.Description != "" {
 		team.Description = models.NewNullStringFromString(req.Description)
 	}

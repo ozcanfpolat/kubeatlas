@@ -239,6 +239,11 @@ func (r *NamespaceRepository) List(ctx context.Context, orgID uuid.UUID, p Pagin
 		)`)
 	}
 
+	// Filter for no business unit
+	if noBU, ok := filters["no_business_unit"].(bool); ok && noBU {
+		qb.Where("n.business_unit_id IS NULL")
+	}
+
 	// Default sort
 	if p.Sort == "" {
 		p.Sort = "n.name"

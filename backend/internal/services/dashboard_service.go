@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/kubeatlas/kubeatlas/internal/database/repositories"
 	"go.uber.org/zap"
 )
 
@@ -190,19 +191,59 @@ func (s *DashboardService) GetStats(ctx context.Context, orgID uuid.UUID) (map[s
 	return stats, nil
 }
 
-// GetMissingInfo returns counts of resources with missing information
+// GetMissingInfo returns namespaces with missing information
 func (s *DashboardService) GetMissingInfo(ctx context.Context, orgID uuid.UUID) (map[string]interface{}, error) {
-	nsStats, err := s.repos.Namespace.GetStats(ctx, orgID)
-	if err != nil {
-		return nil, err
+	result := make(map[string]interface{})
+	
+	// Get orphaned namespaces (no owner)
+	orphanedResult, err := s.repos.Namespace.List(ctx, orgID, repositories.Pagination{Page: 1, PageSize: 50}, map[string]interface{}{"orphaned": true})
+	if err == nil && orphanedResult != nil {
+		orphanedList := make([]map[string]interface{}, len(orphanedResult.Items))
+		for i, ns := range orphanedResult.Items {
+			orphanedList[i] = map[string]interface{}{
+				"id":         ns.ID,
+				"name":       ns.Name,
+				"cluster_id": ns.ClusterID,
+			}
+		}
+		result["orphaned"] = orphanedList
+	} else {
+		result["orphaned"] = []map[string]interface{}{}
 	}
-
-	return map[string]interface{}{
-		"orphaned_namespaces":     nsStats.OrphanedNamespaces,
-		"undocumented_namespaces": nsStats.UndocumentedNamespaces,
-		"no_deps_namespaces":      nsStats.NoDepsNamespaces,
-		"no_business_unit":        nsStats.NoBusinessUnit,
-	}, nil
+	
+	// Get undocumented namespaces
+	undocResult, err := s.repos.Namespace.List(ctx, orgID, repositories.Pagination{Page: 1, PageSize: 50}, map[string]interface{}{"undocumented": true})
+	if err == nil && undocResult != nil {
+		undocList := make([]map[string]interface{}, len(undocResult.Items))
+		for i, ns := range undocResult.Items {
+			undocList[i] = map[string]interface{}{
+				"id":         ns.ID,
+				"name":       ns.Name,
+				"cluster_id": ns.ClusterID,
+			}
+		}
+		result["undocumented"] = undocList
+	} else {
+		result["undocumented"] = []map[string]interface{}{}
+	}
+	
+	// Get namespaces without business unit
+	noBuResult, err := s.repos.Namespace.List(ctx, orgID, repositories.Pagination{Page: 1, PageSize: 50}, map[string]interface{}{"no_business_unit": true})
+	if err == nil && noBuResult != nil {
+		noBuList := make([]map[string]interface{}, len(noBuResult.Items))
+		for i, ns := range noBuResult.Items {
+			noBuList[i] = map[string]interface{}{
+				"id":         ns.ID,
+				"name":       ns.Name,
+				"cluster_id": ns.ClusterID,
+			}
+		}
+		result["no_business_unit"] = noBuList
+	} else {
+		result["no_business_unit"] = []map[string]interface{}{}
+	}
+	
+	return result, nil
 }
 
 // GetRecentActivities returns recent audit activities

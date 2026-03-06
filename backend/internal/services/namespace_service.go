@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/kubeatlas/kubeatlas/internal/database/repositories"
@@ -141,6 +142,28 @@ func (s *NamespaceService) Update(ctx context.Context, ac AuditContext, id uuid.
 	if ns.K8sAnnotations == nil {
 		ns.K8sAnnotations = make(models.JSONMap)
 	}
+
+	// Sanitize existing NullString fields to remove NULL bytes (0x00)
+	sanitizeNullString := func(ns *models.NullString) {
+		if ns.Valid {
+			ns.String = strings.ReplaceAll(ns.String, "\x00", "")
+		}
+	}
+	sanitizeNullString(&ns.DisplayName)
+	sanitizeNullString(&ns.Description)
+	sanitizeNullString(&ns.K8sUID)
+	sanitizeNullString(&ns.ApplicationManagerName)
+	sanitizeNullString(&ns.ApplicationManagerEmail)
+	sanitizeNullString(&ns.ApplicationManagerPhone)
+	sanitizeNullString(&ns.TechnicalLeadName)
+	sanitizeNullString(&ns.TechnicalLeadEmail)
+	sanitizeNullString(&ns.ProjectManagerName)
+	sanitizeNullString(&ns.ProjectManagerEmail)
+	sanitizeNullString(&ns.SLAAvailability)
+	sanitizeNullString(&ns.SLARTO)
+	sanitizeNullString(&ns.SLARPO)
+	sanitizeNullString(&ns.SupportHours)
+	sanitizeNullString(&ns.EscalationPath)
 
 	oldValues := StructToMap(ns)
 

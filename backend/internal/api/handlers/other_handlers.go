@@ -199,12 +199,18 @@ func ListClusterNamespaces(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
+		orgID, ok := middleware.GetOrganizationID(c)
+		if !ok {
+			respondErrorStr(c, http.StatusUnauthorized, "Organization ID not found")
+			return
+		}
+
 		p := getPagination(c)
 		filters := map[string]interface{}{
 			"cluster_id": id,
 		}
 
-		result, err := svc.Namespace.List(c.Request.Context(), uuid.Nil, p, filters)
+		result, err := svc.Namespace.List(c.Request.Context(), orgID, p, filters)
 		if err != nil {
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to list cluster namespaces")
 			return

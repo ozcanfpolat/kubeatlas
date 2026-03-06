@@ -48,13 +48,8 @@ export default function Dashboard() {
     retry: 1,
   })
 
-  // Mock environment data for chart
-  const envData = [
-    { name: 'Production', count: 45 },
-    { name: 'Staging', count: 28 },
-    { name: 'Development', count: 67 },
-    { name: 'Test', count: 23 },
-  ]
+  // Environment data from API
+  const envData = stats?.environment_distribution || []
 
   const coverageData = [
     { name: 'With Owner', value: stats?.namespaces_with_owner || 0 },

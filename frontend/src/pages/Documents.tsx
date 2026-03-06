@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { documentsApi, namespacesApi } from '@/api'
+import { documentsApi, namespacesApi, clustersApi } from '@/api'
 import { formatFileSize, formatRelativeTime } from '@/lib/utils'
 
 function getFileIcon(mimeType: string) {
@@ -44,9 +44,11 @@ export default function Documents() {
   const [isUploadOpen, setIsUploadOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedCluster, setSelectedCluster] = useState<string>('')
   const [uploadData, setUploadData] = useState({
     name: '',
     description: '',
+    cluster_id: '',
     namespace_id: '',
     category_id: '',
   })
@@ -63,9 +65,18 @@ export default function Documents() {
     queryFn: documentsApi.getCategories,
   })
 
+  const { data: clustersData } = useQuery({
+    queryKey: ['clusters-select'],
+    queryFn: () => clustersApi.list({ page_size: 100 }),
+  })
+
   const { data: namespacesData } = useQuery({
-    queryKey: ['namespaces-select'],
-    queryFn: () => namespacesApi.list({ page: 1, page_size: 100 }),
+    queryKey: ['namespaces-select', uploadData.cluster_id],
+    queryFn: () => namespacesApi.list({ 
+      page: 1, 
+      page_size: 100,
+      cluster_id: uploadData.cluster_id || undefined
+    }),
   })
 
   const uploadMutation = useMutation({
@@ -74,6 +85,7 @@ export default function Documents() {
       return documentsApi.upload(selectedFile, {
         name: uploadData.name || selectedFile.name,
         description: uploadData.description,
+        cluster_id: uploadData.cluster_id || undefined,
         namespace_id: uploadData.namespace_id || undefined,
         category_id: uploadData.category_id || undefined,
       })
@@ -82,7 +94,7 @@ export default function Documents() {
       queryClient.invalidateQueries({ queryKey: ['documents'] })
       setIsUploadOpen(false)
       setSelectedFile(null)
-      setUploadData({ name: '', description: '', namespace_id: '', category_id: '' })
+      setUploadData({ name: '', description: '', cluster_id: '', namespace_id: '', category_id: '' })
     },
   })
 
@@ -197,6 +209,30 @@ export default function Documents() {
               </div>
 
               <div>
+                <Label>Cluster (Opsiyonel)</Label>
+                <Select
+                  value={uploadData.cluster_id || 'all'}
+                  onValueChange={(value) => setUploadData({ 
+                    ...uploadData, 
+                    cluster_id: value === 'all' ? '' : value,
+                    namespace_id: '' // Reset namespace when cluster changes
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Cluster seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tüm Cluster'lar</SelectItem>
+                    {clustersData?.items?.map((cluster) => (
+                      <SelectItem key={cluster.id} value={cluster.id}>
+                        {cluster.display_name || cluster.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
                 <Label>Namespace (Opsiyonel)</Label>
                 <Select
                   value={uploadData.namespace_id || 'general'}
@@ -209,7 +245,7 @@ export default function Documents() {
                     <SelectItem value="general">Genel</SelectItem>
                     {namespacesData?.items?.map((ns) => (
                       <SelectItem key={ns.id} value={ns.id}>
-                        {ns.name}
+                        {ns.name} {ns.cluster?.name ? `(${ns.cluster.name})` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>

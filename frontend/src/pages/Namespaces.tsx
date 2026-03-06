@@ -208,7 +208,10 @@ export default function Namespaces() {
                     </div>
                   </td>
                   <td className="px-4 py-4 text-sm">
-                    {ns.cluster?.display_name || ns.cluster?.name || '-'}
+                    {(() => {
+                      const cluster = clusterList.find(c => c.id === ns.cluster_id)
+                      return cluster?.display_name || cluster?.name || '-'
+                    })()}
                   </td>
                   <td className="px-4 py-4">
                     {ns.environment ? (

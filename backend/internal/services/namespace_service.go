@@ -49,7 +49,34 @@ func (s *NamespaceService) GetByID(ctx context.Context, id uuid.UUID) (*models.N
 
 // List retrieves namespaces with pagination
 func (s *NamespaceService) List(ctx context.Context, orgID uuid.UUID, p repositories.Pagination, filters map[string]interface{}) (*repositories.PaginatedResult[models.Namespace], error) {
-	return s.namespaceRepo.List(ctx, orgID, p, filters)
+	result, err := s.namespaceRepo.List(ctx, orgID, p, filters)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate cluster information for each namespace
+	clusterCache := make(map[uuid.UUID]*models.Cluster)
+	for i := range result.Items {
+		clusterID := result.Items[i].ClusterID
+		if clusterID == uuid.Nil {
+			continue
+		}
+
+		// Check cache first
+		if cluster, ok := clusterCache[clusterID]; ok {
+			result.Items[i].Cluster = cluster
+			continue
+		}
+
+		// Fetch cluster
+		cluster, err := s.clusterRepo.GetByID(ctx, clusterID)
+		if err == nil && cluster != nil {
+			clusterCache[clusterID] = cluster
+			result.Items[i].Cluster = cluster
+		}
+	}
+
+	return result, nil
 }
 
 // UpdateNamespaceRequest represents namespace update data

@@ -142,25 +142,49 @@ func (s *DashboardService) GetDashboardData(ctx context.Context, orgID uuid.UUID
 	return data, nil
 }
 
-// GetStats returns summary statistics
+// GetStats returns summary statistics in format expected by frontend
 func (s *DashboardService) GetStats(ctx context.Context, orgID uuid.UUID) (map[string]interface{}, error) {
 	stats := make(map[string]interface{})
 
 	// Namespace stats
 	nsStats, err := s.repos.Namespace.GetStats(ctx, orgID)
 	if err == nil && nsStats != nil {
-		stats["namespaces"] = map[string]interface{}{
-			"total":      nsStats.TotalNamespaces,
-			"with_owner": nsStats.NamespacesWithOwner,
-			"documented": nsStats.NamespacesDocumented,
-			"with_deps":  nsStats.NamespacesWithDeps,
+		stats["total_namespaces"] = nsStats.TotalNamespaces
+		stats["namespaces_with_owner"] = nsStats.NamespacesWithOwner
+		stats["namespaces_documented"] = nsStats.NamespacesDocumented
+		stats["namespaces_with_dependencies"] = nsStats.NamespacesWithDeps
+		stats["orphaned_namespaces"] = nsStats.TotalNamespaces - nsStats.NamespacesWithOwner
+		stats["undocumented_namespaces"] = nsStats.TotalNamespaces - nsStats.NamespacesDocumented
+		
+		// Calculate percentages
+		if nsStats.TotalNamespaces > 0 {
+			stats["ownership_percentage"] = (nsStats.NamespacesWithOwner * 100) / nsStats.TotalNamespaces
+			stats["documentation_percentage"] = (nsStats.NamespacesDocumented * 100) / nsStats.TotalNamespaces
+		} else {
+			stats["ownership_percentage"] = 0
+			stats["documentation_percentage"] = 0
 		}
 	}
 
 	// Cluster stats
 	clusterStats, err := s.repos.Cluster.GetStats(ctx, orgID)
+	if err == nil && clusterStats != nil {
+		stats["total_clusters"] = clusterStats["total"]
+		stats["active_clusters"] = clusterStats["active"]
+		stats["total_nodes"] = clusterStats["total_nodes"]
+	}
+
+	// Environment distribution for chart
+	envDist, err := s.repos.Namespace.GetEnvironmentDistribution(ctx, orgID)
 	if err == nil {
-		stats["clusters"] = clusterStats
+		envData := make([]map[string]interface{}, len(envDist))
+		for i, d := range envDist {
+			envData[i] = map[string]interface{}{
+				"name":  d.Environment,
+				"count": d.Count,
+			}
+		}
+		stats["environment_distribution"] = envData
 	}
 
 	return stats, nil

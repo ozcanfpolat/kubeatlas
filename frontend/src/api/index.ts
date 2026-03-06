@@ -326,10 +326,10 @@ export const dependenciesApi = {
 
 export const documentsApi = {
   list: async (limit = 50): Promise<Document[]> => {
-    const response = await apiClient.get<ApiResponse<Document[]>>('/documents', {
+    const response = await apiClient.get<PaginatedResponse<Document>>('/documents', {
       params: { limit },
     })
-    return response.data.data
+    return response.data.items || []
   },
   
   getById: async (id: string): Promise<Document> => {

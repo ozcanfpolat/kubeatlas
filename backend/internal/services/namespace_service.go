@@ -103,10 +103,10 @@ func (s *NamespaceService) Update(ctx context.Context, ac AuditContext, id uuid.
 
 	// Apply updates
 	if req.DisplayName != "" {
-		ns.DisplayName = sql.NullString{String: req.DisplayName, Valid: true}
+		ns.DisplayName = models.NullString{sql.NullString{String: req.DisplayName, Valid: true}}
 	}
 	if req.Description != "" {
-		ns.Description = sql.NullString{String: req.Description, Valid: true}
+		ns.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
 	}
 	if req.Environment != "" {
 		ns.Environment = req.Environment
@@ -128,46 +128,46 @@ func (s *NamespaceService) Update(ctx context.Context, ac AuditContext, id uuid.
 
 	// Application Manager
 	if req.ApplicationManagerName != "" {
-		ns.ApplicationManagerName = sql.NullString{String: req.ApplicationManagerName, Valid: true}
+		ns.ApplicationManagerName = models.NullString{sql.NullString{String: req.ApplicationManagerName, Valid: true}}
 	}
 	if req.ApplicationManagerEmail != "" {
-		ns.ApplicationManagerEmail = sql.NullString{String: req.ApplicationManagerEmail, Valid: true}
+		ns.ApplicationManagerEmail = models.NullString{sql.NullString{String: req.ApplicationManagerEmail, Valid: true}}
 	}
 	if req.ApplicationManagerPhone != "" {
-		ns.ApplicationManagerPhone = sql.NullString{String: req.ApplicationManagerPhone, Valid: true}
+		ns.ApplicationManagerPhone = models.NullString{sql.NullString{String: req.ApplicationManagerPhone, Valid: true}}
 	}
 
 	// Technical Lead
 	if req.TechnicalLeadName != "" {
-		ns.TechnicalLeadName = sql.NullString{String: req.TechnicalLeadName, Valid: true}
+		ns.TechnicalLeadName = models.NullString{sql.NullString{String: req.TechnicalLeadName, Valid: true}}
 	}
 	if req.TechnicalLeadEmail != "" {
-		ns.TechnicalLeadEmail = sql.NullString{String: req.TechnicalLeadEmail, Valid: true}
+		ns.TechnicalLeadEmail = models.NullString{sql.NullString{String: req.TechnicalLeadEmail, Valid: true}}
 	}
 
 	// Project Manager
 	if req.ProjectManagerName != "" {
-		ns.ProjectManagerName = sql.NullString{String: req.ProjectManagerName, Valid: true}
+		ns.ProjectManagerName = models.NullString{sql.NullString{String: req.ProjectManagerName, Valid: true}}
 	}
 	if req.ProjectManagerEmail != "" {
-		ns.ProjectManagerEmail = sql.NullString{String: req.ProjectManagerEmail, Valid: true}
+		ns.ProjectManagerEmail = models.NullString{sql.NullString{String: req.ProjectManagerEmail, Valid: true}}
 	}
 
 	// SLA
 	if req.SLAAvailability != "" {
-		ns.SLAAvailability = sql.NullString{String: req.SLAAvailability, Valid: true}
+		ns.SLAAvailability = models.NullString{sql.NullString{String: req.SLAAvailability, Valid: true}}
 	}
 	if req.SLARTO != "" {
-		ns.SLARTO = sql.NullString{String: req.SLARTO, Valid: true}
+		ns.SLARTO = models.NullString{sql.NullString{String: req.SLARTO, Valid: true}}
 	}
 	if req.SLARPO != "" {
-		ns.SLARPO = sql.NullString{String: req.SLARPO, Valid: true}
+		ns.SLARPO = models.NullString{sql.NullString{String: req.SLARPO, Valid: true}}
 	}
 	if req.SupportHours != "" {
-		ns.SupportHours = sql.NullString{String: req.SupportHours, Valid: true}
+		ns.SupportHours = models.NullString{sql.NullString{String: req.SupportHours, Valid: true}}
 	}
 	if req.EscalationPath != "" {
-		ns.EscalationPath = sql.NullString{String: req.EscalationPath, Valid: true}
+		ns.EscalationPath = models.NullString{sql.NullString{String: req.EscalationPath, Valid: true}}
 	}
 
 	// Tags

@@ -48,13 +48,13 @@ func (s *TeamService) Create(ctx context.Context, ac AuditContext, req CreateTea
 		Metadata:       make(models.JSONMap),
 	}
 	if req.Description != "" {
-		team.Description = sql.NullString{String: req.Description, Valid: true}
+		team.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
 	}
 	if req.ContactEmail != "" {
-		team.ContactEmail = sql.NullString{String: req.ContactEmail, Valid: true}
+		team.ContactEmail = models.NullString{sql.NullString{String: req.ContactEmail, Valid: true}}
 	}
 	if req.ContactSlack != "" {
-		team.ContactSlack = sql.NullString{String: req.ContactSlack, Valid: true}
+		team.ContactSlack = models.NullString{sql.NullString{String: req.ContactSlack, Valid: true}}
 	}
 	if team.TeamType == "" {
 		team.TeamType = "team"
@@ -94,16 +94,16 @@ func (s *TeamService) Update(ctx context.Context, ac AuditContext, id uuid.UUID,
 	team.Name = req.Name
 	team.Slug = req.Slug
 	if req.Description != "" {
-		team.Description = sql.NullString{String: req.Description, Valid: true}
+		team.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
 	}
 	if req.TeamType != "" {
 		team.TeamType = req.TeamType
 	}
 	if req.ContactEmail != "" {
-		team.ContactEmail = sql.NullString{String: req.ContactEmail, Valid: true}
+		team.ContactEmail = models.NullString{sql.NullString{String: req.ContactEmail, Valid: true}}
 	}
 	if req.ContactSlack != "" {
-		team.ContactSlack = sql.NullString{String: req.ContactSlack, Valid: true}
+		team.ContactSlack = models.NullString{sql.NullString{String: req.ContactSlack, Valid: true}}
 	}
 
 	if err := s.repo.Update(ctx, team); err != nil {
@@ -173,13 +173,13 @@ func (s *UserService) Create(ctx context.Context, ac AuditContext, req CreateUse
 		Settings:       make(models.JSONMap),
 	}
 	if req.Username != "" {
-		user.Username = sql.NullString{String: req.Username, Valid: true}
+		user.Username = models.NullString{sql.NullString{String: req.Username, Valid: true}}
 	}
 	if req.FullName != "" {
-		user.FullName = sql.NullString{String: req.FullName, Valid: true}
+		user.FullName = models.NullString{sql.NullString{String: req.FullName, Valid: true}}
 	}
 	if req.Phone != "" {
-		user.Phone = sql.NullString{String: req.Phone, Valid: true}
+		user.Phone = models.NullString{sql.NullString{String: req.Phone, Valid: true}}
 	}
 	if user.Role == "" {
 		user.Role = "viewer"
@@ -210,13 +210,13 @@ func (s *UserService) Update(ctx context.Context, ac AuditContext, id uuid.UUID,
 	}
 
 	if req.Username != "" {
-		user.Username = sql.NullString{String: req.Username, Valid: true}
+		user.Username = models.NullString{sql.NullString{String: req.Username, Valid: true}}
 	}
 	if req.FullName != "" {
-		user.FullName = sql.NullString{String: req.FullName, Valid: true}
+		user.FullName = models.NullString{sql.NullString{String: req.FullName, Valid: true}}
 	}
 	if req.Phone != "" {
-		user.Phone = sql.NullString{String: req.Phone, Valid: true}
+		user.Phone = models.NullString{sql.NullString{String: req.Phone, Valid: true}}
 	}
 	if req.Role != "" {
 		user.Role = req.Role
@@ -306,19 +306,19 @@ func (s *BusinessUnitService) Create(ctx context.Context, ac AuditContext, req C
 		Metadata:       make(models.JSONMap),
 	}
 	if req.Code != "" {
-		bu.Code = sql.NullString{String: req.Code, Valid: true}
+		bu.Code = models.NullString{sql.NullString{String: req.Code, Valid: true}}
 	}
 	if req.Description != "" {
-		bu.Description = sql.NullString{String: req.Description, Valid: true}
+		bu.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
 	}
 	if req.DirectorName != "" {
-		bu.DirectorName = sql.NullString{String: req.DirectorName, Valid: true}
+		bu.DirectorName = models.NullString{sql.NullString{String: req.DirectorName, Valid: true}}
 	}
 	if req.DirectorEmail != "" {
-		bu.DirectorEmail = sql.NullString{String: req.DirectorEmail, Valid: true}
+		bu.DirectorEmail = models.NullString{sql.NullString{String: req.DirectorEmail, Valid: true}}
 	}
 	if req.CostCenter != "" {
-		bu.CostCenter = sql.NullString{String: req.CostCenter, Valid: true}
+		bu.CostCenter = models.NullString{sql.NullString{String: req.CostCenter, Valid: true}}
 	}
 
 	if err := s.repo.Create(ctx, bu); err != nil {
@@ -354,19 +354,19 @@ func (s *BusinessUnitService) Update(ctx context.Context, ac AuditContext, id uu
 
 	bu.Name = req.Name
 	if req.Code != "" {
-		bu.Code = sql.NullString{String: req.Code, Valid: true}
+		bu.Code = models.NullString{sql.NullString{String: req.Code, Valid: true}}
 	}
 	if req.Description != "" {
-		bu.Description = sql.NullString{String: req.Description, Valid: true}
+		bu.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
 	}
 	if req.DirectorName != "" {
-		bu.DirectorName = sql.NullString{String: req.DirectorName, Valid: true}
+		bu.DirectorName = models.NullString{sql.NullString{String: req.DirectorName, Valid: true}}
 	}
 	if req.DirectorEmail != "" {
-		bu.DirectorEmail = sql.NullString{String: req.DirectorEmail, Valid: true}
+		bu.DirectorEmail = models.NullString{sql.NullString{String: req.DirectorEmail, Valid: true}}
 	}
 	if req.CostCenter != "" {
-		bu.CostCenter = sql.NullString{String: req.CostCenter, Valid: true}
+		bu.CostCenter = models.NullString{sql.NullString{String: req.CostCenter, Valid: true}}
 	}
 
 	if err := s.repo.Update(ctx, bu); err != nil {

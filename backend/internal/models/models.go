@@ -2,6 +2,8 @@ package models
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"regexp"
 	"time"
@@ -13,6 +15,99 @@ import (
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 
 // ============================================
+// Custom Nullable Types with proper JSON serialization
+// ============================================
+
+// NullString is a wrapper around sql.NullString with proper JSON serialization
+type NullString struct {
+	sql.NullString
+}
+
+func (ns NullString) MarshalJSON() ([]byte, error) {
+	if !ns.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(ns.String)
+}
+
+func (ns *NullString) UnmarshalJSON(data []byte) error {
+	var s *string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	if s != nil {
+		ns.Valid = true
+		ns.String = *s
+	} else {
+		ns.Valid = false
+		ns.String = ""
+	}
+	return nil
+}
+
+// NewNullString creates a NullString from a string pointer
+func NewNullString(s *string) NullString {
+	if s == nil {
+		return NullString{sql.NullString{Valid: false}}
+	}
+	return NullString{sql.NullString{String: *s, Valid: true}}
+}
+
+// NewNullStringFromString creates a NullString from a string (empty string = null)
+func NewNullStringFromString(s string) NullString {
+	if s == "" {
+		return NullString{sql.NullString{Valid: false}}
+	}
+	return NullString{sql.NullString{String: s, Valid: true}}
+}
+
+// NullTime is a wrapper around sql.NullTime with proper JSON serialization
+type NullTime struct {
+	sql.NullTime
+}
+
+func (nt NullTime) MarshalJSON() ([]byte, error) {
+	if !nt.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(nt.Time)
+}
+
+func (nt *NullTime) UnmarshalJSON(data []byte) error {
+	var t *time.Time
+	if err := json.Unmarshal(data, &t); err != nil {
+		return err
+	}
+	if t != nil {
+		nt.Valid = true
+		nt.Time = *t
+	} else {
+		nt.Valid = false
+	}
+	return nil
+}
+
+// Scan implements the Scanner interface for NullString
+func (ns *NullString) Scan(value interface{}) error {
+	return ns.NullString.Scan(value)
+}
+
+// Value implements the driver Valuer interface for NullString
+func (ns NullString) Value() (driver.Value, error) {
+	return ns.NullString.Value()
+}
+
+// Scan implements the Scanner interface for NullTime
+func (nt *NullTime) Scan(value interface{}) error {
+	return nt.NullTime.Scan(value)
+}
+
+// Value implements the driver Valuer interface for NullTime
+func (nt NullTime) Value() (driver.Value, error) {
+	return nt.NullTime.Value()
+}
+
+// ============================================
 // Base Models
 // ============================================
 
@@ -21,7 +116,7 @@ type BaseModel struct {
 	ID        uuid.UUID    `json:"id" db:"id"`
 	CreatedAt time.Time    `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time    `json:"updated_at" db:"updated_at"`
-	DeletedAt sql.NullTime `json:"-" db:"deleted_at"`
+	DeletedAt NullTime `json:"-" db:"deleted_at"`
 }
 
 // ============================================
@@ -33,8 +128,8 @@ type Organization struct {
 	BaseModel
 	Name        string         `json:"name" db:"name"`
 	Slug        string         `json:"slug" db:"slug"`
-	Description sql.NullString `json:"description" db:"description"`
-	LogoURL     sql.NullString `json:"logo_url" db:"logo_url"`
+	Description NullString `json:"description" db:"description"`
+	LogoURL     NullString `json:"logo_url" db:"logo_url"`
 	Settings    JSONMap        `json:"settings" db:"settings"`
 }
 
@@ -43,14 +138,14 @@ type User struct {
 	BaseModel
 	OrganizationID uuid.UUID      `json:"organization_id" db:"organization_id"`
 	Email          string         `json:"email" db:"email"`
-	Username       sql.NullString `json:"username" db:"username"`
-	FullName       sql.NullString `json:"full_name" db:"full_name"`
-	AvatarURL      sql.NullString `json:"avatar_url" db:"avatar_url"`
-	Phone          sql.NullString `json:"phone" db:"phone"`
-	PasswordHash   sql.NullString `json:"-" db:"password_hash"`
+	Username       NullString `json:"username" db:"username"`
+	FullName       NullString `json:"full_name" db:"full_name"`
+	AvatarURL      NullString `json:"avatar_url" db:"avatar_url"`
+	Phone          NullString `json:"phone" db:"phone"`
+	PasswordHash   NullString `json:"-" db:"password_hash"`
 	Role           string         `json:"role" db:"role"` // admin, editor, viewer
 	IsActive       bool           `json:"is_active" db:"is_active"`
-	LastLoginAt    sql.NullTime   `json:"last_login_at" db:"last_login_at"`
+	LastLoginAt    NullTime   `json:"last_login_at" db:"last_login_at"`
 	Settings       JSONMap        `json:"settings" db:"settings"`
 }
 
@@ -75,11 +170,11 @@ type Team struct {
 	OrganizationID uuid.UUID      `json:"organization_id" db:"organization_id"`
 	Name           string         `json:"name" db:"name"`
 	Slug           string         `json:"slug" db:"slug"`
-	Description    sql.NullString `json:"description" db:"description"`
+	Description    NullString `json:"description" db:"description"`
 	ParentID       *uuid.UUID     `json:"parent_id" db:"parent_id"`
 	TeamType       string         `json:"team_type" db:"team_type"` // organization, department, team
-	ContactEmail   sql.NullString `json:"contact_email" db:"contact_email"`
-	ContactSlack   sql.NullString `json:"contact_slack" db:"contact_slack"`
+	ContactEmail   NullString `json:"contact_email" db:"contact_email"`
+	ContactSlack   NullString `json:"contact_slack" db:"contact_slack"`
 	Metadata       JSONMap        `json:"metadata" db:"metadata"`
 
 	// Computed fields (not in DB)
@@ -104,11 +199,11 @@ type BusinessUnit struct {
 	BaseModel
 	OrganizationID uuid.UUID      `json:"organization_id" db:"organization_id"`
 	Name           string         `json:"name" db:"name"`
-	Code           sql.NullString `json:"code" db:"code"`
-	Description    sql.NullString `json:"description" db:"description"`
-	DirectorName   sql.NullString `json:"director_name" db:"director_name"`
-	DirectorEmail  sql.NullString `json:"director_email" db:"director_email"`
-	CostCenter     sql.NullString `json:"cost_center" db:"cost_center"`
+	Code           NullString `json:"code" db:"code"`
+	Description    NullString `json:"description" db:"description"`
+	DirectorName   NullString `json:"director_name" db:"director_name"`
+	DirectorEmail  NullString `json:"director_email" db:"director_email"`
+	CostCenter     NullString `json:"cost_center" db:"cost_center"`
 	ParentID       *uuid.UUID     `json:"parent_id" db:"parent_id"`
 	Metadata       JSONMap        `json:"metadata" db:"metadata"`
 }
@@ -122,13 +217,13 @@ type Cluster struct {
 	BaseModel
 	OrganizationID uuid.UUID      `json:"organization_id" db:"organization_id"`
 	Name           string         `json:"name" db:"name"`
-	DisplayName    sql.NullString `json:"display_name" db:"display_name"`
-	Description    sql.NullString `json:"description" db:"description"`
+	DisplayName    NullString `json:"display_name" db:"display_name"`
+	Description    NullString `json:"description" db:"description"`
 	APIServerURL   string         `json:"api_server_url" db:"api_server_url"`
 	ClusterType    string         `json:"cluster_type" db:"cluster_type"` // kubernetes, openshift, rke2, eks, aks, gke
-	Version        sql.NullString `json:"version" db:"version"`
-	Platform       sql.NullString `json:"platform" db:"platform"`
-	Region         sql.NullString `json:"region" db:"region"`
+	Version        NullString `json:"version" db:"version"`
+	Platform       NullString `json:"platform" db:"platform"`
+	Region         NullString `json:"region" db:"region"`
 	Environment    string         `json:"environment" db:"environment"` // production, staging, development, test
 
 	// Connection settings
@@ -144,8 +239,8 @@ type Cluster struct {
 
 	// Status
 	Status     string         `json:"status" db:"status"` // active, inactive, error, syncing
-	LastSyncAt sql.NullTime   `json:"last_sync_at" db:"last_sync_at"`
-	SyncError  sql.NullString `json:"sync_error" db:"sync_error"`
+	LastSyncAt NullTime   `json:"last_sync_at" db:"last_sync_at"`
+	SyncError  NullString `json:"sync_error" db:"sync_error"`
 
 	// Metadata
 	NodeCount      int            `json:"node_count" db:"node_count"`
@@ -168,8 +263,8 @@ type Namespace struct {
 
 	// Basic info
 	Name        string         `json:"name" db:"name"`
-	DisplayName sql.NullString `json:"display_name" db:"display_name"`
-	Description sql.NullString `json:"description" db:"description"`
+	DisplayName NullString `json:"display_name" db:"display_name"`
+	Description NullString `json:"description" db:"description"`
 
 	// Environment & Criticality
 	Environment string `json:"environment" db:"environment"` // production, staging, test, development
@@ -179,31 +274,31 @@ type Namespace struct {
 	InfrastructureOwnerTeamID *uuid.UUID     `json:"infrastructure_owner_team_id" db:"infrastructure_owner_team_id"`
 	InfrastructureOwnerUserID *uuid.UUID     `json:"infrastructure_owner_user_id" db:"infrastructure_owner_user_id"`
 	BusinessUnitID            *uuid.UUID     `json:"business_unit_id" db:"business_unit_id"`
-	ApplicationManagerName    sql.NullString `json:"application_manager_name" db:"application_manager_name"`
-	ApplicationManagerEmail   sql.NullString `json:"application_manager_email" db:"application_manager_email"`
-	ApplicationManagerPhone   sql.NullString `json:"application_manager_phone" db:"application_manager_phone"`
-	TechnicalLeadName         sql.NullString `json:"technical_lead_name" db:"technical_lead_name"`
-	TechnicalLeadEmail        sql.NullString `json:"technical_lead_email" db:"technical_lead_email"`
-	ProjectManagerName        sql.NullString `json:"project_manager_name" db:"project_manager_name"`
-	ProjectManagerEmail       sql.NullString `json:"project_manager_email" db:"project_manager_email"`
+	ApplicationManagerName    NullString `json:"application_manager_name" db:"application_manager_name"`
+	ApplicationManagerEmail   NullString `json:"application_manager_email" db:"application_manager_email"`
+	ApplicationManagerPhone   NullString `json:"application_manager_phone" db:"application_manager_phone"`
+	TechnicalLeadName         NullString `json:"technical_lead_name" db:"technical_lead_name"`
+	TechnicalLeadEmail        NullString `json:"technical_lead_email" db:"technical_lead_email"`
+	ProjectManagerName        NullString `json:"project_manager_name" db:"project_manager_name"`
+	ProjectManagerEmail       NullString `json:"project_manager_email" db:"project_manager_email"`
 
 	// SLA Information
-	SLAAvailability sql.NullString `json:"sla_availability" db:"sla_availability"`
-	SLARTO          sql.NullString `json:"sla_rto" db:"sla_rto"`
-	SLARPO          sql.NullString `json:"sla_rpo" db:"sla_rpo"`
-	SupportHours    sql.NullString `json:"support_hours" db:"support_hours"`
-	EscalationPath  sql.NullString `json:"escalation_path" db:"escalation_path"`
+	SLAAvailability NullString `json:"sla_availability" db:"sla_availability"`
+	SLARTO          NullString `json:"sla_rto" db:"sla_rto"`
+	SLARPO          NullString `json:"sla_rpo" db:"sla_rpo"`
+	SupportHours    NullString `json:"support_hours" db:"support_hours"`
+	EscalationPath  NullString `json:"escalation_path" db:"escalation_path"`
 
 	// Status
 	Status       string       `json:"status" db:"status"`
-	DiscoveredAt sql.NullTime `json:"discovered_at" db:"discovered_at"`
-	LastSyncAt   sql.NullTime `json:"last_sync_at" db:"last_sync_at"`
+	DiscoveredAt NullTime `json:"discovered_at" db:"discovered_at"`
+	LastSyncAt   NullTime `json:"last_sync_at" db:"last_sync_at"`
 
 	// Kubernetes metadata
-	K8sUID         sql.NullString `json:"k8s_uid" db:"k8s_uid"`
+	K8sUID         NullString `json:"k8s_uid" db:"k8s_uid"`
 	K8sLabels      JSONMap        `json:"k8s_labels" db:"k8s_labels"`
 	K8sAnnotations JSONMap        `json:"k8s_annotations" db:"k8s_annotations"`
-	K8sCreatedAt   sql.NullTime   `json:"k8s_created_at" db:"k8s_created_at"`
+	K8sCreatedAt   NullTime   `json:"k8s_created_at" db:"k8s_created_at"`
 
 	// Custom fields
 	Tags         pq.StringArray `json:"tags" db:"tags"`
@@ -229,24 +324,24 @@ type InternalDependency struct {
 
 	// Source
 	SourceNamespaceID  uuid.UUID      `json:"source_namespace_id" db:"source_namespace_id"`
-	SourceResourceType sql.NullString `json:"source_resource_type" db:"source_resource_type"`
-	SourceResourceName sql.NullString `json:"source_resource_name" db:"source_resource_name"`
+	SourceResourceType NullString `json:"source_resource_type" db:"source_resource_type"`
+	SourceResourceName NullString `json:"source_resource_name" db:"source_resource_name"`
 
 	// Target
 	TargetNamespaceID  uuid.UUID      `json:"target_namespace_id" db:"target_namespace_id"`
-	TargetResourceType sql.NullString `json:"target_resource_type" db:"target_resource_type"`
-	TargetResourceName sql.NullString `json:"target_resource_name" db:"target_resource_name"`
+	TargetResourceType NullString `json:"target_resource_type" db:"target_resource_type"`
+	TargetResourceName NullString `json:"target_resource_name" db:"target_resource_name"`
 
 	// Details
 	DependencyType   string         `json:"dependency_type" db:"dependency_type"` // api, database, queue, cache, storage
-	Description      sql.NullString `json:"description" db:"description"`
+	Description      NullString `json:"description" db:"description"`
 	IsCritical       bool           `json:"is_critical" db:"is_critical"`
 	IsAutoDiscovered bool           `json:"is_auto_discovered" db:"is_auto_discovered"`
-	DiscoveryMethod  sql.NullString `json:"discovery_method" db:"discovery_method"`
+	DiscoveryMethod  NullString `json:"discovery_method" db:"discovery_method"`
 
 	// Status
 	Status     string       `json:"status" db:"status"`
-	VerifiedAt sql.NullTime `json:"verified_at" db:"verified_at"`
+	VerifiedAt NullTime `json:"verified_at" db:"verified_at"`
 	VerifiedBy *uuid.UUID   `json:"verified_by" db:"verified_by"`
 
 	Metadata JSONMap `json:"metadata" db:"metadata"`
@@ -265,18 +360,18 @@ type ExternalDependency struct {
 	// External system details
 	Name        string         `json:"name" db:"name"`
 	SystemType  string         `json:"system_type" db:"system_type"` // api, database, saas, payment-gateway
-	Provider    sql.NullString `json:"provider" db:"provider"`
-	Endpoint    sql.NullString `json:"endpoint" db:"endpoint"`
-	Description sql.NullString `json:"description" db:"description"`
+	Provider    NullString `json:"provider" db:"provider"`
+	Endpoint    NullString `json:"endpoint" db:"endpoint"`
+	Description NullString `json:"description" db:"description"`
 
 	// Criticality
 	IsCritical           bool           `json:"is_critical" db:"is_critical"`
-	ExpectedAvailability sql.NullString `json:"expected_availability" db:"expected_availability"`
+	ExpectedAvailability NullString `json:"expected_availability" db:"expected_availability"`
 
 	// Contact
-	ContactName      sql.NullString `json:"contact_name" db:"contact_name"`
-	ContactEmail     sql.NullString `json:"contact_email" db:"contact_email"`
-	DocumentationURL sql.NullString `json:"documentation_url" db:"documentation_url"`
+	ContactName      NullString `json:"contact_name" db:"contact_name"`
+	ContactEmail     NullString `json:"contact_email" db:"contact_email"`
+	DocumentationURL NullString `json:"documentation_url" db:"documentation_url"`
 
 	Status   string  `json:"status" db:"status"`
 	Metadata JSONMap `json:"metadata" db:"metadata"`
@@ -295,9 +390,9 @@ type DocumentCategory struct {
 	OrganizationID *uuid.UUID     `json:"organization_id" db:"organization_id"`
 	Name           string         `json:"name" db:"name"`
 	Slug           string         `json:"slug" db:"slug"`
-	Description    sql.NullString `json:"description" db:"description"`
-	Color          sql.NullString `json:"color" db:"color"`
-	Icon           sql.NullString `json:"icon" db:"icon"`
+	Description    NullString `json:"description" db:"description"`
+	Color          NullString `json:"color" db:"color"`
+	Icon           NullString `json:"icon" db:"icon"`
 	SortOrder      int            `json:"sort_order" db:"sort_order"`
 }
 
@@ -314,11 +409,11 @@ type Document struct {
 	FilePath string         `json:"-" db:"file_path"`
 	FileSize int64          `json:"file_size" db:"file_size"`
 	MimeType string         `json:"mime_type" db:"mime_type"`
-	Checksum sql.NullString `json:"checksum" db:"checksum"`
+	Checksum NullString `json:"checksum" db:"checksum"`
 
 	// Metadata
 	CategoryID  *uuid.UUID     `json:"category_id" db:"category_id"`
-	Description sql.NullString `json:"description" db:"description"`
+	Description NullString `json:"description" db:"description"`
 	Tags        pq.StringArray `json:"tags" db:"tags"`
 
 	// Versioning
@@ -349,22 +444,22 @@ type AuditLog struct {
 
 	// Who
 	UserID    *uuid.UUID     `json:"user_id" db:"user_id"`
-	UserEmail sql.NullString `json:"user_email" db:"user_email"`
-	UserIP    sql.NullString `json:"user_ip" db:"user_ip"`
-	UserAgent sql.NullString `json:"user_agent" db:"user_agent"`
+	UserEmail NullString `json:"user_email" db:"user_email"`
+	UserIP    NullString `json:"user_ip" db:"user_ip"`
+	UserAgent NullString `json:"user_agent" db:"user_agent"`
 
 	// What
 	Action       string         `json:"action" db:"action"` // create, update, delete, view, export
 	ResourceType string         `json:"resource_type" db:"resource_type"`
 	ResourceID   uuid.UUID      `json:"resource_id" db:"resource_id"`
-	ResourceName sql.NullString `json:"resource_name" db:"resource_name"`
+	ResourceName NullString `json:"resource_name" db:"resource_name"`
 
 	// Changes
 	OldValues     JSONMap        `json:"old_values" db:"old_values"`
 	NewValues     JSONMap        `json:"new_values" db:"new_values"`
 	ChangedFields pq.StringArray `json:"changed_fields" db:"changed_fields"`
 
-	Description sql.NullString `json:"description" db:"description"`
+	Description NullString `json:"description" db:"description"`
 	Metadata    JSONMap        `json:"metadata" db:"metadata"`
 	CreatedAt   time.Time      `json:"created_at" db:"created_at"`
 

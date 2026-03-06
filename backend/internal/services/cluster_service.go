@@ -130,16 +130,16 @@ func (s *ClusterService) Create(ctx context.Context, ac AuditContext, req Create
 	}
 
 	if req.DisplayName != "" {
-		cluster.DisplayName = sql.NullString{String: req.DisplayName, Valid: true}
+		cluster.DisplayName = models.NullString{sql.NullString{String: req.DisplayName, Valid: true}}
 	}
 	if req.Description != "" {
-		cluster.Description = sql.NullString{String: req.Description, Valid: true}
+		cluster.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
 	}
 	if req.Platform != "" {
-		cluster.Platform = sql.NullString{String: req.Platform, Valid: true}
+		cluster.Platform = models.NullString{sql.NullString{String: req.Platform, Valid: true}}
 	}
 	if req.Region != "" {
-		cluster.Region = sql.NullString{String: req.Region, Valid: true}
+		cluster.Region = models.NullString{sql.NullString{String: req.Region, Valid: true}}
 	}
 
 	// Encrypt and store kubeconfig if provided
@@ -260,10 +260,10 @@ func (s *ClusterService) Update(ctx context.Context, ac AuditContext, id uuid.UU
 
 	// Apply updates
 	if req.DisplayName != "" {
-		cluster.DisplayName = sql.NullString{String: req.DisplayName, Valid: true}
+		cluster.DisplayName = models.NullString{sql.NullString{String: req.DisplayName, Valid: true}}
 	}
 	if req.Description != "" {
-		cluster.Description = sql.NullString{String: req.Description, Valid: true}
+		cluster.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
 	}
 	if req.APIServerURL != "" {
 		cluster.APIServerURL = req.APIServerURL
@@ -275,10 +275,10 @@ func (s *ClusterService) Update(ctx context.Context, ac AuditContext, id uuid.UU
 		cluster.Environment = req.Environment
 	}
 	if req.Platform != "" {
-		cluster.Platform = sql.NullString{String: req.Platform, Valid: true}
+		cluster.Platform = models.NullString{sql.NullString{String: req.Platform, Valid: true}}
 	}
 	if req.Region != "" {
-		cluster.Region = sql.NullString{String: req.Region, Valid: true}
+		cluster.Region = models.NullString{sql.NullString{String: req.Region, Valid: true}}
 	}
 	if req.SkipTLSVerify != nil {
 		cluster.SkipTLSVerify = *req.SkipTLSVerify
@@ -382,7 +382,7 @@ func (s *ClusterService) Sync(ctx context.Context, ac AuditContext, id uuid.UUID
 				Metadata:       make(models.JSONMap),
 			}
 			if ns.UID != "" {
-				newNs.K8sUID = sql.NullString{String: ns.UID, Valid: true}
+				newNs.K8sUID = models.NullString{sql.NullString{String: ns.UID, Valid: true}}
 			}
 			s.namespaceRepo.Create(ctx, newNs)
 		} else {

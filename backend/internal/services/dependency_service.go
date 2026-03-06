@@ -44,7 +44,7 @@ func (s *DependencyService) CreateInternal(ctx context.Context, ac AuditContext,
 		Metadata:          make(models.JSONMap),
 	}
 	if req.Description != "" {
-		dep.Description = sql.NullString{String: req.Description, Valid: true}
+		dep.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
 	}
 
 	if err := s.internalRepo.Create(ctx, dep); err != nil {
@@ -76,7 +76,7 @@ func (s *DependencyService) UpdateInternal(ctx context.Context, ac AuditContext,
 	}
 	dep.ID = id
 	if req.Description != "" {
-		dep.Description = sql.NullString{String: req.Description, Valid: true}
+		dep.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
 	}
 
 	if err := s.internalRepo.Update(ctx, dep); err != nil {
@@ -110,19 +110,19 @@ func (s *DependencyService) CreateExternal(ctx context.Context, ac AuditContext,
 		Metadata:       make(models.JSONMap),
 	}
 	if req.Provider != "" {
-		dep.Provider = sql.NullString{String: req.Provider, Valid: true}
+		dep.Provider = models.NullString{sql.NullString{String: req.Provider, Valid: true}}
 	}
 	if req.Endpoint != "" {
-		dep.Endpoint = sql.NullString{String: req.Endpoint, Valid: true}
+		dep.Endpoint = models.NullString{sql.NullString{String: req.Endpoint, Valid: true}}
 	}
 	if req.Description != "" {
-		dep.Description = sql.NullString{String: req.Description, Valid: true}
+		dep.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
 	}
 	if req.ContactName != "" {
-		dep.ContactName = sql.NullString{String: req.ContactName, Valid: true}
+		dep.ContactName = models.NullString{sql.NullString{String: req.ContactName, Valid: true}}
 	}
 	if req.ContactEmail != "" {
-		dep.ContactEmail = sql.NullString{String: req.ContactEmail, Valid: true}
+		dep.ContactEmail = models.NullString{sql.NullString{String: req.ContactEmail, Valid: true}}
 	}
 
 	if err := s.externalRepo.Create(ctx, dep); err != nil {
@@ -154,19 +154,19 @@ func (s *DependencyService) UpdateExternal(ctx context.Context, ac AuditContext,
 	}
 	dep.ID = id
 	if req.Provider != "" {
-		dep.Provider = sql.NullString{String: req.Provider, Valid: true}
+		dep.Provider = models.NullString{sql.NullString{String: req.Provider, Valid: true}}
 	}
 	if req.Endpoint != "" {
-		dep.Endpoint = sql.NullString{String: req.Endpoint, Valid: true}
+		dep.Endpoint = models.NullString{sql.NullString{String: req.Endpoint, Valid: true}}
 	}
 	if req.Description != "" {
-		dep.Description = sql.NullString{String: req.Description, Valid: true}
+		dep.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
 	}
 	if req.ContactName != "" {
-		dep.ContactName = sql.NullString{String: req.ContactName, Valid: true}
+		dep.ContactName = models.NullString{sql.NullString{String: req.ContactName, Valid: true}}
 	}
 	if req.ContactEmail != "" {
-		dep.ContactEmail = sql.NullString{String: req.ContactEmail, Valid: true}
+		dep.ContactEmail = models.NullString{sql.NullString{String: req.ContactEmail, Valid: true}}
 	}
 
 	if err := s.externalRepo.Update(ctx, dep); err != nil {

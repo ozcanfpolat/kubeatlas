@@ -56,18 +56,18 @@ type DiscoveredNamespace struct {
 
 // DiscoveredNode represents a node discovered from Kubernetes
 type DiscoveredNode struct {
-	Name          string
-	UID           string
-	Labels        map[string]interface{}
-	Annotations   map[string]interface{}
-	CreatedAt     time.Time
-	Status        string
-	Roles         []string
+	Name           string
+	UID            string
+	Labels         map[string]interface{}
+	Annotations    map[string]interface{}
+	CreatedAt      time.Time
+	Status         string
+	Roles          []string
 	KubeletVersion string
-	OSImage       string
-	Architecture  string
-	Capacity      map[string]string
-	Allocatable   map[string]string
+	OSImage        string
+	Architecture   string
+	Capacity       map[string]string
+	Allocatable    map[string]string
 }
 
 // NewManager creates a new Kubernetes client manager
@@ -76,11 +76,11 @@ func NewManager(logger *zap.SugaredLogger, opts ...ManagerOption) *Manager {
 		clients: make(map[string]*Client),
 		logger:  logger,
 	}
-	
+
 	for _, opt := range opts {
 		opt(m)
 	}
-	
+
 	return m
 }
 
@@ -330,18 +330,18 @@ func (c *Client) DiscoverNodes(ctx context.Context) ([]DiscoveredNode, error) {
 		}
 
 		result = append(result, DiscoveredNode{
-			Name:          node.Name,
-			UID:           string(node.UID),
-			Labels:        labels,
-			Annotations:   annotations,
-			CreatedAt:     node.CreationTimestamp.Time,
-			Status:        status,
-			Roles:         roles,
+			Name:           node.Name,
+			UID:            string(node.UID),
+			Labels:         labels,
+			Annotations:    annotations,
+			CreatedAt:      node.CreationTimestamp.Time,
+			Status:         status,
+			Roles:          roles,
 			KubeletVersion: node.Status.NodeInfo.KubeletVersion,
-			OSImage:       node.Status.NodeInfo.OSImage,
-			Architecture:  node.Status.NodeInfo.Architecture,
-			Capacity:      capacity,
-			Allocatable:   allocatable,
+			OSImage:        node.Status.NodeInfo.OSImage,
+			Architecture:   node.Status.NodeInfo.Architecture,
+			Capacity:       capacity,
+			Allocatable:    allocatable,
 		})
 	}
 

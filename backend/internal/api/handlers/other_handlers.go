@@ -345,7 +345,10 @@ func GetDashboardStats(svc *services.Services) gin.HandlerFunc {
 func GetRecentActivities(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orgID, _ := middleware.GetOrganizationID(c)
-		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+		limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+		if err != nil || limit <= 0 {
+			limit = 10
+		}
 
 		activities, err := svc.Dashboard.GetRecentActivities(c.Request.Context(), orgID, limit)
 		if err != nil {
@@ -631,10 +634,10 @@ func UpdateDocument(svc *services.Services) gin.HandlerFunc {
 		}
 
 		var req struct {
-			Name        string   `json:"name"`
-			Description string   `json:"description"`
+			Name        string     `json:"name"`
+			Description string     `json:"description"`
 			CategoryID  *uuid.UUID `json:"category_id"`
-			Tags        []string `json:"tags"`
+			Tags        []string   `json:"tags"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			respondErrorStr(c, http.StatusBadRequest, "Invalid request body")
@@ -722,7 +725,10 @@ func GetResourceAuditLogs(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+		limit, err := strconv.Atoi(c.DefaultQuery("limit", "50"))
+		if err != nil || limit <= 0 {
+			limit = 50
+		}
 
 		history, err := svc.Audit.ListByResource(c.Request.Context(), resourceType, resourceID, limit)
 		if err != nil {
@@ -817,6 +823,7 @@ func UploadDocument(svc *services.Services) gin.HandlerFunc {
 		namespaceID, _ := uuid.Parse(c.PostForm("namespace_id"))
 		clusterID, _ := uuid.Parse(c.PostForm("cluster_id"))
 		categoryID, _ := uuid.Parse(c.PostForm("category_id"))
+		// Note: uuid.Parse returns uuid.Nil on error, which uuidToPtr handles
 		name := c.PostForm("name")
 		if name == "" {
 			name = header.Filename

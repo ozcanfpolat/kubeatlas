@@ -39,11 +39,13 @@ export default function Settings() {
 
   const handleSaveProfile = () => {
     // TODO: Implement save profile
+    // eslint-disable-next-line no-console
     console.log('Saving profile:', profileData)
   }
 
   const handleSaveNotifications = () => {
     // TODO: Implement save notifications
+    // eslint-disable-next-line no-console
     console.log('Saving notifications:', notificationSettings)
   }
 

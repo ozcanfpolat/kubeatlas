@@ -25,25 +25,37 @@ export default function NamespaceDetail() {
 
   const { data: namespace, isLoading } = useQuery({
     queryKey: ['namespace', id],
-    queryFn: () => namespacesApi.getById(id!),
+    queryFn: () => {
+      if (!id) throw new Error('Namespace ID is required')
+      return namespacesApi.getById(id)
+    },
     enabled: !!id,
   })
 
   const { data: dependencies } = useQuery({
     queryKey: ['namespace-dependencies', id],
-    queryFn: () => namespacesApi.getDependencies(id!),
+    queryFn: () => {
+      if (!id) throw new Error('Namespace ID is required')
+      return namespacesApi.getDependencies(id)
+    },
     enabled: !!id,
   })
 
   const { data: documents } = useQuery({
     queryKey: ['namespace-documents', id],
-    queryFn: () => namespacesApi.getDocuments(id!),
+    queryFn: () => {
+      if (!id) throw new Error('Namespace ID is required')
+      return namespacesApi.getDocuments(id)
+    },
     enabled: !!id,
   })
 
   const { data: history } = useQuery({
     queryKey: ['namespace-history', id],
-    queryFn: () => namespacesApi.getHistory(id!, 20),
+    queryFn: () => {
+      if (!id) throw new Error('Namespace ID is required')
+      return namespacesApi.getHistory(id, 20)
+    },
     enabled: !!id,
   })
 

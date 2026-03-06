@@ -134,7 +134,7 @@ func (db *DB) Migrate() error {
 
 		_, err = tx.Exec(ctx, string(content))
 		if err != nil {
-			tx.Rollback(ctx)
+			_ = tx.Rollback(ctx)
 			return fmt.Errorf("failed to execute migration %s: %w", version, err)
 		}
 
@@ -143,7 +143,7 @@ func (db *DB) Migrate() error {
 			version,
 		)
 		if err != nil {
-			tx.Rollback(ctx)
+			_ = tx.Rollback(ctx)
 			return fmt.Errorf("failed to record migration %s: %w", version, err)
 		}
 

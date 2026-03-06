@@ -79,7 +79,10 @@ func (r *TeamRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Tea
 
 	// Get member count
 	countQuery := `SELECT COUNT(*) FROM team_members WHERE team_id = $1`
-	r.pool.QueryRow(ctx, countQuery, id).Scan(&team.MemberCount)
+	if err := r.pool.QueryRow(ctx, countQuery, id).Scan(&team.MemberCount); err != nil {
+		// If count fails, just leave MemberCount as 0
+		team.MemberCount = 0
+	}
 
 	return team, nil
 }

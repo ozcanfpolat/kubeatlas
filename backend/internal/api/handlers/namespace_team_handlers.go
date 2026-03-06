@@ -171,7 +171,10 @@ func ListNamespaceHistory(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+		limit, err := strconv.Atoi(c.DefaultQuery("limit", "50"))
+		if err != nil || limit <= 0 {
+			limit = 50
+		}
 
 		history, err := svc.Audit.ListByResource(c.Request.Context(), "namespace", id, limit)
 		if err != nil {

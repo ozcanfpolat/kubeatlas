@@ -271,7 +271,7 @@ func (s *UserService) UpdateOrganizationSettings(ctx context.Context, orgID uuid
 		"logo_url":        req.LogoURL,
 		"settings":        req.Settings,
 	}
-	
+
 	s.auditSvc.LogUpdate(ctx, ac, "organization_settings", orgID, "settings", nil, settings)
 	return settings, nil
 }

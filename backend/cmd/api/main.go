@@ -35,8 +35,14 @@ const (
 
 func main() {
 	// Initialize logger
-	logger, _ := zap.NewProduction()
-	defer logger.Sync()
+	logger, err := zap.NewProduction()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+	defer func() {
+		_ = logger.Sync()
+	}()
 	sugar := logger.Sugar()
 
 	sugar.Infow("Starting KubeAtlas API",
@@ -85,10 +91,10 @@ func main() {
 	router.Use(middleware.Logger(sugar))
 	router.Use(middleware.RequestID())
 	router.Use(middleware.SecurityHeaders())
-	
+
 	// Add HSTS header for HTTPS connections (1 year max-age)
 	router.Use(middleware.StrictTransportSecurity(31536000))
-	
+
 	// Limit request body size to 10MB
 	router.Use(middleware.MaxBodySize(10 << 20))
 
@@ -133,7 +139,7 @@ func main() {
 
 	// API routes
 	api := router.Group("/api/v1")
-	
+
 	// Apply rate limiting to API routes
 	api.Use(middleware.RateLimiterMiddleware(rateLimitRequestsPerMinute, time.Minute))
 	{

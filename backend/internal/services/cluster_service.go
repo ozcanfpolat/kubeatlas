@@ -70,7 +70,7 @@ type CreateClusterRequest struct {
 	Platform            string     `json:"platform"`
 	Region              string     `json:"region"`
 	AuthMethod          string     `json:"auth_method"`
-	Kubeconfig          string     `json:"kubeconfig"`           // Base64 encoded kubeconfig
+	Kubeconfig          string     `json:"kubeconfig"`            // Base64 encoded kubeconfig
 	ServiceAccountToken string     `json:"service_account_token"` // Service account token
 	CACertificate       string     `json:"ca_certificate"`        // Base64 encoded CA certificate for self-signed clusters
 	SkipTLSVerify       bool       `json:"skip_tls_verify"`
@@ -150,7 +150,7 @@ func (s *ClusterService) Create(ctx context.Context, ac AuditContext, req Create
 			// If not base64, use as-is (for backward compatibility)
 			kubeconfigBytes = []byte(req.Kubeconfig)
 		}
-		
+
 		encrypted, err := s.encryptor.Encrypt(kubeconfigBytes)
 		if err != nil {
 			s.logger.Errorw("Failed to encrypt kubeconfig", "error", err)
@@ -177,7 +177,7 @@ func (s *ClusterService) Create(ctx context.Context, ac AuditContext, req Create
 			// If not base64, use as-is
 			caCertBytes = []byte(req.CACertificate)
 		}
-		
+
 		encrypted, err := s.encryptor.Encrypt(caCertBytes)
 		if err != nil {
 			s.logger.Errorw("Failed to encrypt CA certificate", "error", err)
@@ -195,16 +195,16 @@ func (s *ClusterService) Create(ctx context.Context, ac AuditContext, req Create
 		testCtx := context.Background()
 		client, err := s.k8sManager.GetClient(cluster)
 		if err != nil {
-			s.clusterRepo.UpdateSyncStatus(testCtx, cluster.ID, "error", err.Error(), 0, 0)
+			_ = s.clusterRepo.UpdateSyncStatus(testCtx, cluster.ID, "error", err.Error(), 0, 0)
 			return
 		}
-		
+
 		if err := client.TestConnection(testCtx); err != nil {
-			s.clusterRepo.UpdateSyncStatus(testCtx, cluster.ID, "error", err.Error(), 0, 0)
+			_ = s.clusterRepo.UpdateSyncStatus(testCtx, cluster.ID, "error", err.Error(), 0, 0)
 			return
 		}
-		
-		s.clusterRepo.UpdateSyncStatus(testCtx, cluster.ID, "active", "", 0, 0)
+
+		_ = s.clusterRepo.UpdateSyncStatus(testCtx, cluster.ID, "active", "", 0, 0)
 	}()
 
 	s.auditSvc.LogCreate(ctx, ac, "cluster", cluster.ID, cluster.Name, StructToMap(cluster))
@@ -337,19 +337,25 @@ func (s *ClusterService) Sync(ctx context.Context, ac AuditContext, id uuid.UUID
 	}
 
 	// Update status to syncing
-	s.clusterRepo.UpdateSyncStatus(ctx, id, "syncing", "", cluster.NodeCount, cluster.NamespaceCount)
+	if err := s.clusterRepo.UpdateSyncStatus(ctx, id, "syncing", "", cluster.NodeCount, cluster.NamespaceCount); err != nil {
+		s.logger.Warnw("Failed to update sync status", "error", err)
+	}
 
 	// Get Kubernetes client
 	client, err := s.k8sManager.GetClient(cluster)
 	if err != nil {
-		s.clusterRepo.UpdateSyncStatus(ctx, id, "error", err.Error(), cluster.NodeCount, cluster.NamespaceCount)
+		if rbErr := s.clusterRepo.UpdateSyncStatus(ctx, id, "error", err.Error(), cluster.NodeCount, cluster.NamespaceCount); rbErr != nil {
+			s.logger.Warnw("Failed to update sync status", "error", rbErr)
+		}
 		return ErrClusterSyncFailed
 	}
 
 	// Discover namespaces
 	namespaces, err := client.DiscoverNamespaces(ctx)
 	if err != nil {
-		s.clusterRepo.UpdateSyncStatus(ctx, id, "error", err.Error(), cluster.NodeCount, cluster.NamespaceCount)
+		if rbErr := s.clusterRepo.UpdateSyncStatus(ctx, id, "error", err.Error(), cluster.NodeCount, cluster.NamespaceCount); rbErr != nil {
+			s.logger.Warnw("Failed to update sync status", "error", rbErr)
+		}
 		return ErrClusterSyncFailed
 	}
 
@@ -384,15 +390,21 @@ func (s *ClusterService) Sync(ctx context.Context, ac AuditContext, id uuid.UUID
 			if ns.UID != "" {
 				newNs.K8sUID = sql.NullString{String: ns.UID, Valid: true}
 			}
-			s.namespaceRepo.Create(ctx, newNs)
+			if err := s.namespaceRepo.Create(ctx, newNs); err != nil {
+				s.logger.Warnw("Failed to create namespace", "error", err, "name", ns.Name)
+			}
 		} else {
 			// Update existing namespace K8s metadata
-			s.namespaceRepo.UpdateFromK8s(ctx, existing.ID, ns.UID, ns.Labels, ns.Annotations, ns.CreatedAt)
+			if err := s.namespaceRepo.UpdateFromK8s(ctx, existing.ID, ns.UID, ns.Labels, ns.Annotations, ns.CreatedAt); err != nil {
+				s.logger.Warnw("Failed to update namespace from k8s", "error", err, "namespace_id", existing.ID)
+			}
 		}
 	}
 
 	// Update sync status
-	s.clusterRepo.UpdateSyncStatus(ctx, id, "active", "", nodeCount, len(namespaces))
+	if err := s.clusterRepo.UpdateSyncStatus(ctx, id, "active", "", nodeCount, len(namespaces)); err != nil {
+		s.logger.Warnw("Failed to update sync status", "error", err)
+	}
 
 	s.auditSvc.LogAction(ctx, ac, "sync", "cluster", id, cluster.Name, "Cluster synced successfully")
 	s.logger.Infow("Cluster synced", "cluster_id", id, "namespaces", len(namespaces), "nodes", nodeCount)
@@ -408,7 +420,7 @@ func (s *ClusterService) GetStats(ctx context.Context, orgID uuid.UUID) (map[str
 // GetNamespaces returns namespaces for a cluster
 func (s *ClusterService) GetNamespaces(ctx context.Context, clusterID uuid.UUID, p repositories.Pagination) (*repositories.PaginatedResult[models.Namespace], error) {
 	filters := map[string]interface{}{"cluster_id": clusterID}
-	
+
 	cluster, err := s.clusterRepo.GetByID(ctx, clusterID)
 	if err != nil {
 		return nil, err
@@ -425,26 +437,26 @@ func isValidKubernetesName(name string) bool {
 	if len(name) == 0 || len(name) > maxClusterNameLength {
 		return false
 	}
-	
+
 	// Must start with alphanumeric
 	first := name[0]
 	if !((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || (first >= '0' && first <= '9')) {
 		return false
 	}
-	
+
 	// Must end with alphanumeric
 	last := name[len(name)-1]
 	if !((last >= 'a' && last <= 'z') || (last >= 'A' && last <= 'Z') || (last >= '0' && last <= '9')) {
 		return false
 	}
-	
+
 	// Can only contain alphanumeric, dash, underscore, and dot
 	for _, r := range name {
 		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.') {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -453,21 +465,21 @@ func isValidAPIServerURL(rawURL string) bool {
 	if rawURL == "" {
 		return false
 	}
-	
+
 	// Must start with https:// for security
 	if !strings.HasPrefix(rawURL, "https://") {
 		return false
 	}
-	
+
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return false
 	}
-	
+
 	// Must have a valid host
 	if parsed.Host == "" {
 		return false
 	}
-	
+
 	return true
 }

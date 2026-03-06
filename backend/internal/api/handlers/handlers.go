@@ -123,8 +123,6 @@ func getPagination(c *gin.Context) repositories.Pagination {
 	}
 }
 
-
-
 // ============================================
 // Auth Handlers
 // ============================================

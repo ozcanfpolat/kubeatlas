@@ -116,11 +116,11 @@ func (s *AuditService) GetRecentActivities(ctx context.Context, orgID uuid.UUID,
 func StructToMap(obj interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 	val := reflect.ValueOf(obj)
-	
+
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
 	}
-	
+
 	if val.Kind() != reflect.Struct {
 		return result
 	}
@@ -128,12 +128,12 @@ func StructToMap(obj interface{}) map[string]interface{} {
 	typ := val.Type()
 	for i := 0; i < val.NumField(); i++ {
 		field := typ.Field(i)
-		
+
 		// Skip unexported fields
 		if field.PkgPath != "" {
 			continue
 		}
-		
+
 		// Get json tag or field name
 		name := field.Tag.Get("json")
 		if name == "" || name == "-" {
@@ -143,7 +143,7 @@ func StructToMap(obj interface{}) map[string]interface{} {
 		if idx := len(name) - 1; idx > 0 && name[idx] == ',' {
 			name = name[:idx]
 		}
-		
+
 		result[name] = val.Field(i).Interface()
 	}
 

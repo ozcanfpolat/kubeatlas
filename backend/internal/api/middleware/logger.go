@@ -136,7 +136,7 @@ func Recovery(logger *zap.SugaredLogger) gin.HandlerFunc {
 func CORS(origins []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
-		
+
 		// Check if origin is allowed
 		allowed := false
 		for _, o := range origins {
@@ -145,7 +145,7 @@ func CORS(origins []string) gin.HandlerFunc {
 				break
 			}
 		}
-		
+
 		if allowed {
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
@@ -153,12 +153,12 @@ func CORS(origins []string) gin.HandlerFunc {
 			c.Header("Access-Control-Expose-Headers", "Content-Length, X-Request-ID")
 			c.Header("Access-Control-Allow-Credentials", "true")
 		}
-		
+
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
 		}
-		
+
 		c.Next()
 	}
 }

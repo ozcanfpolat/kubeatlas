@@ -19,14 +19,14 @@ func NewDashboardService(repos *Repositories, logger *zap.SugaredLogger) *Dashbo
 
 // DashboardData represents all dashboard data
 type DashboardData struct {
-	Stats                    map[string]interface{}            `json:"stats"`
-	ClusterStats             map[string]interface{}            `json:"cluster_stats"`
-	EnvironmentDistribution  []map[string]interface{}          `json:"environment_distribution"`
-	BusinessUnitDistribution []map[string]interface{}          `json:"business_unit_distribution"`
-	RecentNamespaces         []map[string]interface{}          `json:"recent_namespaces"`
-	RecentDocuments          []map[string]interface{}          `json:"recent_documents"`
-	RecentActivities         []map[string]interface{}          `json:"recent_activities"`
-	MissingInfo              map[string]interface{}            `json:"missing_info"`
+	Stats                    map[string]interface{}   `json:"stats"`
+	ClusterStats             map[string]interface{}   `json:"cluster_stats"`
+	EnvironmentDistribution  []map[string]interface{} `json:"environment_distribution"`
+	BusinessUnitDistribution []map[string]interface{} `json:"business_unit_distribution"`
+	RecentNamespaces         []map[string]interface{} `json:"recent_namespaces"`
+	RecentDocuments          []map[string]interface{} `json:"recent_documents"`
+	RecentActivities         []map[string]interface{} `json:"recent_activities"`
+	MissingInfo              map[string]interface{}   `json:"missing_info"`
 }
 
 // GetDashboardData returns all dashboard data
@@ -46,7 +46,7 @@ func (s *DashboardService) GetDashboardData(ctx context.Context, orgID uuid.UUID
 			"no_deps_namespaces":      nsStats.NoDepsNamespaces,
 			"no_business_unit":        nsStats.NoBusinessUnit,
 		}
-		
+
 		data.MissingInfo = map[string]interface{}{
 			"orphaned":     nsStats.OrphanedNamespaces,
 			"undocumented": nsStats.UndocumentedNamespaces,
@@ -150,10 +150,10 @@ func (s *DashboardService) GetStats(ctx context.Context, orgID uuid.UUID) (map[s
 	nsStats, err := s.repos.Namespace.GetStats(ctx, orgID)
 	if err == nil && nsStats != nil {
 		stats["namespaces"] = map[string]interface{}{
-			"total":       nsStats.TotalNamespaces,
-			"with_owner":  nsStats.NamespacesWithOwner,
-			"documented":  nsStats.NamespacesDocumented,
-			"with_deps":   nsStats.NamespacesWithDeps,
+			"total":      nsStats.TotalNamespaces,
+			"with_owner": nsStats.NamespacesWithOwner,
+			"documented": nsStats.NamespacesDocumented,
+			"with_deps":  nsStats.NamespacesWithDeps,
 		}
 	}
 
@@ -278,9 +278,9 @@ func (s *DashboardService) ExportReport(ctx context.Context, orgID uuid.UUID, re
 		if format == "json" {
 			data = []byte(`{"report": "ownership", "data": ` + stringifyMap(report) + `}`)
 		} else {
-			data = []byte("ReportType,Total,WithOwner,Coverage\nownership," + 
-				stringify(report["total_namespaces"]) + "," + 
-				stringify(report["namespaces_with_owner"]) + "," + 
+			data = []byte("ReportType,Total,WithOwner,Coverage\nownership," +
+				stringify(report["total_namespaces"]) + "," +
+				stringify(report["namespaces_with_owner"]) + "," +
 				stringify(report["coverage_percentage"]) + "\n")
 		}
 	case "orphaned":
@@ -291,10 +291,10 @@ func (s *DashboardService) ExportReport(ctx context.Context, orgID uuid.UUID, re
 		if format == "json" {
 			data = []byte(`{"report": "orphaned", "data": ` + stringifyMap(report) + `}`)
 		} else {
-			data = []byte("ReportType,Orphaned,Undocumented,NoDeps,NoBU\norphaned," + 
-				stringify(report["orphaned_namespaces"]) + "," + 
-				stringify(report["undocumented_namespaces"]) + "," + 
-				stringify(report["no_deps_namespaces"]) + "," + 
+			data = []byte("ReportType,Orphaned,Undocumented,NoDeps,NoBU\norphaned," +
+				stringify(report["orphaned_namespaces"]) + "," +
+				stringify(report["undocumented_namespaces"]) + "," +
+				stringify(report["no_deps_namespaces"]) + "," +
 				stringify(report["no_business_unit"]) + "\n")
 		}
 	default:

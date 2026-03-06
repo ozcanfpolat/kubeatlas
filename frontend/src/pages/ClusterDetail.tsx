@@ -30,18 +30,27 @@ export default function ClusterDetail() {
 
   const { data: cluster, isLoading } = useQuery({
     queryKey: ['cluster', id],
-    queryFn: () => clustersApi.getById(id!),
+    queryFn: () => {
+      if (!id) throw new Error('Cluster ID is required')
+      return clustersApi.getById(id)
+    },
     enabled: !!id,
   })
 
   const { data: namespacesData } = useQuery({
     queryKey: ['cluster-namespaces', id],
-    queryFn: () => clustersApi.getNamespaces(id!, { page: 1, page_size: 100 }),
+    queryFn: () => {
+      if (!id) throw new Error('Cluster ID is required')
+      return clustersApi.getNamespaces(id, { page: 1, page_size: 100 })
+    },
     enabled: !!id,
   })
 
   const syncMutation = useMutation({
-    mutationFn: () => clustersApi.sync(id!),
+    mutationFn: () => {
+      if (!id) throw new Error('Cluster ID is required')
+      return clustersApi.sync(id)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cluster', id] })
       queryClient.invalidateQueries({ queryKey: ['cluster-namespaces', id] })

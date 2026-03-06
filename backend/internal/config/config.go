@@ -15,15 +15,15 @@ var (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server      ServerConfig
-	Database    DatabaseConfig
-	JWT         JWTConfig
-	Storage     StorageConfig
-	LDAP        LDAPConfig
-	Redis       RedisConfig
-	Encryption  EncryptionConfig
-	Sync        SyncConfig
-	Log         LogConfig
+	Server     ServerConfig
+	Database   DatabaseConfig
+	JWT        JWTConfig
+	Storage    StorageConfig
+	LDAP       LDAPConfig
+	Redis      RedisConfig
+	Encryption EncryptionConfig
+	Sync       SyncConfig
+	Log        LogConfig
 }
 
 // ServerConfig holds HTTP server configuration
@@ -53,10 +53,10 @@ type JWTConfig struct {
 
 // StorageConfig holds file storage configuration
 type StorageConfig struct {
-	Type      string // "local", "s3", "minio"
-	LocalPath string
-	S3Bucket  string
-	S3Region  string
+	Type       string // "local", "s3", "minio"
+	LocalPath  string
+	S3Bucket   string
+	S3Region   string
 	S3Endpoint string
 }
 

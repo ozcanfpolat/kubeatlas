@@ -29,8 +29,10 @@ func NewDocumentService(repo *repositories.DocumentRepository, auditSvc *AuditSe
 	if uploadPath == "" {
 		uploadPath = "./data/uploads"
 	}
-	os.MkdirAll(uploadPath, 0755)
-	
+	if err := os.MkdirAll(uploadPath, 0755); err != nil {
+		logger.Errorw("Failed to create upload directory", "error", err)
+	}
+
 	return &DocumentService{repo: repo, auditSvc: auditSvc, logger: logger, uploadPath: uploadPath}
 }
 

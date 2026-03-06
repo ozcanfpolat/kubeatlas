@@ -36,13 +36,13 @@ type Filter struct {
 
 // QueryBuilder helps build SQL queries
 type QueryBuilder struct {
-	baseQuery   string
-	conditions  []string
-	args        []interface{}
-	argCounter  int
-	orderBy     string
-	limit       int
-	offset      int
+	baseQuery  string
+	conditions []string
+	args       []interface{}
+	argCounter int
+	orderBy    string
+	limit      int
+	offset     int
 }
 
 // NewQueryBuilder creates a new query builder
@@ -99,28 +99,6 @@ var allowedSortFields = map[string]bool{
 	"timestamp":       true,
 }
 
-// allowedTableNames defines valid table names to prevent SQL injection
-var allowedTableNames = map[string]bool{
-	"users":                 true,
-	"teams":                 true,
-	"team_members":          true,
-	"organizations":         true,
-	"business_units":        true,
-	"clusters":              true,
-	"namespaces":            true,
-	"internal_dependencies": true,
-	"external_dependencies": true,
-	"documents":             true,
-	"document_categories":   true,
-	"audit_logs":            true,
-	"settings":              true,
-}
-
-// validateTableName checks if table name is in whitelist
-func validateTableName(table string) bool {
-	return allowedTableNames[table]
-}
-
 // OrderBy sets the ORDER BY clause with SQL injection protection
 func (qb *QueryBuilder) OrderBy(field, order string) *QueryBuilder {
 	// Validate order direction
@@ -159,41 +137,41 @@ func (qb *QueryBuilder) Paginate(p Pagination) *QueryBuilder {
 	if p.Page <= 0 {
 		p.Page = 1
 	}
-	
+
 	qb.limit = p.PageSize
 	qb.offset = (p.Page - 1) * p.PageSize
-	
+
 	if p.Sort != "" {
 		qb.OrderBy(p.Sort, p.Order)
 	}
-	
+
 	return qb
 }
 
 // Build constructs the final SQL query
 func (qb *QueryBuilder) Build() (string, []interface{}) {
 	query := qb.baseQuery
-	
+
 	if len(qb.conditions) > 0 {
 		query += " WHERE " + strings.Join(qb.conditions, " AND ")
 	}
-	
+
 	if qb.orderBy != "" {
 		query += " ORDER BY " + qb.orderBy
 	}
-	
+
 	if qb.limit > 0 {
 		qb.argCounter++
 		query += fmt.Sprintf(" LIMIT $%d", qb.argCounter)
 		qb.args = append(qb.args, qb.limit)
 	}
-	
+
 	if qb.offset > 0 {
 		qb.argCounter++
 		query += fmt.Sprintf(" OFFSET $%d", qb.argCounter)
 		qb.args = append(qb.args, qb.offset)
 	}
-	
+
 	return query, qb.args
 }
 
@@ -204,13 +182,13 @@ func (qb *QueryBuilder) BuildCount() (string, []interface{}) {
 	if fromIndex == -1 {
 		return "", nil
 	}
-	
+
 	countQuery := "SELECT COUNT(*) " + qb.baseQuery[fromIndex:]
-	
+
 	if len(qb.conditions) > 0 {
 		countQuery += " WHERE " + strings.Join(qb.conditions, " AND ")
 	}
-	
+
 	// For count, we only need the WHERE args, not LIMIT/OFFSET
 	return countQuery, qb.args[:len(qb.args)-countOffsetArgs(qb)]
 }
@@ -244,11 +222,11 @@ func (r *BaseRepository) GetByID(ctx context.Context, table string, id uuid.UUID
 		return err
 	}
 	defer rows.Close()
-	
+
 	if !rows.Next() {
 		return pgx.ErrNoRows
 	}
-	
+
 	return rows.Scan(dest)
 }
 
@@ -259,11 +237,11 @@ func (r *BaseRepository) SoftDelete(ctx context.Context, table string, id uuid.U
 	if err != nil {
 		return err
 	}
-	
+
 	if result.RowsAffected() == 0 {
 		return pgx.ErrNoRows
 	}
-	
+
 	return nil
 }
 
@@ -274,11 +252,11 @@ func (r *BaseRepository) HardDelete(ctx context.Context, table string, id uuid.U
 	if err != nil {
 		return err
 	}
-	
+
 	if result.RowsAffected() == 0 {
 		return pgx.ErrNoRows
 	}
-	
+
 	return nil
 }
 
@@ -296,7 +274,7 @@ func (r *BaseRepository) Count(ctx context.Context, table string, conditions str
 	if conditions != "" {
 		query += " AND " + conditions
 	}
-	
+
 	var count int64
 	err := r.pool.QueryRow(ctx, query, args...).Scan(&count)
 	return count, err

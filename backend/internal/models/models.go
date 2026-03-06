@@ -629,3 +629,118 @@ func isValidRole(r string) bool {
 	}
 	return false
 }
+
+// ============================================
+// Response DTOs for JSON Serialization
+// ============================================
+
+// TeamResponse is the JSON response for Team
+type TeamResponse struct {
+	ID             uuid.UUID  `json:"id"`
+	OrganizationID uuid.UUID  `json:"organization_id"`
+	Name           string     `json:"name"`
+	Slug           string     `json:"slug"`
+	Description    *string    `json:"description,omitempty"`
+	ParentID       *uuid.UUID `json:"parent_id,omitempty"`
+	TeamType       string     `json:"team_type"`
+	ContactEmail   *string    `json:"contact_email,omitempty"`
+	ContactSlack   *string    `json:"contact_slack,omitempty"`
+	MemberCount    int        `json:"member_count"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+// ToResponse converts Team to TeamResponse
+func (t *Team) ToResponse() TeamResponse {
+	var desc, email, slack *string
+	if t.Description.Valid {
+		desc = &t.Description.String
+	}
+	if t.ContactEmail.Valid {
+		email = &t.ContactEmail.String
+	}
+	if t.ContactSlack.Valid {
+		slack = &t.ContactSlack.String
+	}
+	return TeamResponse{
+		ID:             t.ID,
+		OrganizationID: t.OrganizationID,
+		Name:           t.Name,
+		Slug:           t.Slug,
+		Description:    desc,
+		ParentID:       t.ParentID,
+		TeamType:       t.TeamType,
+		ContactEmail:   email,
+		ContactSlack:   slack,
+		MemberCount:    t.MemberCount,
+		CreatedAt:      t.CreatedAt,
+		UpdatedAt:      t.UpdatedAt,
+	}
+}
+
+// TeamsToResponse converts a slice of Team to TeamResponse
+func TeamsToResponse(teams []Team) []TeamResponse {
+	result := make([]TeamResponse, len(teams))
+	for i := range teams {
+		result[i] = teams[i].ToResponse()
+	}
+	return result
+}
+
+// BusinessUnitResponse is the JSON response for BusinessUnit
+type BusinessUnitResponse struct {
+	ID             uuid.UUID  `json:"id"`
+	OrganizationID uuid.UUID  `json:"organization_id"`
+	Name           string     `json:"name"`
+	Code           *string    `json:"code,omitempty"`
+	Description    *string    `json:"description,omitempty"`
+	DirectorName   *string    `json:"director_name,omitempty"`
+	DirectorEmail  *string    `json:"director_email,omitempty"`
+	CostCenter     *string    `json:"cost_center,omitempty"`
+	ParentID       *uuid.UUID `json:"parent_id,omitempty"`
+	NamespaceCount int        `json:"namespace_count,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+// ToResponse converts BusinessUnit to BusinessUnitResponse
+func (b *BusinessUnit) ToResponse() BusinessUnitResponse {
+	var code, desc, dirName, dirEmail, costCenter *string
+	if b.Code.Valid {
+		code = &b.Code.String
+	}
+	if b.Description.Valid {
+		desc = &b.Description.String
+	}
+	if b.DirectorName.Valid {
+		dirName = &b.DirectorName.String
+	}
+	if b.DirectorEmail.Valid {
+		dirEmail = &b.DirectorEmail.String
+	}
+	if b.CostCenter.Valid {
+		costCenter = &b.CostCenter.String
+	}
+	return BusinessUnitResponse{
+		ID:             b.ID,
+		OrganizationID: b.OrganizationID,
+		Name:           b.Name,
+		Code:           code,
+		Description:    desc,
+		DirectorName:   dirName,
+		DirectorEmail:  dirEmail,
+		CostCenter:     costCenter,
+		ParentID:       b.ParentID,
+		CreatedAt:      b.CreatedAt,
+		UpdatedAt:      b.UpdatedAt,
+	}
+}
+
+// BusinessUnitsToResponse converts a slice of BusinessUnit to BusinessUnitResponse
+func BusinessUnitsToResponse(units []BusinessUnit) []BusinessUnitResponse {
+	result := make([]BusinessUnitResponse, len(units))
+	for i := range units {
+		result[i] = units[i].ToResponse()
+	}
+	return result
+}

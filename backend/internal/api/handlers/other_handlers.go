@@ -379,13 +379,22 @@ func GetMissingInfo(svc *services.Services) gin.HandlerFunc {
 // ListInternalDependencies returns all internal dependencies
 func ListInternalDependencies(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		orgID, _ := middleware.GetOrganizationID(c)
+		orgID, ok := middleware.GetOrganizationID(c)
+		if !ok {
+			respondErrorStr(c, http.StatusUnauthorized, "Organization ID not found in context")
+			return
+		}
 		p := getPagination(c)
 
 		result, err := svc.Dependency.ListInternal(c.Request.Context(), orgID, p)
 		if err != nil {
 			log.Printf("ERROR ListInternalDependencies: orgID=%s, err=%v", orgID, err)
-			respondErrorStr(c, http.StatusInternalServerError, "Failed to list internal dependencies: "+err.Error())
+			respondError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		if result == nil {
+			respondPaginated(c, []interface{}{}, 0, p.Page, p.PageSize, 0)
 			return
 		}
 

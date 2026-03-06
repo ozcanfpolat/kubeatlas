@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kubeatlas/kubeatlas/internal/api/middleware"
 	"github.com/kubeatlas/kubeatlas/internal/database/repositories"
+	"github.com/kubeatlas/kubeatlas/internal/models"
 	"github.com/kubeatlas/kubeatlas/internal/services"
 )
 
@@ -30,6 +32,36 @@ type PaginatedResponse struct {
 	Page       int         `json:"page"`
 	PageSize   int         `json:"page_size"`
 	TotalPages int         `json:"total_pages"`
+}
+
+// TeamResponse is a DTO for Team with plain strings instead of NullString
+type TeamResponse struct {
+	ID             uuid.UUID  `json:"id"`
+	OrganizationID uuid.UUID  `json:"organization_id"`
+	Name           string     `json:"name"`
+	Slug           string     `json:"slug"`
+	Description    string     `json:"description,omitempty"`
+	ParentID       *uuid.UUID `json:"parent_id,omitempty"`
+	TeamType       string     `json:"team_type"`
+	ContactEmail   string     `json:"contact_email,omitempty"`
+	ContactSlack   string     `json:"contact_slack,omitempty"`
+	MemberCount    int        `json:"member_count"`
+}
+
+// toTeamResponse converts a models.Team to TeamResponse
+func toTeamResponse(t models.Team) TeamResponse {
+	return TeamResponse{
+		ID:             t.ID,
+		OrganizationID: t.OrganizationID,
+		Name:           t.Name,
+		Slug:           t.Slug,
+		Description:    t.Description.String,
+		ParentID:       t.ParentID,
+		TeamType:       t.TeamType,
+		ContactEmail:   t.ContactEmail.String,
+		ContactSlack:   t.ContactSlack.String,
+		MemberCount:    t.MemberCount,
+	}
 }
 
 // ============================================
@@ -298,10 +330,16 @@ func ListTeams(svc *services.Services) gin.HandlerFunc {
 		orgID, _ := middleware.GetOrganizationID(c)
 		teams, err := svc.Team.List(c.Request.Context(), orgID)
 		if err != nil {
+			log.Printf("ERROR ListTeams: orgID=%s, err=%v", orgID, err)
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}
-		respondSuccess(c, teams)
+		// Convert to TeamResponse to avoid NullString serialization issues
+		responses := make([]TeamResponse, len(teams))
+		for i, t := range teams {
+			responses[i] = toTeamResponse(t)
+		}
+		respondSuccess(c, responses)
 	}
 }
 
@@ -317,7 +355,7 @@ func GetTeam(svc *services.Services) gin.HandlerFunc {
 			respondError(c, http.StatusNotFound, err)
 			return
 		}
-		respondSuccess(c, team)
+		respondSuccess(c, toTeamResponse(*team))
 	}
 }
 

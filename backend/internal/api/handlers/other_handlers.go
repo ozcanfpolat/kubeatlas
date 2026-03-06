@@ -385,8 +385,17 @@ func GetMissingInfo(svc *services.Services) gin.HandlerFunc {
 
 		info, err := svc.Dashboard.GetMissingInfo(c.Request.Context(), orgID)
 		if err != nil {
+			log.Printf("ERROR GetMissingInfo: orgID=%s, err=%v", orgID, err)
 			respondErrorStr(c, http.StatusInternalServerError, "Failed to get missing info")
 			return
+		}
+
+		// Debug log
+		if orphaned, ok := info["orphaned"].([]map[string]interface{}); ok {
+			log.Printf("DEBUG GetMissingInfo: orphaned count=%d", len(orphaned))
+		}
+		if undoc, ok := info["undocumented"].([]map[string]interface{}); ok {
+			log.Printf("DEBUG GetMissingInfo: undocumented count=%d", len(undoc))
 		}
 
 		respondSuccess(c, info)

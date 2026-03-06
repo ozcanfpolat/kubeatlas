@@ -197,7 +197,11 @@ func (s *DashboardService) GetMissingInfo(ctx context.Context, orgID uuid.UUID) 
 	
 	// Get orphaned namespaces (no owner)
 	orphanedResult, err := s.repos.Namespace.List(ctx, orgID, repositories.Pagination{Page: 1, PageSize: 50}, map[string]interface{}{"orphaned": true})
+	if err != nil {
+		s.logger.Errorf("GetMissingInfo: failed to get orphaned namespaces: %v", err)
+	}
 	if err == nil && orphanedResult != nil {
+		s.logger.Infof("GetMissingInfo: found %d orphaned namespaces", len(orphanedResult.Items))
 		orphanedList := make([]map[string]interface{}, len(orphanedResult.Items))
 		for i, ns := range orphanedResult.Items {
 			orphanedList[i] = map[string]interface{}{
@@ -213,7 +217,11 @@ func (s *DashboardService) GetMissingInfo(ctx context.Context, orgID uuid.UUID) 
 	
 	// Get undocumented namespaces
 	undocResult, err := s.repos.Namespace.List(ctx, orgID, repositories.Pagination{Page: 1, PageSize: 50}, map[string]interface{}{"undocumented": true})
+	if err != nil {
+		s.logger.Errorf("GetMissingInfo: failed to get undocumented namespaces: %v", err)
+	}
 	if err == nil && undocResult != nil {
+		s.logger.Infof("GetMissingInfo: found %d undocumented namespaces", len(undocResult.Items))
 		undocList := make([]map[string]interface{}, len(undocResult.Items))
 		for i, ns := range undocResult.Items {
 			undocList[i] = map[string]interface{}{

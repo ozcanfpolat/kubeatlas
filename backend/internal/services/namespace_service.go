@@ -165,6 +165,27 @@ func (s *NamespaceService) Update(ctx context.Context, ac AuditContext, id uuid.
 	sanitizeNullString(&ns.SupportHours)
 	sanitizeNullString(&ns.EscalationPath)
 
+	// Sanitize JSONMap fields to remove NULL bytes from keys and values
+	sanitizeJSONMap := func(m models.JSONMap) models.JSONMap {
+		if m == nil {
+			return make(models.JSONMap)
+		}
+		sanitized := make(models.JSONMap)
+		for k, v := range m {
+			cleanKey := strings.ReplaceAll(k, "\x00", "")
+			if str, ok := v.(string); ok {
+				sanitized[cleanKey] = strings.ReplaceAll(str, "\x00", "")
+			} else {
+				sanitized[cleanKey] = v
+			}
+		}
+		return sanitized
+	}
+	ns.K8sLabels = sanitizeJSONMap(ns.K8sLabels)
+	ns.K8sAnnotations = sanitizeJSONMap(ns.K8sAnnotations)
+	ns.CustomFields = sanitizeJSONMap(ns.CustomFields)
+	ns.Metadata = sanitizeJSONMap(ns.Metadata)
+
 	oldValues := StructToMap(ns)
 
 	// Apply updates

@@ -129,11 +129,11 @@ func (s *DashboardService) GetDashboardData(ctx context.Context, orgID uuid.UUID
 				"resource_id":   a.ResourceID,
 				"created_at":    a.CreatedAt,
 			}
-			if a.ResourceName.Valid {
-				item["resource_name"] = a.ResourceName.String
+			if a.ResourceName.IsValid() {
+				item["resource_name"] = a.ResourceName.GetString()
 			}
-			if a.User != nil && a.User.FullName.Valid {
-				item["user_name"] = a.User.FullName.String
+			if a.User != nil && a.User.FullName.IsValid() {
+				item["user_name"] = a.User.FullName.GetString()
 			}
 			data.RecentActivities[i] = item
 		}
@@ -197,14 +197,14 @@ func (s *DashboardService) GetRecentActivities(ctx context.Context, orgID uuid.U
 			"resource_id":   a.ResourceID,
 			"created_at":    a.CreatedAt,
 		}
-		if a.ResourceName.Valid {
-			item["resource_name"] = a.ResourceName.String
+		if a.ResourceName.IsValid() {
+			item["resource_name"] = a.ResourceName.GetString()
 		}
-		if a.Description.Valid {
-			item["description"] = a.Description.String
+		if a.Description.IsValid() {
+			item["description"] = a.Description.GetString()
 		}
-		if a.User != nil && a.User.FullName.Valid {
-			item["user_name"] = a.User.FullName.String
+		if a.User != nil && a.User.FullName.IsValid() {
+			item["user_name"] = a.User.FullName.GetString()
 		}
 		result[i] = item
 	}

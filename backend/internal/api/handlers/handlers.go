@@ -327,12 +327,20 @@ func GetCurrentUser(svc *services.Services) gin.HandlerFunc {
 
 func ListTeams(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		orgID, _ := middleware.GetOrganizationID(c)
+		orgID, ok := middleware.GetOrganizationID(c)
+		if !ok {
+			log.Printf("ERROR ListTeams: Organization ID not found in context")
+			respondErrorStr(c, http.StatusUnauthorized, "Organization ID not found in context")
+			return
+		}
 		teams, err := svc.Team.List(c.Request.Context(), orgID)
 		if err != nil {
 			log.Printf("ERROR ListTeams: orgID=%s, err=%v", orgID, err)
 			respondError(c, http.StatusInternalServerError, err)
 			return
+		}
+		if teams == nil {
+			teams = []models.Team{}
 		}
 		// Convert to TeamResponse to avoid NullString serialization issues
 		responses := make([]TeamResponse, len(teams))

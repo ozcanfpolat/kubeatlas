@@ -214,15 +214,23 @@ func ListClusterNamespaces(svc *services.Services) gin.HandlerFunc {
 // ListBusinessUnits returns all business units
 func ListBusinessUnits(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		orgID, _ := middleware.GetOrganizationID(c)
-
-		result, err := svc.BusinessUnit.List(c.Request.Context(), orgID)
-		if err != nil {
-			respondErrorStr(c, http.StatusInternalServerError, "Failed to list business units")
+		orgID, ok := middleware.GetOrganizationID(c)
+		if !ok {
+			respondErrorStr(c, http.StatusUnauthorized, "Organization ID not found in context")
 			return
 		}
 
-		respondSuccess(c, result)
+		result, err := svc.BusinessUnit.List(c.Request.Context(), orgID)
+		if err != nil {
+			respondError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		if result == nil {
+			result = []models.BusinessUnit{}
+		}
+
+		respondSuccess(c, models.BusinessUnitsToResponse(result))
 	}
 }
 

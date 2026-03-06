@@ -210,14 +210,14 @@ export default function CreateCluster() {
               <div className="space-y-2">
                 <Label htmlFor="owner_team_id">Owner Team</Label>
                 <Select
-                  value={formData.owner_team_id || ''}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, owner_team_id: value || undefined }))}
+                  value={formData.owner_team_id || 'none'}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, owner_team_id: value === 'none' ? undefined : value }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Owner</SelectItem>
+                    <SelectItem value="none">No Owner</SelectItem>
                     {teams.map((team) => (
                       <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
                     ))}

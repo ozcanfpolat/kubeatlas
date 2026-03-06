@@ -28,9 +28,9 @@ export default function Namespaces() {
   const navigate = useNavigate()
   
   const [search, setSearch] = useState('')
-  const [clusterFilter, setClusterFilter] = useState<string>('')
-  const [envFilter, setEnvFilter] = useState<string>('')
-  const [criticalityFilter, setCriticalityFilter] = useState<string>('')
+  const [clusterFilter, setClusterFilter] = useState<string>('all')
+  const [envFilter, setEnvFilter] = useState<string>('all')
+  const [criticalityFilter, setCriticalityFilter] = useState<string>('all')
   const [orphanedFilter, setOrphanedFilter] = useState(false)
   const [page, setPage] = useState(1)
 
@@ -45,9 +45,9 @@ export default function Namespaces() {
     queryFn: () =>
       namespacesApi.list({
         search: search || undefined,
-        cluster_id: clusterFilter || undefined,
-        environment: envFilter || undefined,
-        criticality: criticalityFilter || undefined,
+        cluster_id: clusterFilter === 'all' ? undefined : clusterFilter,
+        environment: envFilter === 'all' ? undefined : envFilter,
+        criticality: criticalityFilter === 'all' ? undefined : criticalityFilter,
         orphaned: orphanedFilter || undefined,
         page,
         page_size: 20,
@@ -117,7 +117,7 @@ export default function Namespaces() {
             <SelectValue placeholder="All Clusters" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Clusters</SelectItem>
+            <SelectItem value="all">All Clusters</SelectItem>
             {clusterList.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.display_name || c.name}
@@ -130,7 +130,7 @@ export default function Namespaces() {
             <SelectValue placeholder="Environment" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Environments</SelectItem>
+            <SelectItem value="all">All Environments</SelectItem>
             <SelectItem value="production">Production</SelectItem>
             <SelectItem value="staging">Staging</SelectItem>
             <SelectItem value="development">Development</SelectItem>
@@ -142,7 +142,7 @@ export default function Namespaces() {
             <SelectValue placeholder="Criticality" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Tiers</SelectItem>
+            <SelectItem value="all">All Tiers</SelectItem>
             <SelectItem value="tier-1">Tier 1 (Critical)</SelectItem>
             <SelectItem value="tier-2">Tier 2 (Important)</SelectItem>
             <SelectItem value="tier-3">Tier 3 (Standard)</SelectItem>

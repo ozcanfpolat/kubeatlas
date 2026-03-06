@@ -199,14 +199,14 @@ export default function Documents() {
               <div>
                 <Label>Namespace (Opsiyonel)</Label>
                 <Select
-                  value={uploadData.namespace_id}
-                  onValueChange={(value) => setUploadData({ ...uploadData, namespace_id: value })}
+                  value={uploadData.namespace_id || 'general'}
+                  onValueChange={(value) => setUploadData({ ...uploadData, namespace_id: value === 'general' ? '' : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Namespace seçin" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Genel</SelectItem>
+                    <SelectItem value="general">Genel</SelectItem>
                     {namespacesData?.data?.map((ns) => (
                       <SelectItem key={ns.id} value={ns.id}>
                         {ns.name}

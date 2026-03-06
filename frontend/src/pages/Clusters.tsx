@@ -37,16 +37,16 @@ export default function Clusters() {
   const queryClient = useQueryClient()
   
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('')
-  const [envFilter, setEnvFilter] = useState<string>('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [envFilter, setEnvFilter] = useState<string>('all')
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['clusters', { search, status: statusFilter, environment: envFilter }],
     queryFn: () =>
       clustersApi.list({
         search: search || undefined,
-        status: statusFilter || undefined,
-        environment: envFilter || undefined,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        environment: envFilter === 'all' ? undefined : envFilter,
         page_size: 100,
       }),
     retry: 1,
@@ -125,7 +125,7 @@ export default function Clusters() {
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Status</SelectItem>
+            <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="error">Error</SelectItem>
             <SelectItem value="syncing">Syncing</SelectItem>
@@ -137,7 +137,7 @@ export default function Clusters() {
             <SelectValue placeholder="All Environments" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Environments</SelectItem>
+            <SelectItem value="all">All Environments</SelectItem>
             <SelectItem value="production">Production</SelectItem>
             <SelectItem value="staging">Staging</SelectItem>
             <SelectItem value="development">Development</SelectItem>

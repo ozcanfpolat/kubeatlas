@@ -62,7 +62,7 @@ export default function ClusterDetail() {
 
   const { data: namespacesData } = useQuery({
     queryKey: ['cluster-namespaces', id],
-    queryFn: () => clustersApi.getNamespaces(id!, { page: 1, page_size: 100 }),
+    queryFn: () => clustersApi.getNamespaces(id!, { page: 1, page_size: 500 }),
     enabled: !!id,
   })
 
@@ -225,7 +225,7 @@ export default function ClusterDetail() {
       {/* Tabs */}
       <Tabs defaultValue="namespaces">
         <TabsList>
-          <TabsTrigger value="namespaces">Namespace'ler ({namespaces.length})</TabsTrigger>
+          <TabsTrigger value="namespaces">Namespace'ler ({cluster.namespace_count})</TabsTrigger>
           <TabsTrigger value="details">Detaylar</TabsTrigger>
           <TabsTrigger value="settings">Ayarlar</TabsTrigger>
         </TabsList>

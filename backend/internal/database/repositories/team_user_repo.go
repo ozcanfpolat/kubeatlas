@@ -514,12 +514,13 @@ func (r *BusinessUnitRepository) GetByID(ctx context.Context, id uuid.UUID) (*mo
 func (r *BusinessUnitRepository) List(ctx context.Context, orgID uuid.UUID) ([]models.BusinessUnit, error) {
 	query := `
 		SELECT 
-			id, organization_id, name, code, description,
-			director_name, director_email, cost_center,
-			parent_id, metadata, created_at, updated_at
-		FROM business_units
-		WHERE organization_id = $1 AND deleted_at IS NULL
-		ORDER BY name ASC
+			bu.id, bu.organization_id, bu.name, bu.code, bu.description,
+			bu.director_name, bu.director_email, bu.cost_center,
+			bu.parent_id, bu.metadata, bu.created_at, bu.updated_at,
+			COALESCE((SELECT COUNT(*) FROM namespaces n WHERE n.business_unit_id = bu.id AND n.deleted_at IS NULL), 0) as namespace_count
+		FROM business_units bu
+		WHERE bu.organization_id = $1 AND bu.deleted_at IS NULL
+		ORDER BY bu.name ASC
 	`
 
 	rows, err := r.pool.Query(ctx, query, orgID)
@@ -535,6 +536,7 @@ func (r *BusinessUnitRepository) List(ctx context.Context, orgID uuid.UUID) ([]m
 			&bu.ID, &bu.OrganizationID, &bu.Name, &bu.Code, &bu.Description,
 			&bu.DirectorName, &bu.DirectorEmail, &bu.CostCenter,
 			&bu.ParentID, &bu.Metadata, &bu.CreatedAt, &bu.UpdatedAt,
+			&bu.NamespaceCount,
 		)
 		if err != nil {
 			return nil, err

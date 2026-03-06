@@ -405,6 +405,9 @@ type BusinessUnit struct {
 	CostCenter     NullString `json:"cost_center" db:"cost_center"`
 	ParentID       *uuid.UUID `json:"parent_id" db:"parent_id"`
 	Metadata       JSONMap    `json:"metadata" db:"metadata"`
+	
+	// Computed fields
+	NamespaceCount int `json:"namespace_count" db:"-"`
 }
 
 // ============================================

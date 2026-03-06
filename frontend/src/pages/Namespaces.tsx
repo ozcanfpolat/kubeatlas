@@ -21,9 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { namespacesApi, clustersApi } from '@/api'
+import { namespacesApi, clustersApi, teamsApi } from '@/api'
 import { getEnvironmentColor, getCriticalityColor, formatRelativeTime } from '@/lib/utils'
-import type { Namespace, Cluster } from '@/types'
+import type { Namespace, Cluster, Team } from '@/types'
 
 export default function Namespaces() {
   const navigate = useNavigate()
@@ -38,6 +38,12 @@ export default function Namespaces() {
   const { data: clustersData } = useQuery({
     queryKey: ['clusters-list'],
     queryFn: () => clustersApi.list({ page_size: 100 }),
+    retry: 1,
+  })
+
+  const { data: teamsData } = useQuery({
+    queryKey: ['teams-list'],
+    queryFn: () => teamsApi.list(),
     retry: 1,
   })
 
@@ -58,6 +64,7 @@ export default function Namespaces() {
 
   // Defensive: ensure arrays are always arrays
   const clusterList: Cluster[] = Array.isArray(clustersData?.items) ? clustersData.items : []
+  const teamList: Team[] = Array.isArray(teamsData) ? teamsData : []
   const namespaces: Namespace[] = Array.isArray(data?.items) ? data.items : []
   const total = data?.total || 0
   const totalPages = data?.total_pages || 1
@@ -232,14 +239,17 @@ export default function Namespaces() {
                     )}
                   </td>
                   <td className="px-4 py-4 text-sm">
-                    {ns.infrastructure_owner_team ? (
-                      <span>{ns.infrastructure_owner_team.name}</span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-orange-500">
-                        <AlertTriangle className="h-4 w-4" />
-                        No owner
-                      </span>
-                    )}
+                    {(() => {
+                      const team = teamList.find(t => t.id === ns.infrastructure_owner_team_id)
+                      return team ? (
+                        <span>{team.name}</span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-orange-500">
+                          <AlertTriangle className="h-4 w-4" />
+                          No owner
+                        </span>
+                      )
+                    })()}
                   </td>
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-2">

@@ -620,3 +620,33 @@ func (r *NamespaceRepository) GetRecentlyUpdated(ctx context.Context, orgID uuid
 
 	return namespaces, nil
 }
+
+// GetCountsByBusinessUnit returns namespace counts grouped by business unit ID
+func (r *NamespaceRepository) GetCountsByBusinessUnit(ctx context.Context, orgID uuid.UUID) (map[uuid.UUID]int, error) {
+	query := `
+		SELECT business_unit_id, COUNT(*) as count
+		FROM namespaces
+		WHERE organization_id = $1 
+		AND deleted_at IS NULL 
+		AND business_unit_id IS NOT NULL
+		GROUP BY business_unit_id
+	`
+	
+	rows, err := r.pool.Query(ctx, query, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	result := make(map[uuid.UUID]int)
+	for rows.Next() {
+		var buID uuid.UUID
+		var count int
+		if err := rows.Scan(&buID, &count); err != nil {
+			return nil, err
+		}
+		result[buID] = count
+	}
+	
+	return result, nil
+}

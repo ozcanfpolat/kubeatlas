@@ -61,7 +61,7 @@ func New(pool *pgxpool.Pool, k8sManager *k8s.Manager, encryptor *crypto.Encrypto
 		User:         NewUserService(repos.User, auditSvc, logger),
 		BusinessUnit: NewBusinessUnitService(repos.BusinessUnit, auditSvc, logger),
 		Cluster:      NewClusterService(repos.Cluster, repos.Namespace, k8sManager, encryptor, auditSvc, logger),
-		Namespace:    NewNamespaceService(repos.Namespace, repos.Cluster, auditSvc, logger),
+		Namespace:    NewNamespaceService(repos.Namespace, repos.Cluster, repos.Team, repos.BusinessUnit, auditSvc, logger),
 		Dependency:   NewDependencyService(repos.InternalDependency, repos.ExternalDependency, auditSvc, logger),
 		Document:     NewDocumentService(repos.Document, auditSvc, logger),
 		Dashboard:    NewDashboardService(repos, logger),

@@ -16,21 +16,27 @@ var (
 )
 
 type NamespaceService struct {
-	namespaceRepo *repositories.NamespaceRepository
-	clusterRepo   *repositories.ClusterRepository
-	auditSvc      *AuditService
-	logger        *zap.SugaredLogger
+	namespaceRepo    *repositories.NamespaceRepository
+	clusterRepo      *repositories.ClusterRepository
+	teamRepo         *repositories.TeamRepository
+	businessUnitRepo *repositories.BusinessUnitRepository
+	auditSvc         *AuditService
+	logger           *zap.SugaredLogger
 }
 
 func NewNamespaceService(
 	namespaceRepo *repositories.NamespaceRepository,
 	clusterRepo *repositories.ClusterRepository,
+	teamRepo *repositories.TeamRepository,
+	businessUnitRepo *repositories.BusinessUnitRepository,
 	auditSvc *AuditService,
 	logger *zap.SugaredLogger,
 ) *NamespaceService {
 	return &NamespaceService{
-		namespaceRepo: namespaceRepo,
-		clusterRepo:   clusterRepo,
+		namespaceRepo:    namespaceRepo,
+		clusterRepo:      clusterRepo,
+		teamRepo:         teamRepo,
+		businessUnitRepo: businessUnitRepo,
 		auditSvc:      auditSvc,
 		logger:        logger,
 	}
@@ -55,25 +61,52 @@ func (s *NamespaceService) List(ctx context.Context, orgID uuid.UUID, p reposito
 		return nil, err
 	}
 
-	// Populate cluster information for each namespace
+	// Populate cluster, team, and business unit information for each namespace
 	clusterCache := make(map[uuid.UUID]*models.Cluster)
+	teamCache := make(map[uuid.UUID]*models.Team)
+	buCache := make(map[uuid.UUID]*models.BusinessUnit)
+	
 	for i := range result.Items {
+		// Populate cluster
 		clusterID := result.Items[i].ClusterID
-		if clusterID == uuid.Nil {
-			continue
+		if clusterID != uuid.Nil {
+			if cluster, ok := clusterCache[clusterID]; ok {
+				result.Items[i].Cluster = cluster
+			} else {
+				cluster, err := s.clusterRepo.GetByID(ctx, clusterID)
+				if err == nil && cluster != nil {
+					clusterCache[clusterID] = cluster
+					result.Items[i].Cluster = cluster
+				}
+			}
 		}
-
-		// Check cache first
-		if cluster, ok := clusterCache[clusterID]; ok {
-			result.Items[i].Cluster = cluster
-			continue
+		
+		// Populate team
+		if result.Items[i].InfrastructureOwnerTeamID != nil {
+			teamID := *result.Items[i].InfrastructureOwnerTeamID
+			if team, ok := teamCache[teamID]; ok {
+				result.Items[i].InfrastructureOwnerTeam = team
+			} else {
+				team, err := s.teamRepo.GetByID(ctx, teamID)
+				if err == nil && team != nil {
+					teamCache[teamID] = team
+					result.Items[i].InfrastructureOwnerTeam = team
+				}
+			}
 		}
-
-		// Fetch cluster
-		cluster, err := s.clusterRepo.GetByID(ctx, clusterID)
-		if err == nil && cluster != nil {
-			clusterCache[clusterID] = cluster
-			result.Items[i].Cluster = cluster
+		
+		// Populate business unit
+		if result.Items[i].BusinessUnitID != nil {
+			buID := *result.Items[i].BusinessUnitID
+			if bu, ok := buCache[buID]; ok {
+				result.Items[i].BusinessUnit = bu
+			} else {
+				bu, err := s.businessUnitRepo.GetByID(ctx, buID)
+				if err == nil && bu != nil {
+					buCache[buID] = bu
+					result.Items[i].BusinessUnit = bu
+				}
+			}
 		}
 	}
 
@@ -388,4 +421,9 @@ func (s *NamespaceService) GetUndocumented(ctx context.Context, orgID uuid.UUID,
 // GetHistory returns namespace audit history
 func (s *NamespaceService) GetHistory(ctx context.Context, namespaceID uuid.UUID, limit int) ([]models.AuditLog, error) {
 	return s.auditSvc.ListByResource(ctx, "namespace", namespaceID, limit)
+}
+
+// GetCountsByBusinessUnit returns namespace counts grouped by business unit
+func (s *NamespaceService) GetCountsByBusinessUnit(ctx context.Context, orgID uuid.UUID) (map[uuid.UUID]int, error) {
+	return s.namespaceRepo.GetCountsByBusinessUnit(ctx, orgID)
 }

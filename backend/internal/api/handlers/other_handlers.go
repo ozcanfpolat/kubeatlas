@@ -243,7 +243,21 @@ func ListBusinessUnits(svc *services.Services) gin.HandlerFunc {
 			result = []models.BusinessUnit{}
 		}
 
-		respondSuccess(c, models.BusinessUnitsToResponse(result))
+		// Get namespace counts for each business unit
+		nsCounts, err := svc.Namespace.GetCountsByBusinessUnit(c.Request.Context(), orgID)
+		if err != nil {
+			log.Printf("WARN: Failed to get namespace counts: %v", err)
+			nsCounts = make(map[uuid.UUID]int)
+		}
+
+		// Build response with namespace counts
+		responses := make([]models.BusinessUnitResponse, len(result))
+		for i := range result {
+			responses[i] = result[i].ToResponse()
+			responses[i].NamespaceCount = nsCounts[result[i].ID]
+		}
+
+		respondSuccess(c, responses)
 	}
 }
 

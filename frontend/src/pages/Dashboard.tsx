@@ -42,12 +42,6 @@ export default function Dashboard() {
     retry: 1,
   })
 
-  const { data: missingInfo } = useQuery({
-    queryKey: ['missing-info'],
-    queryFn: () => dashboardApi.getMissingInfo(5),
-    retry: 1,
-  })
-
   // Environment data from API
   const envData = stats?.environment_distribution || []
 

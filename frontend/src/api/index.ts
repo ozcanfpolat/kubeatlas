@@ -372,6 +372,21 @@ export const documentsApi = {
   getDownloadUrl: (id: string): string => {
     return `${apiClient.defaults.baseURL}/documents/${id}/download`
   },
+
+  download: async (id: string, filename: string): Promise<void> => {
+    const response = await apiClient.get(`/documents/${id}/download`, {
+      responseType: 'blob',
+    })
+    const blob = new Blob([response.data])
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  },
   
   getCategories: async (): Promise<DocumentCategory[]> => {
     const response = await apiClient.get<ApiResponse<DocumentCategory[]>>('/documents/categories')

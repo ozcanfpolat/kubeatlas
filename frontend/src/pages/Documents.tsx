@@ -328,15 +328,13 @@ export default function Documents() {
                       </td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <a 
-                            href={documentsApi.getDownloadUrl(doc.id)} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => documentsApi.download(doc.id, doc.file_name)}
                           >
-                            <Button variant="ghost" size="sm">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          </a>
+                            <Download className="h-4 w-4" />
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="sm"

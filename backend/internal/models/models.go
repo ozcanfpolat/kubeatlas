@@ -18,27 +18,17 @@ var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]
 // ============================================
 
 // NullString is a nullable string with proper JSON serialization
-// Uses lowercase fields to prevent JSON libraries from directly serializing them
+// String and Valid are exported for database scanning but hidden from JSON
 type NullString struct {
-	str   string
-	valid bool
-}
-
-// GetString returns the string value
-func (ns NullString) GetString() string {
-	return ns.str
-}
-
-// IsValid returns whether the value is valid (not null)
-func (ns NullString) IsValid() bool {
-	return ns.valid
+	String string `json:"-"`
+	Valid  bool   `json:"-"`
 }
 
 func (ns NullString) MarshalJSON() ([]byte, error) {
-	if !ns.valid {
+	if !ns.Valid {
 		return []byte("null"), nil
 	}
-	return json.Marshal(ns.str)
+	return json.Marshal(ns.String)
 }
 
 func (ns *NullString) UnmarshalJSON(data []byte) error {
@@ -47,11 +37,11 @@ func (ns *NullString) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if s != nil {
-		ns.valid = true
-		ns.str = *s
+		ns.Valid = true
+		ns.String = *s
 	} else {
-		ns.valid = false
-		ns.str = ""
+		ns.Valid = false
+		ns.String = ""
 	}
 	return nil
 }
@@ -59,15 +49,15 @@ func (ns *NullString) UnmarshalJSON(data []byte) error {
 // Scan implements sql.Scanner interface
 func (ns *NullString) Scan(value interface{}) error {
 	if value == nil {
-		ns.str, ns.valid = "", false
+		ns.String, ns.Valid = "", false
 		return nil
 	}
-	ns.valid = true
+	ns.Valid = true
 	switch v := value.(type) {
 	case string:
-		ns.str = v
+		ns.String = v
 	case []byte:
-		ns.str = string(v)
+		ns.String = string(v)
 	default:
 		return errors.New("incompatible type for NullString")
 	}
@@ -76,65 +66,55 @@ func (ns *NullString) Scan(value interface{}) error {
 
 // Value implements driver.Valuer interface
 func (ns NullString) Value() (driver.Value, error) {
-	if !ns.valid {
+	if !ns.Valid {
 		return nil, nil
 	}
-	return ns.str, nil
+	return ns.String, nil
 }
 
 // NewNullString creates a NullString from a string pointer
 func NewNullString(s *string) NullString {
 	if s == nil {
-		return NullString{valid: false}
+		return NullString{Valid: false}
 	}
-	return NullString{str: *s, valid: true}
+	return NullString{String: *s, Valid: true}
 }
 
 // NewNullStringFromString creates a NullString from a string (empty string = null)
 func NewNullStringFromString(s string) NullString {
 	if s == "" {
-		return NullString{valid: false}
+		return NullString{Valid: false}
 	}
-	return NullString{str: s, valid: true}
+	return NullString{String: s, Valid: true}
 }
 
 // Ptr returns a pointer to the string value, or nil if not valid
 func (ns NullString) Ptr() *string {
-	if !ns.valid {
+	if !ns.Valid {
 		return nil
 	}
-	return &ns.str
+	return &ns.String
 }
 
 // ValueOrEmpty returns the string value or empty string if not valid
 func (ns NullString) ValueOrEmpty() string {
-	if !ns.valid {
+	if !ns.Valid {
 		return ""
 	}
-	return ns.str
+	return ns.String
 }
 
 // NullTime is a nullable time with proper JSON serialization
 type NullTime struct {
-	t     time.Time
-	valid bool
-}
-
-// GetTime returns the time value
-func (nt NullTime) GetTime() time.Time {
-	return nt.t
-}
-
-// IsValid returns whether the value is valid (not null)
-func (nt NullTime) IsValid() bool {
-	return nt.valid
+	Time  time.Time `json:"-"`
+	Valid bool      `json:"-"`
 }
 
 func (nt NullTime) MarshalJSON() ([]byte, error) {
-	if !nt.valid {
+	if !nt.Valid {
 		return []byte("null"), nil
 	}
-	return json.Marshal(nt.t)
+	return json.Marshal(nt.Time)
 }
 
 func (nt *NullTime) UnmarshalJSON(data []byte) error {
@@ -143,10 +123,10 @@ func (nt *NullTime) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if t != nil {
-		nt.valid = true
-		nt.t = *t
+		nt.Valid = true
+		nt.Time = *t
 	} else {
-		nt.valid = false
+		nt.Valid = false
 	}
 	return nil
 }
@@ -154,13 +134,13 @@ func (nt *NullTime) UnmarshalJSON(data []byte) error {
 // Scan implements sql.Scanner interface for NullTime
 func (nt *NullTime) Scan(value interface{}) error {
 	if value == nil {
-		nt.t, nt.valid = time.Time{}, false
+		nt.Time, nt.Valid = time.Time{}, false
 		return nil
 	}
-	nt.valid = true
+	nt.Valid = true
 	switch v := value.(type) {
 	case time.Time:
-		nt.t = v
+		nt.Time = v
 	default:
 		return errors.New("incompatible type for NullTime")
 	}
@@ -169,18 +149,18 @@ func (nt *NullTime) Scan(value interface{}) error {
 
 // Value implements driver.Valuer interface for NullTime
 func (nt NullTime) Value() (driver.Value, error) {
-	if !nt.valid {
+	if !nt.Valid {
 		return nil, nil
 	}
-	return nt.t, nil
+	return nt.Time, nil
 }
 
 // Ptr returns a pointer to the time value, or nil if not valid
 func (nt NullTime) Ptr() *time.Time {
-	if !nt.valid {
+	if !nt.Valid {
 		return nil
 	}
-	return &nt.t
+	return &nt.Time
 }
 
 // ============================================

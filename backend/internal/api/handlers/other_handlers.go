@@ -26,7 +26,11 @@ func uuidToPtr(id uuid.UUID) *uuid.UUID {
 // ListClusters returns all clusters
 func ListClusters(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		orgID, _ := middleware.GetOrganizationID(c)
+		orgID, ok := middleware.GetOrganizationID(c)
+		if !ok {
+			respondErrorStr(c, http.StatusUnauthorized, "Organization ID not found")
+			return
+		}
 		p := getPagination(c)
 
 		filters := make(map[string]interface{})
@@ -42,7 +46,8 @@ func ListClusters(svc *services.Services) gin.HandlerFunc {
 
 		result, err := svc.Cluster.List(c.Request.Context(), orgID, p, filters)
 		if err != nil {
-			respondErrorStr(c, http.StatusInternalServerError, "Failed to list clusters")
+			log.Printf("ERROR ListClusters: %v", err)
+			respondError(c, http.StatusInternalServerError, err)
 			return
 		}
 

@@ -92,7 +92,7 @@ func (s *DocumentService) Upload(ctx context.Context, ac AuditContext, req Uploa
 	}
 
 	if req.Description != "" {
-		doc.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
+		doc.Description = models.NewNullStringFromString(req.Description)
 	}
 
 	if err := s.repo.Create(ctx, doc); err != nil {
@@ -180,7 +180,7 @@ func (s *DocumentService) Update(ctx context.Context, ac AuditContext, id uuid.U
 		doc.Name = name
 	}
 	if description != "" {
-		doc.Description = models.NullString{sql.NullString{String: description, Valid: true}}
+		doc.Description = models.NewNullStringFromString(description)
 	}
 	if categoryID != nil {
 		doc.CategoryID = categoryID

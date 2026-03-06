@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -18,9 +17,10 @@ var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]
 // Custom Nullable Types with proper JSON serialization
 // ============================================
 
-// NullString is a wrapper around sql.NullString with proper JSON serialization
+// NullString is a nullable string with proper JSON serialization
 type NullString struct {
-	sql.NullString
+	String string
+	Valid  bool
 }
 
 func (ns NullString) MarshalJSON() ([]byte, error) {
@@ -45,25 +45,52 @@ func (ns *NullString) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Scan implements sql.Scanner interface
+func (ns *NullString) Scan(value interface{}) error {
+	if value == nil {
+		ns.String, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	switch v := value.(type) {
+	case string:
+		ns.String = v
+	case []byte:
+		ns.String = string(v)
+	default:
+		return errors.New("incompatible type for NullString")
+	}
+	return nil
+}
+
+// Value implements driver.Valuer interface
+func (ns NullString) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return ns.String, nil
+}
+
 // NewNullString creates a NullString from a string pointer
 func NewNullString(s *string) NullString {
 	if s == nil {
-		return NullString{sql.NullString{Valid: false}}
+		return NullString{Valid: false}
 	}
-	return NullString{sql.NullString{String: *s, Valid: true}}
+	return NullString{String: *s, Valid: true}
 }
 
 // NewNullStringFromString creates a NullString from a string (empty string = null)
 func NewNullStringFromString(s string) NullString {
 	if s == "" {
-		return NullString{sql.NullString{Valid: false}}
+		return NullString{Valid: false}
 	}
-	return NullString{sql.NullString{String: s, Valid: true}}
+	return NullString{String: s, Valid: true}
 }
 
-// NullTime is a wrapper around sql.NullTime with proper JSON serialization
+// NullTime is a nullable time with proper JSON serialization
 type NullTime struct {
-	sql.NullTime
+	Time  time.Time
+	Valid bool
 }
 
 func (nt NullTime) MarshalJSON() ([]byte, error) {
@@ -87,24 +114,28 @@ func (nt *NullTime) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Scan implements the Scanner interface for NullString
-func (ns *NullString) Scan(value interface{}) error {
-	return ns.NullString.Scan(value)
-}
-
-// Value implements the driver Valuer interface for NullString
-func (ns NullString) Value() (driver.Value, error) {
-	return ns.NullString.Value()
-}
-
-// Scan implements the Scanner interface for NullTime
+// Scan implements sql.Scanner interface for NullTime
 func (nt *NullTime) Scan(value interface{}) error {
-	return nt.NullTime.Scan(value)
+	if value == nil {
+		nt.Time, nt.Valid = time.Time{}, false
+		return nil
+	}
+	nt.Valid = true
+	switch v := value.(type) {
+	case time.Time:
+		nt.Time = v
+	default:
+		return errors.New("incompatible type for NullTime")
+	}
+	return nil
 }
 
-// Value implements the driver Valuer interface for NullTime
+// Value implements driver.Valuer interface for NullTime
 func (nt NullTime) Value() (driver.Value, error) {
-	return nt.NullTime.Value()
+	if !nt.Valid {
+		return nil, nil
+	}
+	return nt.Time, nil
 }
 
 // ============================================

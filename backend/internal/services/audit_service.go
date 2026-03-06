@@ -66,19 +66,19 @@ func (s *AuditService) log(ctx context.Context, ac AuditContext, action, resourc
 	}
 
 	if ac.UserEmail != "" {
-		log.UserEmail = models.NullString{sql.NullString{String: ac.UserEmail, Valid: true}}
+		log.UserEmail = models.NewNullStringFromString(ac.UserEmail)
 	}
 	if ac.UserIP != "" {
-		log.UserIP = models.NullString{sql.NullString{String: ac.UserIP, Valid: true}}
+		log.UserIP = models.NewNullStringFromString(ac.UserIP)
 	}
 	if ac.UserAgent != "" {
-		log.UserAgent = models.NullString{sql.NullString{String: ac.UserAgent, Valid: true}}
+		log.UserAgent = models.NewNullStringFromString(ac.UserAgent)
 	}
 	if resourceName != "" {
-		log.ResourceName = models.NullString{sql.NullString{String: resourceName, Valid: true}}
+		log.ResourceName = models.NewNullStringFromString(resourceName)
 	}
 	if description != "" {
-		log.Description = models.NullString{sql.NullString{String: description, Valid: true}}
+		log.Description = models.NewNullStringFromString(description)
 	}
 
 	if err := s.repo.Create(ctx, log); err != nil {

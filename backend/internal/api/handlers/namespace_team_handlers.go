@@ -18,7 +18,11 @@ import (
 // ListNamespaces returns all namespaces
 func ListNamespaces(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		orgID, _ := middleware.GetOrganizationID(c)
+		orgID, ok := middleware.GetOrganizationID(c)
+		if !ok {
+			respondErrorStr(c, http.StatusUnauthorized, "Organization ID not found in context")
+			return
+		}
 		p := getPagination(c)
 
 		filters := make(map[string]interface{})
@@ -58,7 +62,12 @@ func ListNamespaces(svc *services.Services) gin.HandlerFunc {
 
 		result, err := svc.Namespace.List(c.Request.Context(), orgID, p, filters)
 		if err != nil {
-			respondErrorStr(c, http.StatusInternalServerError, "Failed to list namespaces")
+			respondError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		if result == nil {
+			respondPaginated(c, []interface{}{}, 0, p.Page, p.PageSize, 0)
 			return
 		}
 

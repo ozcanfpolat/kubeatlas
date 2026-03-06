@@ -384,7 +384,8 @@ func ListInternalDependencies(svc *services.Services) gin.HandlerFunc {
 
 		result, err := svc.Dependency.ListInternal(c.Request.Context(), orgID, p)
 		if err != nil {
-			respondErrorStr(c, http.StatusInternalServerError, "Failed to list internal dependencies")
+			log.Printf("ERROR ListInternalDependencies: orgID=%s, err=%v", orgID, err)
+			respondErrorStr(c, http.StatusInternalServerError, "Failed to list internal dependencies: "+err.Error())
 			return
 		}
 

@@ -44,7 +44,7 @@ func (s *DependencyService) CreateInternal(ctx context.Context, ac AuditContext,
 		Metadata:          make(models.JSONMap),
 	}
 	if req.Description != "" {
-		dep.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
+		dep.Description = models.NewNullStringFromString(req.Description)
 	}
 
 	if err := s.internalRepo.Create(ctx, dep); err != nil {
@@ -76,7 +76,7 @@ func (s *DependencyService) UpdateInternal(ctx context.Context, ac AuditContext,
 	}
 	dep.ID = id
 	if req.Description != "" {
-		dep.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
+		dep.Description = models.NewNullStringFromString(req.Description)
 	}
 
 	if err := s.internalRepo.Update(ctx, dep); err != nil {
@@ -110,19 +110,19 @@ func (s *DependencyService) CreateExternal(ctx context.Context, ac AuditContext,
 		Metadata:       make(models.JSONMap),
 	}
 	if req.Provider != "" {
-		dep.Provider = models.NullString{sql.NullString{String: req.Provider, Valid: true}}
+		dep.Provider = models.NewNullStringFromString(req.Provider)
 	}
 	if req.Endpoint != "" {
-		dep.Endpoint = models.NullString{sql.NullString{String: req.Endpoint, Valid: true}}
+		dep.Endpoint = models.NewNullStringFromString(req.Endpoint)
 	}
 	if req.Description != "" {
-		dep.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
+		dep.Description = models.NewNullStringFromString(req.Description)
 	}
 	if req.ContactName != "" {
-		dep.ContactName = models.NullString{sql.NullString{String: req.ContactName, Valid: true}}
+		dep.ContactName = models.NewNullStringFromString(req.ContactName)
 	}
 	if req.ContactEmail != "" {
-		dep.ContactEmail = models.NullString{sql.NullString{String: req.ContactEmail, Valid: true}}
+		dep.ContactEmail = models.NewNullStringFromString(req.ContactEmail)
 	}
 
 	if err := s.externalRepo.Create(ctx, dep); err != nil {
@@ -154,19 +154,19 @@ func (s *DependencyService) UpdateExternal(ctx context.Context, ac AuditContext,
 	}
 	dep.ID = id
 	if req.Provider != "" {
-		dep.Provider = models.NullString{sql.NullString{String: req.Provider, Valid: true}}
+		dep.Provider = models.NewNullStringFromString(req.Provider)
 	}
 	if req.Endpoint != "" {
-		dep.Endpoint = models.NullString{sql.NullString{String: req.Endpoint, Valid: true}}
+		dep.Endpoint = models.NewNullStringFromString(req.Endpoint)
 	}
 	if req.Description != "" {
-		dep.Description = models.NullString{sql.NullString{String: req.Description, Valid: true}}
+		dep.Description = models.NewNullStringFromString(req.Description)
 	}
 	if req.ContactName != "" {
-		dep.ContactName = models.NullString{sql.NullString{String: req.ContactName, Valid: true}}
+		dep.ContactName = models.NewNullStringFromString(req.ContactName)
 	}
 	if req.ContactEmail != "" {
-		dep.ContactEmail = models.NullString{sql.NullString{String: req.ContactEmail, Valid: true}}
+		dep.ContactEmail = models.NewNullStringFromString(req.ContactEmail)
 	}
 
 	if err := s.externalRepo.Update(ctx, dep); err != nil {

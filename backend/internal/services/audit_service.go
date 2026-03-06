@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"reflect"
 
 	"github.com/google/uuid"

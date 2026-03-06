@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"errors"
 	"net/url"

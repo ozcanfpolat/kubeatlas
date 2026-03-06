@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 )
 
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
@@ -164,6 +163,150 @@ func (nt NullTime) Ptr() *time.Time {
 }
 
 // ============================================
+// StringArray - pgx compatible string array
+// ============================================
+
+// StringArray is a string array that properly handles NULL and works with pgx
+type StringArray []string
+
+// Scan implements the sql.Scanner interface for pgx compatibility
+func (a *StringArray) Scan(src interface{}) error {
+	if src == nil {
+		*a = StringArray{}
+		return nil
+	}
+
+	switch v := src.(type) {
+	case []string:
+		*a = StringArray(v)
+		return nil
+	case []byte:
+		return a.scanBytes(v)
+	case string:
+		return a.scanBytes([]byte(v))
+	default:
+		return errors.New("StringArray: cannot scan type")
+	}
+}
+
+func (a *StringArray) scanBytes(src []byte) error {
+	if len(src) == 0 {
+		*a = StringArray{}
+		return nil
+	}
+
+	// Parse PostgreSQL array format: {value1,value2,...}
+	s := string(src)
+	if s == "{}" || s == "" {
+		*a = StringArray{}
+		return nil
+	}
+
+	// Remove surrounding braces
+	if len(s) >= 2 && s[0] == '{' && s[len(s)-1] == '}' {
+		s = s[1 : len(s)-1]
+	}
+
+	if s == "" {
+		*a = StringArray{}
+		return nil
+	}
+
+	// Split by comma (simple parsing, doesn't handle quoted strings with commas)
+	parts := []string{}
+	current := ""
+	inQuotes := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '"' {
+			inQuotes = !inQuotes
+		} else if c == ',' && !inQuotes {
+			parts = append(parts, unquote(current))
+			current = ""
+		} else {
+			current += string(c)
+		}
+	}
+	if current != "" {
+		parts = append(parts, unquote(current))
+	}
+
+	*a = StringArray(parts)
+	return nil
+}
+
+func unquote(s string) string {
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		return s[1 : len(s)-1]
+	}
+	return s
+}
+
+// Value implements the driver.Valuer interface
+func (a StringArray) Value() (driver.Value, error) {
+	if a == nil {
+		return "{}", nil
+	}
+	if len(a) == 0 {
+		return "{}", nil
+	}
+
+	// Build PostgreSQL array format
+	result := "{"
+	for i, v := range a {
+		if i > 0 {
+			result += ","
+		}
+		// Quote strings that contain special characters
+		if needsQuoting(v) {
+			result += "\"" + escapeString(v) + "\""
+		} else {
+			result += v
+		}
+	}
+	result += "}"
+	return result, nil
+}
+
+func needsQuoting(s string) bool {
+	for _, c := range s {
+		if c == ',' || c == '"' || c == '{' || c == '}' || c == '\\' || c == ' ' {
+			return true
+		}
+	}
+	return false
+}
+
+func escapeString(s string) string {
+	result := ""
+	for _, c := range s {
+		if c == '"' || c == '\\' {
+			result += "\\"
+		}
+		result += string(c)
+	}
+	return result
+}
+
+// MarshalJSON implements json.Marshaler
+func (a StringArray) MarshalJSON() ([]byte, error) {
+	if a == nil {
+		return []byte("[]"), nil
+	}
+	return json.Marshal([]string(a))
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (a *StringArray) UnmarshalJSON(data []byte) error {
+	var arr []string
+	if err := json.Unmarshal(data, &arr); err != nil {
+		return err
+	}
+	*a = StringArray(arr)
+	return nil
+}
+
+// ============================================
 // Base Models
 // ============================================
 
@@ -301,7 +444,7 @@ type Cluster struct {
 	// Metadata
 	NodeCount      int            `json:"node_count" db:"node_count"`
 	NamespaceCount int            `json:"namespace_count" db:"namespace_count"`
-	Tags           pq.StringArray `json:"tags" db:"tags"`
+	Tags           StringArray `json:"tags" db:"tags"`
 	Labels         JSONMap        `json:"labels" db:"labels"`
 	Annotations    JSONMap        `json:"annotations" db:"annotations"`
 	Metadata       JSONMap        `json:"metadata" db:"metadata"`
@@ -357,7 +500,7 @@ type Namespace struct {
 	K8sCreatedAt   NullTime   `json:"k8s_created_at" db:"k8s_created_at"`
 
 	// Custom fields
-	Tags         pq.StringArray `json:"tags" db:"tags"`
+	Tags         StringArray `json:"tags" db:"tags"`
 	CustomFields JSONMap        `json:"custom_fields" db:"custom_fields"`
 	Metadata     JSONMap        `json:"metadata" db:"metadata"`
 
@@ -470,7 +613,7 @@ type Document struct {
 	// Metadata
 	CategoryID  *uuid.UUID     `json:"category_id" db:"category_id"`
 	Description NullString     `json:"description" db:"description"`
-	Tags        pq.StringArray `json:"tags" db:"tags"`
+	Tags        StringArray `json:"tags" db:"tags"`
 
 	// Versioning
 	Version           int        `json:"version" db:"version"`
@@ -513,7 +656,7 @@ type AuditLog struct {
 	// Changes
 	OldValues     JSONMap        `json:"old_values" db:"old_values"`
 	NewValues     JSONMap        `json:"new_values" db:"new_values"`
-	ChangedFields pq.StringArray `json:"changed_fields" db:"changed_fields"`
+	ChangedFields StringArray `json:"changed_fields" db:"changed_fields"`
 
 	Description NullString `json:"description" db:"description"`
 	Metadata    JSONMap    `json:"metadata" db:"metadata"`

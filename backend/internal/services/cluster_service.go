@@ -111,7 +111,7 @@ func (s *ClusterService) Create(ctx context.Context, ac AuditContext, req Create
 		return nil, ErrClusterNameExists
 	}
 
-	// Ensure tags is not nil (pq.StringArray requires non-nil for proper encoding)
+	// Ensure tags is not nil (StringArray requires non-nil for proper encoding)
 	tags := req.Tags
 	if tags == nil {
 		tags = []string{}

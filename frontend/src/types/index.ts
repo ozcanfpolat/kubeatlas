@@ -3,7 +3,8 @@
 // ============================================
 
 export interface PaginatedResponse<T> {
-  data: T[]
+  items: T[]
+  data?: T[]  // For backward compatibility
   total: number
   page: number
   page_size: number

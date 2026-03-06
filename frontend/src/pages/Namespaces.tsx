@@ -8,10 +8,12 @@ import {
   AlertTriangle,
   FileText,
   GitBranch,
+  RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -35,9 +37,10 @@ export default function Namespaces() {
   const { data: clusters } = useQuery({
     queryKey: ['clusters-list'],
     queryFn: () => clustersApi.list({ page_size: 100 }),
+    retry: 1,
   })
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['namespaces', { search, clusterFilter, envFilter, criticalityFilter, orphanedFilter, page }],
     queryFn: () =>
       namespacesApi.list({
@@ -49,11 +52,38 @@ export default function Namespaces() {
         page,
         page_size: 20,
       }),
+    retry: 1,
   })
 
-  const namespaces = data?.data || []
+  const clusterList = clusters?.items || clusters?.data || []
+  const namespaces = data?.items || data?.data || []
   const total = data?.total || 0
   const totalPages = data?.total_pages || 1
+
+  // Show error state
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Namespaces</h1>
+            <p className="text-muted-foreground">Namespaces across all clusters</p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-medium">Failed to load namespaces</h3>
+            <p className="text-muted-foreground mb-4">There was an error loading the namespace data.</p>
+            <Button onClick={() => refetch()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -88,7 +118,7 @@ export default function Namespaces() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">All Clusters</SelectItem>
-            {clusters?.data?.map((c) => (
+            {clusterList.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.display_name || c.name}
               </SelectItem>

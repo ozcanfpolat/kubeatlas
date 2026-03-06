@@ -6,9 +6,12 @@ import {
   AlertTriangle,
   TrendingUp,
   Clock,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { dashboardApi } from '@/api'
 import { formatRelativeTime } from '@/lib/utils'
 import {
@@ -27,19 +30,22 @@ import {
 const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
 
 export default function Dashboard() {
-  const { data: stats } = useQuery({
+  const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: dashboardApi.getStats,
+    retry: 1,
   })
 
   const { data: activities } = useQuery({
     queryKey: ['recent-activities'],
     queryFn: () => dashboardApi.getRecentActivities(10),
+    retry: 1,
   })
 
   const { data: missingInfo } = useQuery({
     queryKey: ['missing-info'],
     queryFn: () => dashboardApi.getMissingInfo(5),
+    retry: 1,
   })
 
   // Mock environment data for chart
@@ -54,6 +60,31 @@ export default function Dashboard() {
     { name: 'With Owner', value: stats?.namespaces_with_owner || 0 },
     { name: 'Orphaned', value: stats?.orphaned_namespaces || 0 },
   ]
+
+  // Show error state
+  if (statsError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Failed to load dashboard</h2>
+        <p className="text-muted-foreground mb-4">There was an error loading the dashboard data.</p>
+        <Button onClick={() => refetchStats()}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Try Again
+        </Button>
+      </div>
+    )
+  }
+
+  // Show loading state
+  if (statsLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-muted-foreground">Loading dashboard...</span>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

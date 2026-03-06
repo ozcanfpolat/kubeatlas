@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import Layout from '@/components/layout/Layout'
 import Login from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'
@@ -28,34 +29,36 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Dashboard />} />
-        <Route path="clusters" element={<Clusters />} />
-        <Route path="clusters/new" element={<CreateCluster />} />
-        <Route path="clusters/:id" element={<ClusterDetail />} />
-        <Route path="namespaces" element={<Namespaces />} />
-        <Route path="namespaces/:id" element={<NamespaceDetail />} />
-        <Route path="teams" element={<Teams />} />
-        <Route path="business-units" element={<BusinessUnits />} />
-        <Route path="documents" element={<Documents />} />
-        <Route path="dependencies" element={<Dependencies />} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="audit" element={<AuditLogs />} />
-        <Route path="settings" element={<Settings />} />
-      </Route>
-      
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Dashboard />} />
+          <Route path="clusters" element={<Clusters />} />
+          <Route path="clusters/new" element={<CreateCluster />} />
+          <Route path="clusters/:id" element={<ClusterDetail />} />
+          <Route path="namespaces" element={<Namespaces />} />
+          <Route path="namespaces/:id" element={<NamespaceDetail />} />
+          <Route path="teams" element={<Teams />} />
+          <Route path="business-units" element={<BusinessUnits />} />
+          <Route path="documents" element={<Documents />} />
+          <Route path="dependencies" element={<Dependencies />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="audit" element={<AuditLogs />} />
+          <Route path="settings" element={<Settings />} />
+        </Route>
+        
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ErrorBoundary>
   )
 }
 

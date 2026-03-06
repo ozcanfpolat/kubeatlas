@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Trash,
   Edit,
+  AlertTriangle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,7 +40,7 @@ export default function Clusters() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [envFilter, setEnvFilter] = useState<string>('')
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['clusters', { search, status: statusFilter, environment: envFilter }],
     queryFn: () =>
       clustersApi.list({
@@ -48,6 +49,7 @@ export default function Clusters() {
         environment: envFilter || undefined,
         page_size: 100,
       }),
+    retry: 1,
   })
 
   const syncMutation = useMutation({
@@ -64,7 +66,32 @@ export default function Clusters() {
     },
   })
 
-  const clusters = data?.data || []
+  const clusters = data?.items || data?.data || []
+
+  // Show error state
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Clusters</h1>
+            <p className="text-muted-foreground">Manage your Kubernetes clusters</p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-medium">Failed to load clusters</h3>
+            <p className="text-muted-foreground mb-4">There was an error loading the cluster data.</p>
+            <Button onClick={() => refetch()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

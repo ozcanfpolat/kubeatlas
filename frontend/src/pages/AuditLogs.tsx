@@ -69,7 +69,7 @@ export default function AuditLogs() {
     return <LoadingPage message="Loading audit logs..." />
   }
 
-  const logs = logsResult?.data || []
+  const logs = logsResult?.items || []
   const total = logsResult?.total || 0
 
   // Get unique actions and resource types for filters

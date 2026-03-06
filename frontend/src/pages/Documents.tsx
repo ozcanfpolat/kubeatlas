@@ -207,7 +207,7 @@ export default function Documents() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="general">Genel</SelectItem>
-                    {namespacesData?.data?.map((ns) => (
+                    {namespacesData?.items?.map((ns) => (
                       <SelectItem key={ns.id} value={ns.id}>
                         {ns.name}
                       </SelectItem>

@@ -57,10 +57,12 @@ export default function Dependencies() {
   }
 
   // Stats
-  const totalInternal = internalDeps?.data?.length || 0
-  const totalExternal = externalDeps?.length || 0
-  const criticalInternal = internalDeps?.data?.filter((d) => d.is_critical).length || 0
-  const criticalExternal = externalDeps?.filter((d) => d.is_critical).length || 0
+  const internalList = internalDeps?.items || []
+  const externalList = externalDeps || []
+  const totalInternal = internalList.length
+  const totalExternal = externalList.length
+  const criticalInternal = internalList.filter((d) => d.is_critical).length
+  const criticalExternal = externalList.filter((d) => d.is_critical).length
 
   return (
     <div className="space-y-6">
@@ -133,8 +135,8 @@ export default function Dependencies() {
           <CardContent>
             <div className="text-2xl font-bold">
               {new Set([
-                ...(internalDeps?.data?.map((d) => d.dependency_type) || []),
-                ...(externalDeps?.map((d) => d.system_type) || []),
+                ...internalList.map((d) => d.dependency_type),
+                ...externalList.map((d) => d.system_type),
               ]).size}
             </div>
             <p className="text-xs text-muted-foreground">Unique types</p>
@@ -190,9 +192,9 @@ export default function Dependencies() {
 
         {/* Internal Dependencies */}
         <TabsContent value="internal" className="space-y-4">
-          {internalDeps?.data && internalDeps.data.length > 0 ? (
+          {internalList.length > 0 ? (
             <div className="space-y-3">
-              {internalDeps.data
+              {internalList
                 .filter((dep) => !criticalOnly || dep.is_critical)
                 .filter(
                   (dep) =>
@@ -219,9 +221,9 @@ export default function Dependencies() {
 
         {/* External Dependencies */}
         <TabsContent value="external" className="space-y-4">
-          {externalDeps && externalDeps.length > 0 ? (
+          {externalList.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
-              {externalDeps
+              {externalList
                 .filter((dep) => !criticalOnly || dep.is_critical)
                 .filter(
                   (dep) =>

@@ -70,7 +70,7 @@ export default function ClusterDetail() {
     )
   }
 
-  const namespaces = namespacesData?.data || []
+  const namespaces = namespacesData?.items || []
 
   return (
     <div className="space-y-6 animate-fade-in">

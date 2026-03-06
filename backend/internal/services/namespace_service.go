@@ -186,8 +186,6 @@ func (s *NamespaceService) Update(ctx context.Context, ac AuditContext, id uuid.
 	ns.CustomFields = sanitizeJSONMap(ns.CustomFields)
 	ns.Metadata = sanitizeJSONMap(ns.Metadata)
 
-	oldValues := StructToMap(ns)
-
 	// Apply updates
 	if req.DisplayName != "" {
 		ns.DisplayName = models.NewNullStringFromString(req.DisplayName)

@@ -144,8 +144,6 @@ export default function NamespaceDetail() {
       description: editForm.description || undefined,
       environment: editForm.environment || undefined,
       criticality: editForm.criticality || undefined,
-      infrastructure_owner_team_id: editForm.infrastructure_owner_team_id || undefined,
-      business_unit_id: editForm.business_unit_id || undefined,
       application_manager_name: editForm.application_manager_name || undefined,
       application_manager_email: editForm.application_manager_email || undefined,
       application_manager_phone: editForm.application_manager_phone || undefined,
@@ -159,6 +157,15 @@ export default function NamespaceDetail() {
       support_hours: editForm.support_hours || undefined,
       escalation_path: editForm.escalation_path || undefined,
     }
+    
+    // Only include UUID fields if they have valid values
+    if (editForm.infrastructure_owner_team_id && editForm.infrastructure_owner_team_id.length > 0) {
+      data.infrastructure_owner_team_id = editForm.infrastructure_owner_team_id
+    }
+    if (editForm.business_unit_id && editForm.business_unit_id.length > 0) {
+      data.business_unit_id = editForm.business_unit_id
+    }
+    
     updateMutation.mutate(data)
   }
 

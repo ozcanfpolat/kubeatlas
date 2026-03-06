@@ -201,6 +201,19 @@ func (s *NamespaceService) Update(ctx context.Context, ac AuditContext, id uuid.
 		ns.Tags = req.Tags
 	}
 
+	// Ensure tags is never nil (StringArray requires non-nil for proper encoding)
+	if ns.Tags == nil {
+		ns.Tags = []string{}
+	}
+
+	// Ensure CustomFields and Metadata are never nil
+	if ns.CustomFields == nil {
+		ns.CustomFields = make(models.JSONMap)
+	}
+	if ns.Metadata == nil {
+		ns.Metadata = make(models.JSONMap)
+	}
+
 	if err := s.namespaceRepo.Update(ctx, ns); err != nil {
 		return nil, err
 	}

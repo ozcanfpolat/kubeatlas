@@ -110,6 +110,7 @@ func UpdateNamespace(svc *services.Services) gin.HandlerFunc {
 
 		var req services.UpdateNamespaceRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
+			log.Printf("ERROR UpdateNamespace: binding error for id=%s, err=%v", id, err)
 			respondErrorStr(c, http.StatusBadRequest, "Invalid request body")
 			return
 		}
@@ -118,6 +119,7 @@ func UpdateNamespace(svc *services.Services) gin.HandlerFunc {
 
 		ns, err := svc.Namespace.Update(c.Request.Context(), actx, id, req)
 		if err != nil {
+			log.Printf("ERROR UpdateNamespace: update failed for id=%s, err=%v", id, err)
 			if errors.Is(err, services.ErrNamespaceNotFound) {
 				respondErrorStr(c, http.StatusNotFound, "Namespace not found")
 				return

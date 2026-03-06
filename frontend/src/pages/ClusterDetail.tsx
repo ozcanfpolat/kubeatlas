@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { 
@@ -15,6 +16,23 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { clustersApi } from '@/api'
 import { 
   formatDateTime, 
@@ -27,6 +45,14 @@ import {
 export default function ClusterDetail() {
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [editForm, setEditForm] = useState({
+    display_name: '',
+    description: '',
+    environment: '',
+    platform: '',
+    region: '',
+  })
 
   const { data: cluster, isLoading } = useQuery({
     queryKey: ['cluster', id],
@@ -47,6 +73,31 @@ export default function ClusterDetail() {
       queryClient.invalidateQueries({ queryKey: ['cluster-namespaces', id] })
     },
   })
+
+  const updateMutation = useMutation({
+    mutationFn: (data: typeof editForm) => clustersApi.update(id!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cluster', id] })
+      setIsEditOpen(false)
+    },
+  })
+
+  const handleEditClick = () => {
+    if (cluster) {
+      setEditForm({
+        display_name: cluster.display_name || '',
+        description: cluster.description || '',
+        environment: cluster.environment || 'production',
+        platform: cluster.platform || '',
+        region: cluster.region || '',
+      })
+      setIsEditOpen(true)
+    }
+  }
+
+  const handleSave = () => {
+    updateMutation.mutate(editForm)
+  }
 
   if (isLoading) {
     return (
@@ -106,7 +157,7 @@ export default function ClusterDetail() {
             <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
             Senkronize Et
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleEditClick}>
             <Edit className="h-4 w-4 mr-2" />
             Düzenle
           </Button>
@@ -334,6 +385,83 @@ export default function ClusterDetail() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cluster Düzenle</DialogTitle>
+            <DialogDescription>
+              Cluster bilgilerini güncelleyin
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="display_name">Görünen Ad</Label>
+              <Input
+                id="display_name"
+                value={editForm.display_name}
+                onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                placeholder="Production Cluster"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Açıklama</Label>
+              <Input
+                id="description"
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                placeholder="Ana production cluster"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Ortam</Label>
+              <Select
+                value={editForm.environment}
+                onValueChange={(value) => setEditForm({ ...editForm, environment: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="production">Production</SelectItem>
+                  <SelectItem value="staging">Staging</SelectItem>
+                  <SelectItem value="development">Development</SelectItem>
+                  <SelectItem value="test">Test</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="platform">Platform</Label>
+                <Input
+                  id="platform"
+                  value={editForm.platform}
+                  onChange={(e) => setEditForm({ ...editForm, platform: e.target.value })}
+                  placeholder="AWS, Azure, GCP..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="region">Bölge</Label>
+                <Input
+                  id="region"
+                  value={editForm.region}
+                  onChange={(e) => setEditForm({ ...editForm, region: e.target.value })}
+                  placeholder="eu-west-1"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+              İptal
+            </Button>
+            <Button onClick={handleSave} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? 'Kaydediliyor...' : 'Kaydet'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

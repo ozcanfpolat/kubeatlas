@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   Network,
   RefreshCw,
+  Trash2,
+  Server,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -51,7 +53,7 @@ export default function Dependencies() {
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [clusterFilter, setClusterFilter] = useState<string>('all')
-  const [_criticalOnly, _setCriticalOnly] = useState(false)
+  const [criticalOnly, _setCriticalOnly] = useState(false)
   const [isAddInternalOpen, setIsAddInternalOpen] = useState(false)
   const [isAddExternalOpen, setIsAddExternalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -85,8 +87,15 @@ export default function Dependencies() {
     queryFn: () => dependenciesApi.listExternal(''),
   })
 
-  const { data: namespacesData } = useQuery({
-    queryKey: ['namespaces-for-deps', clusterFilter],
+  // All namespaces for displaying dependency info
+  const { data: allNamespacesData } = useQuery({
+    queryKey: ['all-namespaces-for-deps'],
+    queryFn: () => namespacesApi.list({ page: 1, page_size: 500 }),
+  })
+
+  // Filtered namespaces for the add form
+  const { data: filteredNamespacesData } = useQuery({
+    queryKey: ['filtered-namespaces-for-deps', clusterFilter],
     queryFn: () => namespacesApi.list({ 
       page: 1, 
       page_size: 100,
@@ -97,6 +106,26 @@ export default function Dependencies() {
   const { data: clustersData } = useQuery({
     queryKey: ['clusters-for-deps'],
     queryFn: () => clustersApi.list({ page_size: 100 }),
+  })
+
+  const deleteInternalMutation = useMutation({
+    mutationFn: (id: string) => dependenciesApi.deleteInternal(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['internal-dependencies'] })
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'Failed to delete dependency')
+    },
+  })
+
+  const deleteExternalMutation = useMutation({
+    mutationFn: (id: string) => dependenciesApi.deleteExternal(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['external-dependencies'] })
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'Failed to delete dependency')
+    },
   })
 
   const createInternalMutation = useMutation({
@@ -163,7 +192,8 @@ export default function Dependencies() {
   }
 
   const isLoading = loadingInternal || loadingExternal
-  const namespaces = namespacesData?.items || []
+  const namespaces = allNamespacesData?.items || []  // All namespaces for display
+  const formNamespaces = filteredNamespacesData?.items || []  // Filtered for form
   const clusters: Cluster[] = clustersData?.items || []
 
   // Error state
@@ -199,14 +229,29 @@ export default function Dependencies() {
   const criticalInternal = internalList.filter((d) => d.is_critical).length
   const criticalExternal = externalList.filter((d) => d.is_critical).length
 
+  // Helper to get namespace name
+  const getNamespaceName = (nsId: string) => {
+    const ns = namespaces.find(n => n.id === nsId)
+    return ns?.name || nsId.slice(0, 8) + '...'
+  }
+
+  // Helper to get cluster name for a namespace
+  const getClusterForNamespace = (nsId: string) => {
+    const ns = namespaces.find(n => n.id === nsId)
+    if (!ns) return null
+    return clusters.find(c => c.id === ns.cluster_id)
+  }
+
   // Filter
   const filteredInternal = internalList.filter((dep) => {
+    if (criticalOnly && !dep.is_critical) return false
     if (typeFilter !== 'all' && dep.dependency_type !== typeFilter) return false
     if (searchQuery && !dep.description?.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
   })
 
   const filteredExternal = externalList.filter((dep) => {
+    if (criticalOnly && !dep.is_critical) return false
     if (typeFilter !== 'all' && dep.system_type !== typeFilter) return false
     if (searchQuery && !dep.name?.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
@@ -386,33 +431,73 @@ export default function Dependencies() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {filteredInternal.map((dep) => (
-                <Card key={dep.id}>
-                  <CardContent className="flex items-center justify-between py-4">
-                    <div className="flex items-center gap-4">
-                      <Badge className={dependencyTypeColors[dep.dependency_type] || 'bg-gray-500'}>
-                        {dep.dependency_type}
-                      </Badge>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{dep.source_namespace_id?.slice(0, 8)}...</span>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{dep.target_namespace_id?.slice(0, 8)}...</span>
+              {filteredInternal.map((dep) => {
+                const sourceCluster = getClusterForNamespace(dep.source_namespace_id)
+                const targetCluster = getClusterForNamespace(dep.target_namespace_id)
+                return (
+                  <Card key={dep.id} className="hover:border-primary/30 transition-colors">
+                    <CardContent className="py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 flex-1">
+                          <Badge className={`${dependencyTypeColors[dep.dependency_type] || 'bg-gray-500'} text-white`}>
+                            {dep.dependency_type.toUpperCase()}
+                          </Badge>
+                          
+                          {/* Source Namespace */}
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="bg-muted rounded-lg px-3 py-2 min-w-[180px]">
+                              <div className="flex items-center gap-2">
+                                <Server className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="font-medium text-sm">{getNamespaceName(dep.source_namespace_id)}</p>
+                                  {sourceCluster && (
+                                    <p className="text-xs text-muted-foreground">{sourceCluster.name}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <ArrowRight className="h-5 w-5 text-primary flex-shrink-0" />
+                            
+                            {/* Target Namespace */}
+                            <div className="bg-muted rounded-lg px-3 py-2 min-w-[180px]">
+                              <div className="flex items-center gap-2">
+                                <Server className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="font-medium text-sm">{getNamespaceName(dep.target_namespace_id)}</p>
+                                  {targetCluster && (
+                                    <p className="text-xs text-muted-foreground">{targetCluster.name}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 ml-4">
+                          {dep.is_critical && (
+                            <Badge variant="destructive">
+                              <AlertTriangle className="mr-1 h-3 w-3" />
+                              Critical
+                            </Badge>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={() => deleteInternalMutation.mutate(dep.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                       {dep.description && (
-                        <span className="text-sm text-muted-foreground">{dep.description}</span>
+                        <p className="text-sm text-muted-foreground mt-2 ml-[100px]">{dep.description}</p>
                       )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {dep.is_critical && (
-                        <Badge variant="destructive">
-                          <AlertTriangle className="mr-1 h-3 w-3" />
-                          Critical
-                        </Badge>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
           )}
         </TabsContent>
@@ -438,33 +523,70 @@ export default function Dependencies() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {filteredExternal.map((dep) => (
-                <Card key={dep.id}>
-                  <CardContent className="flex items-center justify-between py-4">
-                    <div className="flex items-center gap-4">
-                      <Badge className={dependencyTypeColors[dep.system_type] || 'bg-gray-500'}>
-                        {dep.system_type}
-                      </Badge>
-                      <div>
-                        <span className="font-medium">{dep.name}</span>
-                        {dep.endpoint && (
-                          <span className="text-sm text-muted-foreground ml-2">
-                            {dep.endpoint}
-                          </span>
-                        )}
+              {filteredExternal.map((dep) => {
+                const nsCluster = getClusterForNamespace(dep.namespace_id)
+                return (
+                  <Card key={dep.id} className="hover:border-primary/30 transition-colors">
+                    <CardContent className="py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 flex-1">
+                          <Badge className={`${dependencyTypeColors[dep.system_type] || 'bg-gray-500'} text-white`}>
+                            {dep.system_type.toUpperCase()}
+                          </Badge>
+                          
+                          {/* Namespace */}
+                          <div className="bg-muted rounded-lg px-3 py-2 min-w-[180px]">
+                            <div className="flex items-center gap-2">
+                              <Server className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium text-sm">{getNamespaceName(dep.namespace_id)}</p>
+                                {nsCluster && (
+                                  <p className="text-xs text-muted-foreground">{nsCluster.name}</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <ArrowRight className="h-5 w-5 text-primary flex-shrink-0" />
+                          
+                          {/* External System */}
+                          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2 min-w-[200px]">
+                            <div className="flex items-center gap-2">
+                              <ExternalLink className="h-4 w-4 text-blue-500" />
+                              <div>
+                                <p className="font-medium text-sm">{dep.name}</p>
+                                {dep.endpoint && (
+                                  <p className="text-xs text-muted-foreground truncate max-w-[200px]">{dep.endpoint}</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 ml-4">
+                          {dep.is_critical && (
+                            <Badge variant="destructive">
+                              <AlertTriangle className="mr-1 h-3 w-3" />
+                              Critical
+                            </Badge>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={() => deleteExternalMutation.mutate(dep.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {dep.is_critical && (
-                        <Badge variant="destructive">
-                          <AlertTriangle className="mr-1 h-3 w-3" />
-                          Critical
-                        </Badge>
+                      {dep.description && (
+                        <p className="text-sm text-muted-foreground mt-2 ml-[100px]">{dep.description}</p>
                       )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
           )}
         </TabsContent>
@@ -490,7 +612,7 @@ export default function Dependencies() {
                   <SelectValue placeholder="Select source namespace" />
                 </SelectTrigger>
                 <SelectContent>
-                  {namespaces.map((ns) => (
+                  {formNamespaces.map((ns) => (
                     <SelectItem key={ns.id} value={ns.id}>
                       {ns.name}
                     </SelectItem>
@@ -508,7 +630,7 @@ export default function Dependencies() {
                   <SelectValue placeholder="Select target namespace" />
                 </SelectTrigger>
                 <SelectContent>
-                  {namespaces.map((ns) => (
+                  {formNamespaces.map((ns) => (
                     <SelectItem key={ns.id} value={ns.id}>
                       {ns.name}
                     </SelectItem>
@@ -584,7 +706,7 @@ export default function Dependencies() {
                   <SelectValue placeholder="Select namespace" />
                 </SelectTrigger>
                 <SelectContent>
-                  {namespaces.map((ns) => (
+                  {formNamespaces.map((ns) => (
                     <SelectItem key={ns.id} value={ns.id}>
                       {ns.name}
                     </SelectItem>

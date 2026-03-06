@@ -221,15 +221,15 @@ func (r *NamespaceRepository) List(ctx context.Context, orgID uuid.UUID, p Pagin
 		qb.Where("n.infrastructure_owner_team_id = ?", teamID)
 	}
 	if search, ok := filters["search"].(string); ok && search != "" {
-		qb.Where("(n.name ILIKE ? OR n.display_name ILIKE ? OR n.description ILIKE ?)", 
+		qb.Where("(n.name ILIKE ? OR n.display_name ILIKE ? OR n.description ILIKE ?)",
 			"%"+search+"%", "%"+search+"%", "%"+search+"%")
 	}
-	
+
 	// Filter for orphaned (no owner)
 	if orphaned, ok := filters["orphaned"].(bool); ok && orphaned {
 		qb.Where("n.infrastructure_owner_team_id IS NULL")
 	}
-	
+
 	// Filter for undocumented
 	if undocumented, ok := filters["undocumented"].(bool); ok && undocumented {
 		qb.Where(`NOT EXISTS (
@@ -415,7 +415,7 @@ func (r *NamespaceRepository) GetStats(ctx context.Context, orgID uuid.UUID) (*m
 
 	stats := &models.DashboardStats{}
 	var documented, withDeps int
-	
+
 	err := r.pool.QueryRow(ctx, query, orgID).Scan(
 		&stats.TotalNamespaces,
 		&stats.NamespacesWithOwner,

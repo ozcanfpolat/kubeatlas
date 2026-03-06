@@ -51,23 +51,23 @@ func SetupRouter(cfg *Config) *gin.Engine {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "timestamp": time.Now().UTC()})
 	})
-	
+
 	r.GET("/ready", func(c *gin.Context) {
 		// Check database connection
 		if cfg.DB != nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			
+
 			if err := cfg.DB.Ping(ctx); err != nil {
 				c.JSON(http.StatusServiceUnavailable, gin.H{
-					"status": "not_ready",
-					"error":  "database connection failed",
+					"status":    "not_ready",
+					"error":     "database connection failed",
 					"timestamp": time.Now().UTC(),
 				})
 				return
 			}
 		}
-		
+
 		c.JSON(200, gin.H{
 			"status":    "ready",
 			"timestamp": time.Now().UTC(),

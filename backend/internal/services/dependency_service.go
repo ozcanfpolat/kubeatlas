@@ -25,11 +25,11 @@ func NewDependencyService(internalRepo *repositories.InternalDependencyRepositor
 
 // Internal Dependency
 type CreateInternalDependencyRequest struct {
-	SourceNamespaceID  uuid.UUID `json:"source_namespace_id" binding:"required"`
-	TargetNamespaceID  uuid.UUID `json:"target_namespace_id" binding:"required"`
-	DependencyType     string    `json:"dependency_type" binding:"required"`
-	Description        string    `json:"description"`
-	IsCritical         bool      `json:"is_critical"`
+	SourceNamespaceID uuid.UUID `json:"source_namespace_id" binding:"required"`
+	TargetNamespaceID uuid.UUID `json:"target_namespace_id" binding:"required"`
+	DependencyType    string    `json:"dependency_type" binding:"required"`
+	Description       string    `json:"description"`
+	IsCritical        bool      `json:"is_critical"`
 }
 
 func (s *DependencyService) CreateInternal(ctx context.Context, ac AuditContext, req CreateInternalDependencyRequest) (*models.InternalDependency, error) {

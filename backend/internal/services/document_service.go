@@ -29,7 +29,7 @@ func NewDocumentService(repo *repositories.DocumentRepository, auditSvc *AuditSe
 		uploadPath = "./data/uploads"
 	}
 	os.MkdirAll(uploadPath, 0755)
-	
+
 	return &DocumentService{repo: repo, auditSvc: auditSvc, logger: logger, uploadPath: uploadPath}
 }
 

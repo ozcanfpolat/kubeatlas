@@ -13,21 +13,21 @@ import (
 
 // Validation constants
 const (
-	MaxEmailLength           = 254
-	MinSlugLength            = 1
-	MaxSlugLength            = 63
-	MinPasswordLength        = 8
-	MaxPasswordLength        = 128
-	MaxKubernetesNameLength  = 63
+	MaxEmailLength          = 254
+	MinSlugLength           = 1
+	MaxSlugLength           = 63
+	MinPasswordLength       = 8
+	MaxPasswordLength       = 128
+	MaxKubernetesNameLength = 63
 )
 
 var (
 	// emailRegex is a simple email validation regex
 	emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-	
+
 	// nameRegex allows alphanumeric, dash, underscore, and dot
 	nameRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
-	
+
 	// slugRegex allows lowercase alphanumeric and dash
 	slugRegex = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 )
@@ -81,22 +81,22 @@ func (v *Validator) ValidateURL(rawURL string) bool {
 	if rawURL == "" {
 		return false
 	}
-	
+
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
 		return false
 	}
-	
+
 	// Must have scheme and host
 	if parsedURL.Scheme == "" || parsedURL.Host == "" {
 		return false
 	}
-	
+
 	// Only allow http and https
 	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
 		return false
 	}
-	
+
 	return true
 }
 
@@ -106,33 +106,33 @@ func (v *Validator) ValidateKubernetesName(name string) bool {
 	if len(name) == 0 || len(name) > MaxKubernetesNameLength {
 		return false
 	}
-	
+
 	// Must start and end with alphanumeric
 	if !isAlphanumeric(rune(name[0])) || !isAlphanumeric(rune(name[len(name)-1])) {
 		return false
 	}
-	
+
 	// Can only contain lowercase alphanumeric and dash
 	for _, r := range name {
 		if !isLowerAlphanumeric(r) && r != '-' {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
 // ValidatePassword validates password strength
 func (v *Validator) ValidatePassword(password string) []string {
 	var errors []string
-	
+
 	if len(password) < MinPasswordLength {
 		errors = append(errors, "Password must be at least 8 characters")
 	}
 	if len(password) > MaxPasswordLength {
 		errors = append(errors, "Password must be at most 128 characters")
 	}
-	
+
 	var hasUpper, hasLower, hasDigit bool
 	for _, r := range password {
 		switch {
@@ -144,7 +144,7 @@ func (v *Validator) ValidatePassword(password string) []string {
 			hasDigit = true
 		}
 	}
-	
+
 	if !hasUpper {
 		errors = append(errors, "Password must contain at least one uppercase letter")
 	}
@@ -154,7 +154,7 @@ func (v *Validator) ValidatePassword(password string) []string {
 	if !hasDigit {
 		errors = append(errors, "Password must contain at least one digit")
 	}
-	
+
 	return errors
 }
 
@@ -162,10 +162,10 @@ func (v *Validator) ValidatePassword(password string) []string {
 func (v *Validator) SanitizeString(input string) string {
 	// Remove null bytes
 	input = strings.ReplaceAll(input, "\x00", "")
-	
+
 	// Trim whitespace
 	input = strings.TrimSpace(input)
-	
+
 	return input
 }
 
@@ -205,13 +205,13 @@ func ContentTypeJSON() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "PATCH" {
 			contentType := c.GetHeader("Content-Type")
-			
+
 			// Allow multipart for file uploads
 			if strings.HasPrefix(contentType, "multipart/form-data") {
 				c.Next()
 				return
 			}
-			
+
 			// Require JSON for other requests with body
 			if c.Request.ContentLength > 0 && !strings.Contains(contentType, "application/json") {
 				c.AbortWithStatusJSON(http.StatusUnsupportedMediaType, gin.H{
@@ -230,27 +230,27 @@ func SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Prevent clickjacking
 		c.Header("X-Frame-Options", "DENY")
-		
+
 		// Prevent MIME type sniffing
 		c.Header("X-Content-Type-Options", "nosniff")
-		
+
 		// Enable XSS filter
 		c.Header("X-XSS-Protection", "1; mode=block")
-		
+
 		// Referrer policy
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
-		
+
 		// Content Security Policy (adjust as needed for your frontend)
 		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'")
-		
+
 		// Permissions Policy (formerly Feature-Policy)
 		c.Header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
-		
+
 		// Cache control for API responses
 		c.Header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
 		c.Header("Pragma", "no-cache")
 		c.Header("Expires", "0")
-		
+
 		c.Next()
 	}
 }

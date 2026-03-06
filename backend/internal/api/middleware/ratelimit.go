@@ -28,10 +28,10 @@ func NewRateLimiter(rate int, window time.Duration) *RateLimiter {
 		rate:     rate,
 		window:   window,
 	}
-	
+
 	// Cleanup old entries periodically
 	go rl.cleanup()
-	
+
 	return rl
 }
 
@@ -54,7 +54,7 @@ func (rl *RateLimiter) Allow(clientID string) bool {
 	// Calculate tokens to add based on time passed
 	elapsed := now.Sub(client.lastCheck)
 	tokensToAdd := int(elapsed / rl.window * time.Duration(rl.rate))
-	
+
 	if tokensToAdd > 0 {
 		client.tokens = min(rl.rate, client.tokens+tokensToAdd)
 		client.lastCheck = now
@@ -92,7 +92,7 @@ func RateLimiterMiddleware(rate int, window time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Use client IP as identifier (or API key if available)
 		clientID := c.ClientIP()
-		
+
 		// Check for API key header
 		if apiKey := c.GetHeader("X-API-Key"); apiKey != "" {
 			clientID = apiKey
@@ -100,8 +100,8 @@ func RateLimiterMiddleware(rate int, window time.Duration) gin.HandlerFunc {
 
 		if !limiter.Allow(clientID) {
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error":   "rate_limit_exceeded",
-				"message": "Too many requests. Please try again later.",
+				"error":       "rate_limit_exceeded",
+				"message":     "Too many requests. Please try again later.",
 				"retry_after": window.Seconds(),
 			})
 			c.Abort()

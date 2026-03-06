@@ -656,10 +656,10 @@ func UpdateDocument(svc *services.Services) gin.HandlerFunc {
 		}
 
 		var req struct {
-			Name        string   `json:"name"`
-			Description string   `json:"description"`
+			Name        string     `json:"name"`
+			Description string     `json:"description"`
 			CategoryID  *uuid.UUID `json:"category_id"`
-			Tags        []string `json:"tags"`
+			Tags        []string   `json:"tags"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			respondErrorStr(c, http.StatusBadRequest, "Invalid request body")

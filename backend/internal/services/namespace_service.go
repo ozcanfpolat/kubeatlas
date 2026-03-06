@@ -54,36 +54,36 @@ func (s *NamespaceService) List(ctx context.Context, orgID uuid.UUID, p reposito
 
 // UpdateNamespaceRequest represents namespace update data
 type UpdateNamespaceRequest struct {
-	DisplayName       string     `json:"display_name"`
-	Description       string     `json:"description"`
-	Environment       string     `json:"environment"`
-	Criticality       string     `json:"criticality"`
-	
+	DisplayName string `json:"display_name"`
+	Description string `json:"description"`
+	Environment string `json:"environment"`
+	Criticality string `json:"criticality"`
+
 	// Ownership
 	InfrastructureOwnerTeamID *uuid.UUID `json:"infrastructure_owner_team_id"`
 	InfrastructureOwnerUserID *uuid.UUID `json:"infrastructure_owner_user_id"`
 	BusinessUnitID            *uuid.UUID `json:"business_unit_id"`
-	
+
 	// Application Manager
 	ApplicationManagerName  string `json:"application_manager_name"`
 	ApplicationManagerEmail string `json:"application_manager_email"`
 	ApplicationManagerPhone string `json:"application_manager_phone"`
-	
+
 	// Technical Lead
 	TechnicalLeadName  string `json:"technical_lead_name"`
 	TechnicalLeadEmail string `json:"technical_lead_email"`
-	
+
 	// Project Manager
 	ProjectManagerName  string `json:"project_manager_name"`
 	ProjectManagerEmail string `json:"project_manager_email"`
-	
+
 	// SLA
 	SLAAvailability string `json:"sla_availability"`
 	SLARTO          string `json:"sla_rto"`
 	SLARPO          string `json:"sla_rpo"`
 	SupportHours    string `json:"support_hours"`
 	EscalationPath  string `json:"escalation_path"`
-	
+
 	// Tags
 	Tags []string `json:"tags"`
 }

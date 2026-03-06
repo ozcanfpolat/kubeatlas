@@ -36,13 +36,13 @@ type Filter struct {
 
 // QueryBuilder helps build SQL queries
 type QueryBuilder struct {
-	baseQuery   string
-	conditions  []string
-	args        []interface{}
-	argCounter  int
-	orderBy     string
-	limit       int
-	offset      int
+	baseQuery  string
+	conditions []string
+	args       []interface{}
+	argCounter int
+	orderBy    string
+	limit      int
+	offset     int
 }
 
 // NewQueryBuilder creates a new query builder
@@ -159,41 +159,41 @@ func (qb *QueryBuilder) Paginate(p Pagination) *QueryBuilder {
 	if p.Page <= 0 {
 		p.Page = 1
 	}
-	
+
 	qb.limit = p.PageSize
 	qb.offset = (p.Page - 1) * p.PageSize
-	
+
 	if p.Sort != "" {
 		qb.OrderBy(p.Sort, p.Order)
 	}
-	
+
 	return qb
 }
 
 // Build constructs the final SQL query
 func (qb *QueryBuilder) Build() (string, []interface{}) {
 	query := qb.baseQuery
-	
+
 	if len(qb.conditions) > 0 {
 		query += " WHERE " + strings.Join(qb.conditions, " AND ")
 	}
-	
+
 	if qb.orderBy != "" {
 		query += " ORDER BY " + qb.orderBy
 	}
-	
+
 	if qb.limit > 0 {
 		qb.argCounter++
 		query += fmt.Sprintf(" LIMIT $%d", qb.argCounter)
 		qb.args = append(qb.args, qb.limit)
 	}
-	
+
 	if qb.offset > 0 {
 		qb.argCounter++
 		query += fmt.Sprintf(" OFFSET $%d", qb.argCounter)
 		qb.args = append(qb.args, qb.offset)
 	}
-	
+
 	return query, qb.args
 }
 
@@ -204,13 +204,13 @@ func (qb *QueryBuilder) BuildCount() (string, []interface{}) {
 	if fromIndex == -1 {
 		return "", nil
 	}
-	
+
 	countQuery := "SELECT COUNT(*) " + qb.baseQuery[fromIndex:]
-	
+
 	if len(qb.conditions) > 0 {
 		countQuery += " WHERE " + strings.Join(qb.conditions, " AND ")
 	}
-	
+
 	// For count, we only need the WHERE args, not LIMIT/OFFSET
 	return countQuery, qb.args[:len(qb.args)-countOffsetArgs(qb)]
 }
@@ -244,11 +244,11 @@ func (r *BaseRepository) GetByID(ctx context.Context, table string, id uuid.UUID
 		return err
 	}
 	defer rows.Close()
-	
+
 	if !rows.Next() {
 		return pgx.ErrNoRows
 	}
-	
+
 	return rows.Scan(dest)
 }
 
@@ -259,11 +259,11 @@ func (r *BaseRepository) SoftDelete(ctx context.Context, table string, id uuid.U
 	if err != nil {
 		return err
 	}
-	
+
 	if result.RowsAffected() == 0 {
 		return pgx.ErrNoRows
 	}
-	
+
 	return nil
 }
 
@@ -274,11 +274,11 @@ func (r *BaseRepository) HardDelete(ctx context.Context, table string, id uuid.U
 	if err != nil {
 		return err
 	}
-	
+
 	if result.RowsAffected() == 0 {
 		return pgx.ErrNoRows
 	}
-	
+
 	return nil
 }
 
@@ -296,7 +296,7 @@ func (r *BaseRepository) Count(ctx context.Context, table string, conditions str
 	if conditions != "" {
 		query += " AND " + conditions
 	}
-	
+
 	var count int64
 	err := r.pool.QueryRow(ctx, query, args...).Scan(&count)
 	return count, err

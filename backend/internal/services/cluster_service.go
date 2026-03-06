@@ -69,7 +69,7 @@ type CreateClusterRequest struct {
 	Platform            string     `json:"platform"`
 	Region              string     `json:"region"`
 	AuthMethod          string     `json:"auth_method"`
-	Kubeconfig          string     `json:"kubeconfig"`           // Base64 encoded kubeconfig
+	Kubeconfig          string     `json:"kubeconfig"`            // Base64 encoded kubeconfig
 	ServiceAccountToken string     `json:"service_account_token"` // Service account token
 	CACertificate       string     `json:"ca_certificate"`        // Base64 encoded CA certificate for self-signed clusters
 	SkipTLSVerify       bool       `json:"skip_tls_verify"`
@@ -149,7 +149,7 @@ func (s *ClusterService) Create(ctx context.Context, ac AuditContext, req Create
 			// If not base64, use as-is (for backward compatibility)
 			kubeconfigBytes = []byte(req.Kubeconfig)
 		}
-		
+
 		encrypted, err := s.encryptor.Encrypt(kubeconfigBytes)
 		if err != nil {
 			s.logger.Errorw("Failed to encrypt kubeconfig", "error", err)
@@ -176,7 +176,7 @@ func (s *ClusterService) Create(ctx context.Context, ac AuditContext, req Create
 			// If not base64, use as-is
 			caCertBytes = []byte(req.CACertificate)
 		}
-		
+
 		encrypted, err := s.encryptor.Encrypt(caCertBytes)
 		if err != nil {
 			s.logger.Errorw("Failed to encrypt CA certificate", "error", err)
@@ -197,12 +197,12 @@ func (s *ClusterService) Create(ctx context.Context, ac AuditContext, req Create
 			s.clusterRepo.UpdateSyncStatus(testCtx, cluster.ID, "error", err.Error(), 0, 0)
 			return
 		}
-		
+
 		if err := client.TestConnection(testCtx); err != nil {
 			s.clusterRepo.UpdateSyncStatus(testCtx, cluster.ID, "error", err.Error(), 0, 0)
 			return
 		}
-		
+
 		s.clusterRepo.UpdateSyncStatus(testCtx, cluster.ID, "active", "", 0, 0)
 	}()
 
@@ -407,7 +407,7 @@ func (s *ClusterService) GetStats(ctx context.Context, orgID uuid.UUID) (map[str
 // GetNamespaces returns namespaces for a cluster
 func (s *ClusterService) GetNamespaces(ctx context.Context, clusterID uuid.UUID, p repositories.Pagination) (*repositories.PaginatedResult[models.Namespace], error) {
 	filters := map[string]interface{}{"cluster_id": clusterID}
-	
+
 	cluster, err := s.clusterRepo.GetByID(ctx, clusterID)
 	if err != nil {
 		return nil, err
@@ -424,26 +424,26 @@ func isValidKubernetesName(name string) bool {
 	if len(name) == 0 || len(name) > maxClusterNameLength {
 		return false
 	}
-	
+
 	// Must start with alphanumeric
 	first := name[0]
 	if !((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || (first >= '0' && first <= '9')) {
 		return false
 	}
-	
+
 	// Must end with alphanumeric
 	last := name[len(name)-1]
 	if !((last >= 'a' && last <= 'z') || (last >= 'A' && last <= 'Z') || (last >= '0' && last <= '9')) {
 		return false
 	}
-	
+
 	// Can only contain alphanumeric, dash, underscore, and dot
 	for _, r := range name {
 		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.') {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -452,21 +452,21 @@ func isValidAPIServerURL(rawURL string) bool {
 	if rawURL == "" {
 		return false
 	}
-	
+
 	// Must start with https:// for security
 	if !strings.HasPrefix(rawURL, "https://") {
 		return false
 	}
-	
+
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return false
 	}
-	
+
 	// Must have a valid host
 	if parsed.Host == "" {
 		return false
 	}
-	
+
 	return true
 }

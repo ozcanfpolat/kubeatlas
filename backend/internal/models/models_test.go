@@ -224,7 +224,7 @@ func TestTeam_Validate(t *testing.T) {
 
 func TestBaseModel_Timestamps(t *testing.T) {
 	now := time.Now()
-	
+
 	base := BaseModel{
 		ID:        uuid.New(),
 		CreatedAt: now,
@@ -246,7 +246,7 @@ func TestBaseModel_Timestamps(t *testing.T) {
 
 func TestClusterStatus_IsValid(t *testing.T) {
 	validStatuses := []string{"active", "inactive", "error", "syncing", "pending"}
-	
+
 	for _, status := range validStatuses {
 		c := Cluster{
 			Name:         "test",
@@ -264,7 +264,7 @@ func TestClusterStatus_IsValid(t *testing.T) {
 func TestCriticality_IsValid(t *testing.T) {
 	validCriticalities := []string{"tier-1", "tier-2", "tier-3"}
 	clusterID := uuid.New()
-	
+
 	for _, crit := range validCriticalities {
 		n := Namespace{
 			ClusterID:   clusterID,

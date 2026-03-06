@@ -190,8 +190,8 @@ func (s *AuthService) GetUserFromToken(ctx context.Context, claims *Claims) (*mo
 
 // Logout logs out a user (for audit purposes, token invalidation would require a blacklist)
 func (s *AuthService) Logout(ctx context.Context, userID, orgID uuid.UUID, userIP, userAgent string) {
-	s.logger.Infow("User logged out", 
-		"user_id", userID, 
+	s.logger.Infow("User logged out",
+		"user_id", userID,
 		"organization_id", orgID,
 		"ip", userIP,
 	)

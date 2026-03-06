@@ -169,10 +169,10 @@ func (nt NullTime) Ptr() *time.Time {
 
 // BaseModel contains common fields for all models
 type BaseModel struct {
-	ID        uuid.UUID    `json:"id" db:"id"`
-	CreatedAt time.Time    `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at" db:"updated_at"`
-	DeletedAt NullTime `json:"-" db:"deleted_at"`
+	ID        uuid.UUID `json:"id" db:"id"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	DeletedAt NullTime  `json:"-" db:"deleted_at"`
 }
 
 // ============================================
@@ -182,27 +182,27 @@ type BaseModel struct {
 // Organization represents a tenant in multi-tenant setup
 type Organization struct {
 	BaseModel
-	Name        string         `json:"name" db:"name"`
-	Slug        string         `json:"slug" db:"slug"`
+	Name        string     `json:"name" db:"name"`
+	Slug        string     `json:"slug" db:"slug"`
 	Description NullString `json:"description" db:"description"`
 	LogoURL     NullString `json:"logo_url" db:"logo_url"`
-	Settings    JSONMap        `json:"settings" db:"settings"`
+	Settings    JSONMap    `json:"settings" db:"settings"`
 }
 
 // User represents a user in the system
 type User struct {
 	BaseModel
-	OrganizationID uuid.UUID      `json:"organization_id" db:"organization_id"`
-	Email          string         `json:"email" db:"email"`
+	OrganizationID uuid.UUID  `json:"organization_id" db:"organization_id"`
+	Email          string     `json:"email" db:"email"`
 	Username       NullString `json:"username" db:"username"`
 	FullName       NullString `json:"full_name" db:"full_name"`
 	AvatarURL      NullString `json:"avatar_url" db:"avatar_url"`
 	Phone          NullString `json:"phone" db:"phone"`
 	PasswordHash   NullString `json:"-" db:"password_hash"`
-	Role           string         `json:"role" db:"role"` // admin, editor, viewer
-	IsActive       bool           `json:"is_active" db:"is_active"`
+	Role           string     `json:"role" db:"role"` // admin, editor, viewer
+	IsActive       bool       `json:"is_active" db:"is_active"`
 	LastLoginAt    NullTime   `json:"last_login_at" db:"last_login_at"`
-	Settings       JSONMap        `json:"settings" db:"settings"`
+	Settings       JSONMap    `json:"settings" db:"settings"`
 }
 
 // UserResponse is the user data returned to clients (no sensitive data)
@@ -223,15 +223,15 @@ type UserResponse struct {
 // Team represents a team/group
 type Team struct {
 	BaseModel
-	OrganizationID uuid.UUID      `json:"organization_id" db:"organization_id"`
-	Name           string         `json:"name" db:"name"`
-	Slug           string         `json:"slug" db:"slug"`
+	OrganizationID uuid.UUID  `json:"organization_id" db:"organization_id"`
+	Name           string     `json:"name" db:"name"`
+	Slug           string     `json:"slug" db:"slug"`
 	Description    NullString `json:"description" db:"description"`
-	ParentID       *uuid.UUID     `json:"parent_id" db:"parent_id"`
-	TeamType       string         `json:"team_type" db:"team_type"` // organization, department, team
+	ParentID       *uuid.UUID `json:"parent_id" db:"parent_id"`
+	TeamType       string     `json:"team_type" db:"team_type"` // organization, department, team
 	ContactEmail   NullString `json:"contact_email" db:"contact_email"`
 	ContactSlack   NullString `json:"contact_slack" db:"contact_slack"`
-	Metadata       JSONMap        `json:"metadata" db:"metadata"`
+	Metadata       JSONMap    `json:"metadata" db:"metadata"`
 
 	// Computed fields (not in DB)
 	MemberCount int    `json:"member_count,omitempty" db:"-"`
@@ -253,15 +253,15 @@ type TeamMember struct {
 // BusinessUnit represents a business department
 type BusinessUnit struct {
 	BaseModel
-	OrganizationID uuid.UUID      `json:"organization_id" db:"organization_id"`
-	Name           string         `json:"name" db:"name"`
+	OrganizationID uuid.UUID  `json:"organization_id" db:"organization_id"`
+	Name           string     `json:"name" db:"name"`
 	Code           NullString `json:"code" db:"code"`
 	Description    NullString `json:"description" db:"description"`
 	DirectorName   NullString `json:"director_name" db:"director_name"`
 	DirectorEmail  NullString `json:"director_email" db:"director_email"`
 	CostCenter     NullString `json:"cost_center" db:"cost_center"`
-	ParentID       *uuid.UUID     `json:"parent_id" db:"parent_id"`
-	Metadata       JSONMap        `json:"metadata" db:"metadata"`
+	ParentID       *uuid.UUID `json:"parent_id" db:"parent_id"`
+	Metadata       JSONMap    `json:"metadata" db:"metadata"`
 }
 
 // ============================================
@@ -271,16 +271,16 @@ type BusinessUnit struct {
 // Cluster represents a Kubernetes cluster
 type Cluster struct {
 	BaseModel
-	OrganizationID uuid.UUID      `json:"organization_id" db:"organization_id"`
-	Name           string         `json:"name" db:"name"`
+	OrganizationID uuid.UUID  `json:"organization_id" db:"organization_id"`
+	Name           string     `json:"name" db:"name"`
 	DisplayName    NullString `json:"display_name" db:"display_name"`
 	Description    NullString `json:"description" db:"description"`
-	APIServerURL   string         `json:"api_server_url" db:"api_server_url"`
-	ClusterType    string         `json:"cluster_type" db:"cluster_type"` // kubernetes, openshift, rke2, eks, aks, gke
+	APIServerURL   string     `json:"api_server_url" db:"api_server_url"`
+	ClusterType    string     `json:"cluster_type" db:"cluster_type"` // kubernetes, openshift, rke2, eks, aks, gke
 	Version        NullString `json:"version" db:"version"`
 	Platform       NullString `json:"platform" db:"platform"`
 	Region         NullString `json:"region" db:"region"`
-	Environment    string         `json:"environment" db:"environment"` // production, staging, development, test
+	Environment    string     `json:"environment" db:"environment"` // production, staging, development, test
 
 	// Connection settings
 	AuthMethod                   string `json:"auth_method" db:"auth_method"`
@@ -294,7 +294,7 @@ type Cluster struct {
 	ResponsibleUserID *uuid.UUID `json:"responsible_user_id" db:"responsible_user_id"`
 
 	// Status
-	Status     string         `json:"status" db:"status"` // active, inactive, error, syncing
+	Status     string     `json:"status" db:"status"` // active, inactive, error, syncing
 	LastSyncAt NullTime   `json:"last_sync_at" db:"last_sync_at"`
 	SyncError  NullString `json:"sync_error" db:"sync_error"`
 
@@ -318,7 +318,7 @@ type Namespace struct {
 	ClusterID      uuid.UUID `json:"cluster_id" db:"cluster_id"`
 
 	// Basic info
-	Name        string         `json:"name" db:"name"`
+	Name        string     `json:"name" db:"name"`
 	DisplayName NullString `json:"display_name" db:"display_name"`
 	Description NullString `json:"description" db:"description"`
 
@@ -327,9 +327,9 @@ type Namespace struct {
 	Criticality string `json:"criticality" db:"criticality"` // tier-1, tier-2, tier-3
 
 	// Ownership
-	InfrastructureOwnerTeamID *uuid.UUID     `json:"infrastructure_owner_team_id" db:"infrastructure_owner_team_id"`
-	InfrastructureOwnerUserID *uuid.UUID     `json:"infrastructure_owner_user_id" db:"infrastructure_owner_user_id"`
-	BusinessUnitID            *uuid.UUID     `json:"business_unit_id" db:"business_unit_id"`
+	InfrastructureOwnerTeamID *uuid.UUID `json:"infrastructure_owner_team_id" db:"infrastructure_owner_team_id"`
+	InfrastructureOwnerUserID *uuid.UUID `json:"infrastructure_owner_user_id" db:"infrastructure_owner_user_id"`
+	BusinessUnitID            *uuid.UUID `json:"business_unit_id" db:"business_unit_id"`
 	ApplicationManagerName    NullString `json:"application_manager_name" db:"application_manager_name"`
 	ApplicationManagerEmail   NullString `json:"application_manager_email" db:"application_manager_email"`
 	ApplicationManagerPhone   NullString `json:"application_manager_phone" db:"application_manager_phone"`
@@ -346,14 +346,14 @@ type Namespace struct {
 	EscalationPath  NullString `json:"escalation_path" db:"escalation_path"`
 
 	// Status
-	Status       string       `json:"status" db:"status"`
+	Status       string   `json:"status" db:"status"`
 	DiscoveredAt NullTime `json:"discovered_at" db:"discovered_at"`
 	LastSyncAt   NullTime `json:"last_sync_at" db:"last_sync_at"`
 
 	// Kubernetes metadata
 	K8sUID         NullString `json:"k8s_uid" db:"k8s_uid"`
-	K8sLabels      JSONMap        `json:"k8s_labels" db:"k8s_labels"`
-	K8sAnnotations JSONMap        `json:"k8s_annotations" db:"k8s_annotations"`
+	K8sLabels      JSONMap    `json:"k8s_labels" db:"k8s_labels"`
+	K8sAnnotations JSONMap    `json:"k8s_annotations" db:"k8s_annotations"`
 	K8sCreatedAt   NullTime   `json:"k8s_created_at" db:"k8s_created_at"`
 
 	// Custom fields
@@ -379,26 +379,26 @@ type InternalDependency struct {
 	OrganizationID uuid.UUID `json:"organization_id" db:"organization_id"`
 
 	// Source
-	SourceNamespaceID  uuid.UUID      `json:"source_namespace_id" db:"source_namespace_id"`
+	SourceNamespaceID  uuid.UUID  `json:"source_namespace_id" db:"source_namespace_id"`
 	SourceResourceType NullString `json:"source_resource_type" db:"source_resource_type"`
 	SourceResourceName NullString `json:"source_resource_name" db:"source_resource_name"`
 
 	// Target
-	TargetNamespaceID  uuid.UUID      `json:"target_namespace_id" db:"target_namespace_id"`
+	TargetNamespaceID  uuid.UUID  `json:"target_namespace_id" db:"target_namespace_id"`
 	TargetResourceType NullString `json:"target_resource_type" db:"target_resource_type"`
 	TargetResourceName NullString `json:"target_resource_name" db:"target_resource_name"`
 
 	// Details
-	DependencyType   string         `json:"dependency_type" db:"dependency_type"` // api, database, queue, cache, storage
+	DependencyType   string     `json:"dependency_type" db:"dependency_type"` // api, database, queue, cache, storage
 	Description      NullString `json:"description" db:"description"`
-	IsCritical       bool           `json:"is_critical" db:"is_critical"`
-	IsAutoDiscovered bool           `json:"is_auto_discovered" db:"is_auto_discovered"`
+	IsCritical       bool       `json:"is_critical" db:"is_critical"`
+	IsAutoDiscovered bool       `json:"is_auto_discovered" db:"is_auto_discovered"`
 	DiscoveryMethod  NullString `json:"discovery_method" db:"discovery_method"`
 
 	// Status
-	Status     string       `json:"status" db:"status"`
-	VerifiedAt NullTime `json:"verified_at" db:"verified_at"`
-	VerifiedBy *uuid.UUID   `json:"verified_by" db:"verified_by"`
+	Status     string     `json:"status" db:"status"`
+	VerifiedAt NullTime   `json:"verified_at" db:"verified_at"`
+	VerifiedBy *uuid.UUID `json:"verified_by" db:"verified_by"`
 
 	Metadata JSONMap `json:"metadata" db:"metadata"`
 
@@ -414,14 +414,14 @@ type ExternalDependency struct {
 	NamespaceID    uuid.UUID `json:"namespace_id" db:"namespace_id"`
 
 	// External system details
-	Name        string         `json:"name" db:"name"`
-	SystemType  string         `json:"system_type" db:"system_type"` // api, database, saas, payment-gateway
+	Name        string     `json:"name" db:"name"`
+	SystemType  string     `json:"system_type" db:"system_type"` // api, database, saas, payment-gateway
 	Provider    NullString `json:"provider" db:"provider"`
 	Endpoint    NullString `json:"endpoint" db:"endpoint"`
 	Description NullString `json:"description" db:"description"`
 
 	// Criticality
-	IsCritical           bool           `json:"is_critical" db:"is_critical"`
+	IsCritical           bool       `json:"is_critical" db:"is_critical"`
 	ExpectedAvailability NullString `json:"expected_availability" db:"expected_availability"`
 
 	// Contact
@@ -442,14 +442,14 @@ type ExternalDependency struct {
 
 // DocumentCategory represents a document category
 type DocumentCategory struct {
-	ID             uuid.UUID      `json:"id" db:"id"`
-	OrganizationID *uuid.UUID     `json:"organization_id" db:"organization_id"`
-	Name           string         `json:"name" db:"name"`
-	Slug           string         `json:"slug" db:"slug"`
+	ID             uuid.UUID  `json:"id" db:"id"`
+	OrganizationID *uuid.UUID `json:"organization_id" db:"organization_id"`
+	Name           string     `json:"name" db:"name"`
+	Slug           string     `json:"slug" db:"slug"`
 	Description    NullString `json:"description" db:"description"`
 	Color          NullString `json:"color" db:"color"`
 	Icon           NullString `json:"icon" db:"icon"`
-	SortOrder      int            `json:"sort_order" db:"sort_order"`
+	SortOrder      int        `json:"sort_order" db:"sort_order"`
 }
 
 // Document represents an uploaded document
@@ -460,16 +460,16 @@ type Document struct {
 	ClusterID      *uuid.UUID `json:"cluster_id" db:"cluster_id"`
 
 	// File info
-	Name     string         `json:"name" db:"name"`
-	FileName string         `json:"file_name" db:"file_name"`
-	FilePath string         `json:"-" db:"file_path"`
-	FileSize int64          `json:"file_size" db:"file_size"`
-	MimeType string         `json:"mime_type" db:"mime_type"`
+	Name     string     `json:"name" db:"name"`
+	FileName string     `json:"file_name" db:"file_name"`
+	FilePath string     `json:"-" db:"file_path"`
+	FileSize int64      `json:"file_size" db:"file_size"`
+	MimeType string     `json:"mime_type" db:"mime_type"`
 	Checksum NullString `json:"checksum" db:"checksum"`
 
 	// Metadata
 	CategoryID  *uuid.UUID     `json:"category_id" db:"category_id"`
-	Description NullString `json:"description" db:"description"`
+	Description NullString     `json:"description" db:"description"`
 	Tags        pq.StringArray `json:"tags" db:"tags"`
 
 	// Versioning
@@ -499,15 +499,15 @@ type AuditLog struct {
 	OrganizationID uuid.UUID `json:"organization_id" db:"organization_id"`
 
 	// Who
-	UserID    *uuid.UUID     `json:"user_id" db:"user_id"`
+	UserID    *uuid.UUID `json:"user_id" db:"user_id"`
 	UserEmail NullString `json:"user_email" db:"user_email"`
 	UserIP    NullString `json:"user_ip" db:"user_ip"`
 	UserAgent NullString `json:"user_agent" db:"user_agent"`
 
 	// What
-	Action       string         `json:"action" db:"action"` // create, update, delete, view, export
-	ResourceType string         `json:"resource_type" db:"resource_type"`
-	ResourceID   uuid.UUID      `json:"resource_id" db:"resource_id"`
+	Action       string     `json:"action" db:"action"` // create, update, delete, view, export
+	ResourceType string     `json:"resource_type" db:"resource_type"`
+	ResourceID   uuid.UUID  `json:"resource_id" db:"resource_id"`
 	ResourceName NullString `json:"resource_name" db:"resource_name"`
 
 	// Changes
@@ -516,8 +516,8 @@ type AuditLog struct {
 	ChangedFields pq.StringArray `json:"changed_fields" db:"changed_fields"`
 
 	Description NullString `json:"description" db:"description"`
-	Metadata    JSONMap        `json:"metadata" db:"metadata"`
-	CreatedAt   time.Time      `json:"created_at" db:"created_at"`
+	Metadata    JSONMap    `json:"metadata" db:"metadata"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
 
 	// Computed fields
 	User *User `json:"user,omitempty" db:"-"`

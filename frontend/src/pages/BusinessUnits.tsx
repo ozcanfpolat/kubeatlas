@@ -4,13 +4,13 @@ import {
   Building2,
   Plus,
   Search,
-  MoreHorizontal,
   ChevronRight,
   Boxes,
   RefreshCw,
   AlertTriangle,
   Trash,
   Edit,
+  MoreVertical,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { businessUnitsApi } from '@/api'
 import { BusinessUnit } from '@/types'
 import { Label } from '@/components/ui/label'
@@ -40,6 +41,7 @@ export default function BusinessUnits() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [editingUnit, setEditingUnit] = useState<BusinessUnit | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -58,6 +60,10 @@ export default function BusinessUnits() {
       queryClient.invalidateQueries({ queryKey: ['business-units'] })
       setIsCreateOpen(false)
       resetForm()
+      setError(null)
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'Failed to create business unit. You may need admin permissions.')
     },
   })
 
@@ -69,6 +75,10 @@ export default function BusinessUnits() {
       setIsEditOpen(false)
       setEditingUnit(null)
       resetForm()
+      setError(null)
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'Failed to update business unit. You may need admin permissions.')
     },
   })
 
@@ -76,11 +86,16 @@ export default function BusinessUnits() {
     mutationFn: (id: string) => businessUnitsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['business-units'] })
+      setError(null)
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'Failed to delete business unit')
     },
   })
 
   const resetForm = () => {
     setFormData({ name: '', code: '', description: '' })
+    setError(null)
   }
 
   const handleCreate = () => {
@@ -96,6 +111,7 @@ export default function BusinessUnits() {
       code: unit.code || '',
       description: unit.description || '',
     })
+    setError(null)
     setIsEditOpen(true)
   }
 
@@ -105,6 +121,7 @@ export default function BusinessUnits() {
     }
   }
 
+  // Defensive: ensure businessUnits is always an array
   const businessUnits: BusinessUnit[] = Array.isArray(data) ? data : []
 
   const filteredUnits = businessUnits.filter((unit) =>
@@ -112,6 +129,19 @@ export default function BusinessUnits() {
     unit.code?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  // Build tree structure
+  const buildTree = (units: BusinessUnit[], parentId: string | null = null): (BusinessUnit & { children?: BusinessUnit[] })[] => {
+    return units
+      .filter((unit) => unit.parent_id === parentId)
+      .map((unit) => ({
+        ...unit,
+        children: buildTree(units, unit.id),
+      }))
+  }
+
+  const tree = buildTree(businessUnits)
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -129,6 +159,7 @@ export default function BusinessUnits() {
     )
   }
 
+  // Error state
   if (isError) {
     return (
       <div className="space-y-6">
@@ -155,6 +186,15 @@ export default function BusinessUnits() {
 
   return (
     <div className="space-y-6">
+      {/* Error Alert */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Business Units</h1>
@@ -168,6 +208,7 @@ export default function BusinessUnits() {
         </Button>
       </div>
 
+      {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -200,7 +241,7 @@ export default function BusinessUnits() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
+                        <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -209,11 +250,7 @@ export default function BusinessUnits() {
                         Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete this business unit?')) {
-                            deleteMutation.mutate(unit.id)
-                          }
-                        }}
+                        onClick={() => deleteMutation.mutate(unit.id)}
                         className="text-destructive"
                       >
                         <Trash className="mr-2 h-4 w-4" />
@@ -260,6 +297,22 @@ export default function BusinessUnits() {
         </Card>
       )}
 
+      {/* Tree View */}
+      {tree.length > 0 && (
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>Organization Structure</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              {tree.map((unit) => (
+                <TreeNode key={unit.id} unit={unit} level={0} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Create Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent>
@@ -271,31 +324,30 @@ export default function BusinessUnits() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="create-name">Name *</Label>
+              <Label htmlFor="name">Name *</Label>
               <Input
-                id="create-name"
+                id="name"
                 placeholder="e.g., Digital Banking"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-code">Code</Label>
+              <Label htmlFor="code">Code</Label>
               <Input
-                id="create-code"
+                id="code"
                 placeholder="e.g., DB"
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-description">Description</Label>
+              <Label htmlFor="description">Description</Label>
               <Input
-                id="create-description"
-                placeholder="Brief description of the business unit"
+                id="description"
+                placeholder="Brief description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                
               />
             </div>
           </div>
@@ -315,9 +367,7 @@ export default function BusinessUnits() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Business Unit</DialogTitle>
-            <DialogDescription>
-              Update business unit information
-            </DialogDescription>
+            <DialogDescription>Update business unit information</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -342,10 +392,9 @@ export default function BusinessUnits() {
               <Label htmlFor="edit-description">Description</Label>
               <Input
                 id="edit-description"
-                placeholder="Brief description of the business unit"
+                placeholder="Brief description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                
               />
             </div>
           </div>
@@ -359,6 +408,42 @@ export default function BusinessUnits() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+function TreeNode({ unit, level }: { unit: BusinessUnit & { children?: BusinessUnit[] }; level: number }) {
+  const [isExpanded, setIsExpanded] = useState(level === 0)
+  const hasChildren = unit.children && unit.children.length > 0
+
+  return (
+    <div>
+      <div
+        className="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-muted cursor-pointer"
+        style={{ paddingLeft: `${level * 24 + 12}px` }}
+        onClick={() => hasChildren && setIsExpanded(!isExpanded)}
+      >
+        {hasChildren ? (
+          <ChevronRight
+            className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+          />
+        ) : (
+          <div className="w-4" />
+        )}
+        <Building2 className="h-4 w-4 text-muted-foreground" />
+        <span className="font-medium">{unit.name}</span>
+        {unit.code && (
+          <Badge variant="outline" className="text-xs">
+            {unit.code}
+          </Badge>
+        )}
+        <span className="ml-auto text-xs text-muted-foreground">
+          {unit.namespace_count || 0} namespaces
+        </span>
+      </div>
+      {isExpanded && unit.children?.map((child) => (
+        <TreeNode key={child.id} unit={child as BusinessUnit & { children?: BusinessUnit[] }} level={level + 1} />
+      ))}
     </div>
   )
 }

@@ -385,20 +385,23 @@ func UpdateTeam(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := uuid.Parse(c.Param("id"))
 		if err != nil {
+			log.Printf("ERROR UpdateTeam: invalid id=%s, err=%v", c.Param("id"), err)
 			respondError(c, http.StatusBadRequest, err)
 			return
 		}
 		var req services.CreateTeamRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
+			log.Printf("ERROR UpdateTeam: binding error for id=%s, err=%v", id, err)
 			respondError(c, http.StatusBadRequest, err)
 			return
 		}
 		team, err := svc.Team.Update(c.Request.Context(), getAuditContext(c), id, req)
 		if err != nil {
+			log.Printf("ERROR UpdateTeam: update failed for id=%s, err=%v", id, err)
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}
-		respondSuccess(c, team)
+		respondSuccess(c, toTeamResponse(*team))
 	}
 }
 

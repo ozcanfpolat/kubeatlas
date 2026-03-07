@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { 
   User, 
@@ -174,14 +174,14 @@ export default function Settings() {
   })
 
   // Update ldapConfig state when data is fetched
-  useState(() => {
+  useEffect(() => {
     if (ldapData) {
       setLdapConfig({
         ...ldapData,
         bind_password: '', // Never show password
       })
     }
-  })
+  }, [ldapData])
 
   // Save LDAP config mutation
   const saveLDAPMutation = useMutation({

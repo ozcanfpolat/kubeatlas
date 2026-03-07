@@ -255,10 +255,15 @@ func CreateUser(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req services.CreateUserRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			log.Printf("ERROR CreateUser - bind error: %v", err)
-			respondError(c, http.StatusBadRequest, err)
+			log.Printf("ERROR CreateUser - bind error: %v, request body error", err)
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "validation_error",
+				"message": err.Error(),
+			})
 			return
 		}
+
+		log.Printf("INFO CreateUser - email: %s, role: %s", req.Email, req.Role)
 
 		// Validate password for local users
 		if req.Password == "" {

@@ -225,11 +225,18 @@ func ListUsers(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orgID, _ := middleware.GetOrganizationID(c)
 		p := getPagination(c)
+		
+		log.Printf("INFO ListUsers - orgID: %s, page: %d, pageSize: %d", orgID, p.Page, p.PageSize)
+		
 		result, err := svc.User.List(c.Request.Context(), orgID, p)
 		if err != nil {
+			log.Printf("ERROR ListUsers: %v", err)
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}
+		
+		log.Printf("INFO ListUsers - found %d users, total: %d", len(result.Items), result.Total)
+		
 		respondPaginated(c, result.Items, result.Total, result.Page, result.PageSize, result.TotalPages)
 	}
 }

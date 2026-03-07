@@ -17,7 +17,8 @@ import {
   Moon,
   Monitor,
   Server,
-  Lock
+  Lock,
+  RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -130,10 +131,11 @@ export default function Settings() {
   })
 
   // Fetch users
-  const { data: usersData, isLoading: usersLoading } = useQuery({
+  const { data: usersData, isLoading: usersLoading, refetch: refetchUsers } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.list({ page: 1, page_size: 100 }),
     enabled: user?.role === 'admin',
+    staleTime: 0, // Always refetch
   })
 
   const users = usersData?.items || []
@@ -142,7 +144,11 @@ export default function Settings() {
   const createUserMutation = useMutation({
     mutationFn: (data: CreateUserForm) => usersApi.create(data),
     onSuccess: () => {
+      // Invalidate all user-related queries
       queryClient.invalidateQueries({ queryKey: ['users'] })
+      queryClient.invalidateQueries({ queryKey: ['users-for-teams'] })
+      // Also refetch immediately
+      refetchUsers()
       setIsCreateUserOpen(false)
       setCreateUserForm({ email: '', password: '', full_name: '', role: 'viewer' })
       setErrorMessage(null)
@@ -169,6 +175,7 @@ export default function Settings() {
     mutationFn: (id: string) => usersApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
+      queryClient.invalidateQueries({ queryKey: ['users-for-teams'] })
       setDeleteUserId(null)
     },
   })
@@ -543,10 +550,16 @@ export default function Settings() {
                       {language === 'tr' ? 'Kullanıcıları oluşturun, düzenleyin ve yönetin' : 'Create, edit and manage users'}
                     </CardDescription>
                   </div>
-                  <Button onClick={() => setIsCreateUserOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    {language === 'tr' ? 'Kullanıcı Ekle' : 'Add User'}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => refetchUsers()}>
+                      <RefreshCw className={`h-4 w-4 mr-2 ${usersLoading ? 'animate-spin' : ''}`} />
+                      {language === 'tr' ? 'Yenile' : 'Refresh'}
+                    </Button>
+                    <Button onClick={() => setIsCreateUserOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      {language === 'tr' ? 'Kullanıcı Ekle' : 'Add User'}
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -571,6 +584,22 @@ export default function Settings() {
                 {usersLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : users.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">
+                      {language === 'tr' ? 'Henüz kullanıcı yok' : 'No users yet'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {language === 'tr' 
+                        ? 'Yeni kullanıcı eklemek için yukarıdaki butonu kullanın' 
+                        : 'Use the button above to add new users'}
+                    </p>
+                    <Button onClick={() => setIsCreateUserOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      {language === 'tr' ? 'İlk Kullanıcıyı Ekle' : 'Add First User'}
+                    </Button>
                   </div>
                 ) : (
                   <Table>

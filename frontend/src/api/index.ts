@@ -300,6 +300,13 @@ export const dependenciesApi = {
     return response.data.data
   },
   
+  listExternalAll: async (): Promise<ExternalDependency[]> => {
+    const response = await apiClient.get<PaginatedResponse<ExternalDependency>>('/dependencies/external', {
+      params: { page: 1, page_size: 500 },
+    })
+    return response.data.items || []
+  },
+  
   createExternal: async (data: Partial<ExternalDependency>): Promise<ExternalDependency> => {
     const response = await apiClient.post<ApiResponse<ExternalDependency>>('/dependencies/external', data)
     return response.data.data
@@ -386,6 +393,15 @@ export const documentsApi = {
     link.click()
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
+  },
+  
+  view: async (id: string, mimeType?: string): Promise<void> => {
+    const response = await apiClient.get(`/documents/${id}/download`, {
+      responseType: 'blob',
+    })
+    const blob = new Blob([response.data], { type: mimeType || 'application/octet-stream' })
+    const url = window.URL.createObjectURL(blob)
+    window.open(url, '_blank')
   },
   
   getCategories: async (): Promise<DocumentCategory[]> => {

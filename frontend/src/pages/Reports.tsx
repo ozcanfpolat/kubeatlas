@@ -340,7 +340,7 @@ export default function Reports() {
                         </Badge>
                       </td>
                       <td className="p-3 text-right">
-                        <Link to={`/namespaces/${item.id}?tab=documents`}>
+                        <Link to={`/documents?namespace_id=${item.id}`}>
                           <Button variant="outline" size="sm">
                             <FileText className="h-3 w-3 mr-1" />
                             Doküman Ekle

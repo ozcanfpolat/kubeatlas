@@ -13,7 +13,9 @@ import {
   Edit,
   Server,
   Download,
-  ExternalLink,
+  Plus,
+  Upload,
+  Eye,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -37,7 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { namespacesApi, teamsApi, businessUnitsApi, documentsApi } from '@/api'
+import { namespacesApi, teamsApi, businessUnitsApi, documentsApi, clustersApi } from '@/api'
 import { getEnvironmentColor, getCriticalityColor, formatDateTime, formatRelativeTime } from '@/lib/utils'
 import type { Namespace } from '@/types'
 
@@ -84,6 +86,11 @@ export default function NamespaceDetail() {
   const { data: businessUnitsData } = useQuery({
     queryKey: ['business-units-select'],
     queryFn: businessUnitsApi.list,
+  })
+
+  const { data: clustersData } = useQuery({
+    queryKey: ['clusters-select'],
+    queryFn: () => clustersApi.list({ page_size: 100 }),
   })
 
   const { data: dependencies } = useQuery({
@@ -228,53 +235,67 @@ export default function NamespaceDetail() {
 
       {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <Server className="h-8 w-8 text-muted-foreground" />
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Server className="h-6 w-6 text-blue-500" />
+              </div>
               <div>
                 <p className="text-sm text-muted-foreground">Cluster</p>
                 <p className="font-semibold">
-                  {namespace.cluster?.display_name || namespace.cluster?.name || 'Unknown'}
+                  {namespace.cluster?.display_name || namespace.cluster?.name || 
+                   clustersData?.items?.find((c: any) => c.id === namespace.cluster_id)?.name || 
+                   'Unknown'}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-l-4 border-l-green-500 hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <Users className="h-8 w-8 text-muted-foreground" />
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <Users className="h-6 w-6 text-green-500" />
+              </div>
               <div>
                 <p className="text-sm text-muted-foreground">Owner Team</p>
                 <p className="font-semibold">
-                  {namespace.infrastructure_owner_team?.name || 'Not assigned'}
+                  {namespace.infrastructure_owner_team?.name || 
+                   teamsData?.find((t: any) => t.id === namespace.infrastructure_owner_team_id)?.name || 
+                   'Atanmamış'}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-l-4 border-l-purple-500 hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <Building className="h-8 w-8 text-muted-foreground" />
+              <div className="p-2 rounded-lg bg-purple-500/10">
+                <Building className="h-6 w-6 text-purple-500" />
+              </div>
               <div>
                 <p className="text-sm text-muted-foreground">Business Unit</p>
                 <p className="font-semibold">
-                  {namespace.business_unit?.name || 'Not assigned'}
+                  {namespace.business_unit?.name || 
+                   businessUnitsData?.find((b: any) => b.id === namespace.business_unit_id)?.name || 
+                   'Atanmamış'}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-l-4 border-l-orange-500 hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <Clock className="h-8 w-8 text-muted-foreground" />
+              <div className="p-2 rounded-lg bg-orange-500/10">
+                <Clock className="h-6 w-6 text-orange-500" />
+              </div>
               <div>
                 <p className="text-sm text-muted-foreground">Last Sync</p>
                 <p className="font-semibold">
-                  {namespace.last_sync_at ? formatRelativeTime(namespace.last_sync_at) : 'Never'}
+                  {namespace.last_sync_at ? formatRelativeTime(namespace.last_sync_at) : 'Hiç'}
                 </p>
               </div>
             </div>
@@ -468,57 +489,69 @@ export default function NamespaceDetail() {
 
         <TabsContent value="documents" className="space-y-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 Documents
               </CardTitle>
+              <Button size="sm" onClick={() => navigate(`/documents?namespace_id=${id}`)}>
+                <Plus className="h-4 w-4 mr-1" />
+                Yeni Döküman Ekle
+              </Button>
             </CardHeader>
             <CardContent>
               {documents && documents.length > 0 ? (
-                <div className="space-y-3">
+                <div className="grid gap-4 md:grid-cols-2">
                   {documents.map((doc: any) => (
-                    <div key={doc.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border hover:border-primary/30 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-primary/10">
-                          <FileText className="h-5 w-5 text-primary" />
+                    <div key={doc.id} className="group relative p-4 bg-gradient-to-br from-muted/50 to-muted/30 rounded-xl border hover:border-primary/50 hover:shadow-lg transition-all">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                          <FileText className="h-6 w-6 text-primary" />
                         </div>
-                        <div>
-                          <p className="font-medium">{doc.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {doc.file_type?.toUpperCase() || 'Document'} • {formatRelativeTime(doc.created_at)}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold truncate">{doc.name}</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {doc.file_type?.toUpperCase() || 'Document'}
+                          </p>
+                          <p className="text-xs text-muted-foreground/60 mt-2">
+                            {formatRelativeTime(doc.created_at)}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {doc.file_path && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => documentsApi.download(doc.id, doc.name)}
-                          >
-                            <Download className="h-4 w-4 mr-1" />
-                            İndir
-                          </Button>
-                        )}
+                      <div className="flex items-center gap-2 mt-4 pt-4 border-t">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          onClick={() => window.open(documentsApi.getDownloadUrl(doc.id), '_blank')}
+                          className="flex-1"
+                          onClick={() => documentsApi.view(doc.id, doc.mime_type)}
                         >
-                          <ExternalLink className="h-4 w-4" />
+                          <Eye className="h-4 w-4 mr-1" />
+                          Görüntüle
+                        </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => documentsApi.download(doc.id, doc.name || 'document')}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          İndir
                         </Button>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <FileText className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-                  <p className="text-muted-foreground">Henüz döküman eklenmemiş</p>
-                  <p className="text-sm text-muted-foreground/60 mt-1">
-                    Documents sayfasından bu namespace için döküman yükleyebilirsiniz
+                <div className="text-center py-12 bg-muted/30 rounded-xl border-2 border-dashed">
+                  <Upload className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
+                  <p className="text-lg font-medium text-muted-foreground">Henüz döküman eklenmemiş</p>
+                  <p className="text-sm text-muted-foreground/60 mt-1 mb-4">
+                    Bu namespace için döküman yükleyerek başlayın
                   </p>
+                  <Button onClick={() => navigate(`/documents?namespace_id=${id}`)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Döküman Ekle
+                  </Button>
                 </div>
               )}
             </CardContent>

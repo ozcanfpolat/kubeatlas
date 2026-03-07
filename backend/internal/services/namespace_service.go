@@ -51,6 +51,35 @@ func (s *NamespaceService) GetByID(ctx context.Context, id uuid.UUID) (*models.N
 	if ns == nil {
 		return nil, ErrNamespaceNotFound
 	}
+	
+	// Populate related data
+	if ns.ClusterID != uuid.Nil {
+		cluster, err := s.clusterRepo.GetByID(ctx, ns.ClusterID)
+		if err == nil && cluster != nil {
+			ns.Cluster = cluster
+		}
+	}
+	
+	if ns.InfrastructureOwnerTeamID.Valid {
+		teamID, err := uuid.Parse(ns.InfrastructureOwnerTeamID.String)
+		if err == nil {
+			team, err := s.teamRepo.GetByID(ctx, teamID)
+			if err == nil && team != nil {
+				ns.InfrastructureOwnerTeam = team
+			}
+		}
+	}
+	
+	if ns.BusinessUnitID.Valid {
+		buID, err := uuid.Parse(ns.BusinessUnitID.String)
+		if err == nil {
+			bu, err := s.businessUnitRepo.GetByID(ctx, buID)
+			if err == nil && bu != nil {
+				ns.BusinessUnit = bu
+			}
+		}
+	}
+	
 	return ns, nil
 }
 

@@ -76,67 +76,83 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Overview of your Kubernetes inventory
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            Dashboard
+          </h1>
+          <p className="text-muted-foreground">
+            Kubernetes envanter genel görünümü
+          </p>
+        </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="relative overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 border-l-4 border-l-blue-500">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-full -translate-y-1/2 translate-x-1/2" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Clusters</CardTitle>
-            <Server className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Toplam Cluster</CardTitle>
+            <div className="p-2 rounded-lg bg-blue-500/10">
+              <Server className="h-4 w-4 text-blue-500" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.total_clusters || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.active_clusters || 0} active
+            <div className="text-3xl font-bold">{stats?.total_clusters || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              <span className="text-green-500 font-medium">{stats?.active_clusters || 0}</span> aktif
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="relative overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 border-l-4 border-l-purple-500">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/5 rounded-full -translate-y-1/2 translate-x-1/2" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Namespaces</CardTitle>
-            <Boxes className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Toplam Namespace</CardTitle>
+            <div className="p-2 rounded-lg bg-purple-500/10">
+              <Boxes className="h-4 w-4 text-purple-500" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.total_namespaces || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              Across all clusters
+            <div className="text-3xl font-bold">{stats?.total_namespaces || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Tüm cluster'larda
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="relative overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 border-l-4 border-l-green-500">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/5 rounded-full -translate-y-1/2 translate-x-1/2" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ownership Coverage</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Sahiplik Oranı</CardTitle>
+            <div className="p-2 rounded-lg bg-green-500/10">
+              <Users className="h-4 w-4 text-green-500" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.ownership_percentage || 0}%</div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.namespaces_with_owner || 0} of {stats?.total_namespaces || 0} assigned
+            <div className="text-3xl font-bold text-green-500">{stats?.ownership_percentage || 0}%</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              <span className="font-medium">{stats?.namespaces_with_owner || 0}</span> / {stats?.total_namespaces || 0} atanmış
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="relative overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 border-l-4 border-l-orange-500">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/5 rounded-full -translate-y-1/2 translate-x-1/2" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Sahipsiz</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 rounded-lg bg-orange-500/10">
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${(stats?.orphaned_namespaces || 0) > 0 ? 'text-orange-500' : 'text-green-500'}`}>
+            <div className={`text-3xl font-bold ${(stats?.orphaned_namespaces || 0) > 0 ? 'text-orange-500' : 'text-green-500'}`}>
               {stats?.orphaned_namespaces || 0}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {(stats?.orphaned_namespaces || 0) > 0 ? 'Sahip atanması gerekiyor' : 'Tümü atanmış'}
+            <p className="text-xs text-muted-foreground mt-1">
+              {(stats?.orphaned_namespaces || 0) > 0 ? 'Atama bekliyor' : 'Tümü atanmış ✓'}
             </p>
           </CardContent>
         </Card>
@@ -287,28 +303,12 @@ export default function Dashboard() {
                   <div className="flex items-center gap-3">
                     <AlertTriangle className="h-5 w-5 text-orange-500" />
                     <div>
-                      <p className="font-medium">Orphaned Namespaces</p>
-                      <p className="text-sm text-muted-foreground">No infrastructure owner assigned</p>
+                      <p className="font-medium">Sahipsiz Namespace'ler</p>
+                      <p className="text-sm text-muted-foreground">Altyapı sahibi atanmamış</p>
                     </div>
                   </div>
                   <Badge variant="outline" className="text-orange-600 border-orange-300">
                     {stats?.orphaned_namespaces || 0}
-                  </Badge>
-                </div>
-              )}
-
-              {/* Undocumented */}
-              {(stats?.undocumented_namespaces || 0) > 0 && (
-                <div className="flex items-center justify-between rounded-lg bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 p-3">
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                    <div>
-                      <p className="font-medium">Missing Documentation</p>
-                      <p className="text-sm text-muted-foreground">No runbooks or docs attached</p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-yellow-600 border-yellow-300">
-                    {stats?.undocumented_namespaces || 0}
                   </Badge>
                 </div>
               )}
@@ -319,8 +319,8 @@ export default function Dashboard() {
                   <div className="flex items-center gap-3">
                     <AlertTriangle className="h-5 w-5 text-blue-500" />
                     <div>
-                      <p className="font-medium">No Dependencies Mapped</p>
-                      <p className="text-sm text-muted-foreground">Add internal/external dependencies</p>
+                      <p className="font-medium">Bağımlılık Tanımlanmamış</p>
+                      <p className="text-sm text-muted-foreground">İç/dış bağımlılık ekleyin</p>
                     </div>
                   </div>
                   <Badge variant="outline" className="text-blue-600 border-blue-300">
@@ -330,11 +330,10 @@ export default function Dashboard() {
               )}
 
               {((stats?.orphaned_namespaces || 0) === 0 && 
-                (stats?.undocumented_namespaces || 0) === 0 && 
                 (stats?.total_namespaces || 0) > 0) && (
                 <div className="flex items-center justify-center py-8 text-muted-foreground">
                   <TrendingUp className="mr-2 h-5 w-5 text-green-500" />
-                  All namespaces are in good shape!
+                  Tüm namespace'ler iyi durumda!
                 </div>
               )}
 

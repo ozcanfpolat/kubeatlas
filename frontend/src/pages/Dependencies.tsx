@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   GitBranch,
   Plus,
@@ -11,12 +11,21 @@ import {
   RefreshCw,
   Trash2,
   Server,
+  Database,
+  Cloud,
+  Layers,
+  Zap,
+  Globe,
+  ChevronDown,
+  ChevronUp,
+  Filter,
+  LayoutGrid,
+  List,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
   SelectContent,
@@ -36,24 +45,206 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { dependenciesApi, namespacesApi, clustersApi } from '@/api'
-import type { InternalDependency, ExternalDependency, Cluster } from '@/types'
+import type { InternalDependency, ExternalDependency, Cluster, Namespace } from '@/types'
 
-const dependencyTypeColors: Record<string, string> = {
-  api: 'bg-blue-500',
-  database: 'bg-green-500',
-  queue: 'bg-purple-500',
-  cache: 'bg-orange-500',
-  storage: 'bg-cyan-500',
-  saas: 'bg-pink-500',
-  'payment-gateway': 'bg-red-500',
+const dependencyTypeConfig: Record<string, { color: string; bgColor: string; icon: any; label: string }> = {
+  api: { color: 'text-blue-500', bgColor: 'bg-blue-500', icon: Zap, label: 'API' },
+  database: { color: 'text-green-500', bgColor: 'bg-green-500', icon: Database, label: 'Database' },
+  queue: { color: 'text-purple-500', bgColor: 'bg-purple-500', icon: Layers, label: 'Queue' },
+  cache: { color: 'text-orange-500', bgColor: 'bg-orange-500', icon: Server, label: 'Cache' },
+  storage: { color: 'text-cyan-500', bgColor: 'bg-cyan-500', icon: Database, label: 'Storage' },
+  saas: { color: 'text-pink-500', bgColor: 'bg-pink-500', icon: Cloud, label: 'SaaS' },
+  'payment-gateway': { color: 'text-red-500', bgColor: 'bg-red-500', icon: Globe, label: 'Payment' },
+}
+
+// Dependency Node Component for Graph View
+const DependencyNode = ({ 
+  namespace, 
+  internalDeps, 
+  externalDeps, 
+  allNamespaces,
+  onDeleteInternal,
+  onDeleteExternal,
+}: { 
+  namespace: Namespace
+  internalDeps: InternalDependency[]
+  externalDeps: ExternalDependency[]
+  allNamespaces: Namespace[]
+  onDeleteInternal: (id: string) => void
+  onDeleteExternal: (id: string) => void
+}) => {
+  const [isExpanded, setIsExpanded] = useState(true)
+  
+  const getNamespaceName = (id: string) => {
+    const ns = allNamespaces.find(n => n.id === id)
+    return ns?.name || id.slice(0, 8)
+  }
+
+  const totalDeps = internalDeps.length + externalDeps.length
+  const criticalCount = [...internalDeps, ...externalDeps].filter(d => d.is_critical).length
+
+  if (totalDeps === 0) return null
+
+  return (
+    <div className="relative">
+      {/* Main Node Card */}
+      <Card className="border-2 border-primary/20 hover:border-primary/40 transition-all shadow-lg hover:shadow-xl">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5">
+                <Server className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-bold">{namespace.name}</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {totalDeps} bağımlılık {criticalCount > 0 && `• ${criticalCount} kritik`}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsExpanded(!isExpanded)}
+            >
+              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </div>
+        </CardHeader>
+
+        {isExpanded && (
+          <CardContent className="pt-0">
+            {/* Visual Dependency Flow */}
+            <div className="relative">
+              {/* Internal Dependencies */}
+              {internalDeps.length > 0 && (
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <GitBranch className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium text-blue-500">Internal Dependencies</span>
+                  </div>
+                  <div className="grid gap-2">
+                    {internalDeps.map((dep) => {
+                      const config = dependencyTypeConfig[dep.dependency_type] || dependencyTypeConfig.api
+                      const IconComponent = config.icon
+                      return (
+                        <div
+                          key={dep.id}
+                          className="group relative flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-muted/80 to-muted/40 hover:from-primary/10 hover:to-primary/5 transition-all"
+                        >
+                          {/* Connection Line Visual */}
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-primary/50 to-primary/20 rounded-full" />
+                          
+                          <div className={`p-2 rounded-lg ${config.bgColor}/10`}>
+                            <IconComponent className={`h-4 w-4 ${config.color}`} />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className={`${config.color} border-current/30 text-xs`}>
+                                {config.label}
+                              </Badge>
+                              {dep.is_critical && (
+                                <Badge variant="destructive" className="text-xs">Kritik</Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                              <span className="font-mono text-sm font-medium">
+                                {getNamespaceName(dep.target_namespace_id)}
+                              </span>
+                            </div>
+                            {dep.description && (
+                              <p className="text-xs text-muted-foreground mt-1 truncate">
+                                {dep.description}
+                              </p>
+                            )}
+                          </div>
+                          
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => onDeleteInternal(dep.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* External Dependencies */}
+              {externalDeps.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <ExternalLink className="h-4 w-4 text-purple-500" />
+                    <span className="text-sm font-medium text-purple-500">External Dependencies</span>
+                  </div>
+                  <div className="grid gap-2">
+                    {externalDeps.map((dep) => {
+                      const config = dependencyTypeConfig[dep.system_type] || dependencyTypeConfig.saas
+                      const IconComponent = config.icon
+                      return (
+                        <div
+                          key={dep.id}
+                          className="group relative flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-purple-500/5 hover:from-purple-500/20 hover:to-purple-500/10 transition-all"
+                        >
+                          {/* Connection Line Visual */}
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-purple-500/50 to-purple-500/20 rounded-full" />
+                          
+                          <div className="p-2 rounded-lg bg-purple-500/10">
+                            <IconComponent className="h-4 w-4 text-purple-500" />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{dep.name}</span>
+                              {dep.is_critical && (
+                                <Badge variant="destructive" className="text-xs">Kritik</Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-purple-500 border-purple-500/30 text-xs">
+                                {dep.system_type?.toUpperCase() || 'EXTERNAL'}
+                              </Badge>
+                              {dep.endpoint && (
+                                <span className="text-xs text-muted-foreground truncate">
+                                  {dep.endpoint}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => onDeleteExternal(dep.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        )}
+      </Card>
+    </div>
+  )
 }
 
 export default function Dependencies() {
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
   const [clusterFilter, setClusterFilter] = useState<string>('all')
-  const [criticalOnly, _setCriticalOnly] = useState(false)
+  const [viewMode, setViewMode] = useState<'graph' | 'list'>('graph')
   const [isAddInternalOpen, setIsAddInternalOpen] = useState(false)
   const [isAddExternalOpen, setIsAddExternalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -79,61 +270,53 @@ export default function Dependencies() {
 
   const { data: internalDeps, isLoading: loadingInternal, isError, refetch } = useQuery({
     queryKey: ['internal-dependencies'],
-    queryFn: () => dependenciesApi.listInternal({ page: 1, page_size: 100 }),
+    queryFn: () => dependenciesApi.listInternal({ page: 1, page_size: 500 }),
+    retry: 1,
   })
 
   const { data: externalDeps, isLoading: loadingExternal } = useQuery({
     queryKey: ['external-dependencies'],
-    queryFn: () => dependenciesApi.listExternal(''),
+    queryFn: dependenciesApi.listExternalAll,
+    retry: 1,
   })
 
-  // All namespaces for displaying dependency info
+  // All namespaces for display
   const { data: allNamespacesData } = useQuery({
-    queryKey: ['all-namespaces-for-deps'],
+    queryKey: ['all-namespaces-deps'],
     queryFn: () => namespacesApi.list({ page: 1, page_size: 500 }),
   })
 
-  // Filtered namespaces for the add form
+  // Filtered namespaces for form (based on cluster filter)
   const { data: filteredNamespacesData } = useQuery({
-    queryKey: ['filtered-namespaces-for-deps', clusterFilter],
+    queryKey: ['filtered-namespaces-deps', clusterFilter],
     queryFn: () => namespacesApi.list({ 
       page: 1, 
-      page_size: 100,
+      page_size: 500,
       cluster_id: clusterFilter === 'all' ? undefined : clusterFilter,
     }),
   })
 
   const { data: clustersData } = useQuery({
-    queryKey: ['clusters-for-deps'],
+    queryKey: ['clusters-deps'],
     queryFn: () => clustersApi.list({ page_size: 100 }),
   })
 
-  const deleteInternalMutation = useMutation({
-    mutationFn: (id: string) => dependenciesApi.deleteInternal(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['internal-dependencies'] })
-    },
-    onError: (err: Error) => {
-      setError(err.message || 'Failed to delete dependency')
-    },
-  })
-
-  const deleteExternalMutation = useMutation({
-    mutationFn: (id: string) => dependenciesApi.deleteExternal(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['external-dependencies'] })
-    },
-    onError: (err: Error) => {
-      setError(err.message || 'Failed to delete dependency')
-    },
-  })
+  const namespaces: Namespace[] = allNamespacesData?.items || []
+  const formNamespaces: Namespace[] = filteredNamespacesData?.items || []
+  const clusters: Cluster[] = clustersData?.items || []
 
   const createInternalMutation = useMutation({
-    mutationFn: (data: typeof internalForm) => dependenciesApi.createInternal(data),
+    mutationFn: (data: any) => dependenciesApi.createInternal(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['internal-dependencies'] })
       setIsAddInternalOpen(false)
-      resetInternalForm()
+      setInternalForm({
+        source_namespace_id: '',
+        target_namespace_id: '',
+        dependency_type: 'api',
+        description: '',
+        is_critical: false,
+      })
       setError(null)
     },
     onError: (err: Error) => {
@@ -142,11 +325,18 @@ export default function Dependencies() {
   })
 
   const createExternalMutation = useMutation({
-    mutationFn: (data: typeof externalForm) => dependenciesApi.createExternal(data),
+    mutationFn: (data: any) => dependenciesApi.createExternal(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['external-dependencies'] })
       setIsAddExternalOpen(false)
-      resetExternalForm()
+      setExternalForm({
+        namespace_id: '',
+        name: '',
+        system_type: 'saas',
+        description: '',
+        endpoint: '',
+        is_critical: false,
+      })
       setError(null)
     },
     onError: (err: Error) => {
@@ -154,49 +344,74 @@ export default function Dependencies() {
     },
   })
 
-  const resetInternalForm = () => {
-    setInternalForm({
-      source_namespace_id: '',
-      target_namespace_id: '',
-      dependency_type: 'api',
-      description: '',
-      is_critical: false,
-    })
-  }
+  const deleteInternalMutation = useMutation({
+    mutationFn: (id: string) => dependenciesApi.deleteInternal(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['internal-dependencies'] })
+    },
+  })
 
-  const resetExternalForm = () => {
-    setExternalForm({
-      namespace_id: '',
-      name: '',
-      system_type: 'saas',
-      description: '',
-      endpoint: '',
-      is_critical: false,
-    })
-  }
-
-  const handleCreateInternal = () => {
-    if (!internalForm.source_namespace_id || !internalForm.target_namespace_id) {
-      setError('Please select both source and target namespaces')
-      return
-    }
-    createInternalMutation.mutate(internalForm)
-  }
-
-  const handleCreateExternal = () => {
-    if (!externalForm.namespace_id || !externalForm.name) {
-      setError('Please fill in required fields')
-      return
-    }
-    createExternalMutation.mutate(externalForm)
-  }
+  const deleteExternalMutation = useMutation({
+    mutationFn: (id: string) => dependenciesApi.deleteExternal(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['external-dependencies'] })
+    },
+  })
 
   const isLoading = loadingInternal || loadingExternal
-  const namespaces = allNamespacesData?.items || []  // All namespaces for display
-  const formNamespaces = filteredNamespacesData?.items || []  // Filtered for form
-  const clusters: Cluster[] = clustersData?.items || []
 
-  // Error state
+  // Group dependencies by source namespace
+  const groupedDependencies = useMemo(() => {
+    const internalList: InternalDependency[] = internalDeps?.items || []
+    const externalList: ExternalDependency[] = Array.isArray(externalDeps) ? externalDeps : []
+    
+    const groups: Map<string, { namespace: Namespace; internal: InternalDependency[]; external: ExternalDependency[] }> = new Map()
+    
+    // Group internal dependencies by source
+    internalList.forEach(dep => {
+      const ns = namespaces.find(n => n.id === dep.source_namespace_id)
+      if (ns) {
+        if (!groups.has(ns.id)) {
+          groups.set(ns.id, { namespace: ns, internal: [], external: [] })
+        }
+        groups.get(ns.id)!.internal.push(dep)
+      }
+    })
+    
+    // Group external dependencies by namespace
+    externalList.forEach(dep => {
+      const ns = namespaces.find(n => n.id === dep.namespace_id)
+      if (ns) {
+        if (!groups.has(ns.id)) {
+          groups.set(ns.id, { namespace: ns, internal: [], external: [] })
+        }
+        groups.get(ns.id)!.external.push(dep)
+      }
+    })
+    
+    return Array.from(groups.values())
+      .filter(g => {
+        // Apply cluster filter
+        if (clusterFilter !== 'all' && g.namespace.cluster_id !== clusterFilter) return false
+        // Apply search filter
+        if (searchQuery && !g.namespace.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
+        return true
+      })
+      .sort((a, b) => {
+        // Sort by total dependencies count
+        const countA = a.internal.length + a.external.length
+        const countB = b.internal.length + b.external.length
+        return countB - countA
+      })
+  }, [internalDeps, externalDeps, namespaces, clusterFilter, searchQuery])
+
+  // Stats
+  const internalList: InternalDependency[] = internalDeps?.items || []
+  const externalList: ExternalDependency[] = Array.isArray(externalDeps) ? externalDeps : []
+  const totalInternal = internalList.length
+  const totalExternal = externalList.length
+  const criticalCount = [...internalList, ...externalList].filter(d => d.is_critical).length
+
   if (isError) {
     return (
       <div className="space-y-6">
@@ -221,428 +436,260 @@ export default function Dependencies() {
     )
   }
 
-  // Stats
-  const internalList: InternalDependency[] = internalDeps?.items || []
-  const externalList: ExternalDependency[] = Array.isArray(externalDeps) ? externalDeps : []
-  const totalInternal = internalList.length
-  const totalExternal = externalList.length
-  const criticalInternal = internalList.filter((d) => d.is_critical).length
-  const criticalExternal = externalList.filter((d) => d.is_critical).length
-
-  // Helper to get namespace name
-  const getNamespaceName = (nsId: string) => {
-    const ns = namespaces.find(n => n.id === nsId)
-    return ns?.name || nsId.slice(0, 8) + '...'
-  }
-
-  // Helper to get cluster name for a namespace
-  const getClusterForNamespace = (nsId: string) => {
-    const ns = namespaces.find(n => n.id === nsId)
-    if (!ns) return null
-    return clusters.find(c => c.id === ns.cluster_id)
-  }
-
-  // Filter
-  const filteredInternal = internalList.filter((dep) => {
-    if (criticalOnly && !dep.is_critical) return false
-    if (typeFilter !== 'all' && dep.dependency_type !== typeFilter) return false
-    if (searchQuery && !dep.description?.toLowerCase().includes(searchQuery.toLowerCase())) return false
-    return true
-  })
-
-  const filteredExternal = externalList.filter((dep) => {
-    if (criticalOnly && !dep.is_critical) return false
-    if (typeFilter !== 'all' && dep.system_type !== typeFilter) return false
-    if (searchQuery && !dep.name?.toLowerCase().includes(searchQuery.toLowerCase())) return false
-    return true
-  })
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Dependencies</h1>
-          <p className="text-muted-foreground">Manage internal and external service dependencies</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            Dependencies
+          </h1>
+          <p className="text-muted-foreground">Servis bağımlılıklarını görsel olarak yönetin</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Network className="mr-2 h-4 w-4" />
-            View Graph
-          </Button>
+          <div className="flex rounded-lg border p-1">
+            <Button
+              variant={viewMode === 'graph' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('graph')}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
           <Button onClick={() => setIsAddInternalOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Add Internal
+            Internal
           </Button>
           <Button onClick={() => setIsAddExternalOpen(true)} variant="secondary">
             <Plus className="mr-2 h-4 w-4" />
-            Add External
+            External
           </Button>
         </div>
       </div>
 
       {/* Error Alert */}
       {error && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-destructive">
-          {error}
-          <Button variant="ghost" size="sm" className="ml-2" onClick={() => setError(null)}>
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-destructive flex items-center justify-between">
+          <span>{error}</span>
+          <Button variant="ghost" size="sm" onClick={() => setError(null)}>
             Dismiss
           </Button>
         </div>
       )}
 
-      {/* Cluster Filter */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium">Cluster:</Label>
-          <Select value={clusterFilter} onValueChange={setClusterFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Clusters" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Clusters</SelectItem>
-              {clusters.map((cluster) => (
-                <SelectItem key={cluster.id} value={cluster.id}>
-                  {cluster.display_name || cluster.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {clusterFilter !== 'all' && (
-          <Button variant="ghost" size="sm" onClick={() => setClusterFilter('all')}>
-            Clear Filter
-          </Button>
-        )}
-      </div>
-
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Internal Dependencies
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalInternal}</div>
-            <p className="text-xs text-muted-foreground">{criticalInternal} critical</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              External Dependencies
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalExternal}</div>
-            <p className="text-xs text-muted-foreground">{criticalExternal} critical</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Critical Path
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-500">
-              {criticalInternal + criticalExternal}
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-blue-500/20">
+                <GitBranch className="h-6 w-6 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-blue-500">{totalInternal}</p>
+                <p className="text-sm text-muted-foreground">Internal</p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">Total critical dependencies</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Dependency Types
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {new Set([
-                ...internalList.map((d) => d.dependency_type),
-                ...externalList.map((d) => d.system_type),
-              ]).size}
+        <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-purple-500/20">
+                <ExternalLink className="h-6 w-6 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-purple-500">{totalExternal}</p>
+                <p className="text-sm text-muted-foreground">External</p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">Unique types</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-orange-500/20">
+                <AlertTriangle className="h-6 w-6 text-orange-500" />
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-orange-500">{criticalCount}</p>
+                <p className="text-sm text-muted-foreground">Kritik</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-green-500/20">
+                <Network className="h-6 w-6 text-green-500" />
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-green-500">{groupedDependencies.length}</p>
+                <p className="text-sm text-muted-foreground">Namespace</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="internal" className="space-y-4">
-        <div className="flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="internal">
-              <GitBranch className="mr-2 h-4 w-4" />
-              Internal ({totalInternal})
-            </TabsTrigger>
-            <TabsTrigger value="external">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              External ({totalExternal})
-            </TabsTrigger>
-          </TabsList>
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 w-64"
-              />
-            </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="api">API</SelectItem>
-                <SelectItem value="database">Database</SelectItem>
-                <SelectItem value="queue">Queue</SelectItem>
-                <SelectItem value="cache">Cache</SelectItem>
-                <SelectItem value="saas">SaaS</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      {/* Filters */}
+      <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50 border">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Namespace ara..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
         </div>
+        <Select value={clusterFilter} onValueChange={setClusterFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Tüm Clusterlar" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tüm Clusterlar</SelectItem>
+            {clusters.map((cluster) => (
+              <SelectItem key={cluster.id} value={cluster.id}>
+                {cluster.display_name || cluster.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-        <TabsContent value="internal" className="space-y-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      {/* Graph View */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      ) : groupedDependencies.length === 0 ? (
+        <Card className="border-2 border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="p-4 rounded-full bg-muted mb-4">
+              <Network className="h-12 w-12 text-muted-foreground" />
             </div>
-          ) : filteredInternal.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <GitBranch className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">No internal dependencies</h3>
-                <p className="text-muted-foreground mb-4">
-                  Add dependencies between your namespaces
-                </p>
-                <Button onClick={() => setIsAddInternalOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Internal Dependency
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {filteredInternal.map((dep) => {
-                const sourceCluster = getClusterForNamespace(dep.source_namespace_id)
-                const targetCluster = getClusterForNamespace(dep.target_namespace_id)
+            <h3 className="text-xl font-semibold mb-2">Henüz bağımlılık yok</h3>
+            <p className="text-muted-foreground text-center max-w-md mb-6">
+              Namespace'leriniz arasında bağımlılık tanımlayarak servislerin birbirleriyle nasıl iletişim kurduğunu takip edin.
+            </p>
+            <div className="flex gap-3">
+              <Button onClick={() => setIsAddInternalOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Internal Bağımlılık Ekle
+              </Button>
+              <Button onClick={() => setIsAddExternalOpen(true)} variant="outline">
+                <Plus className="mr-2 h-4 w-4" />
+                External Bağımlılık Ekle
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {groupedDependencies.map(({ namespace, internal, external }) => (
+            <DependencyNode
+              key={namespace.id}
+              namespace={namespace}
+              internalDeps={internal}
+              externalDeps={external}
+              allNamespaces={namespaces}
+              onDeleteInternal={(id) => deleteInternalMutation.mutate(id)}
+              onDeleteExternal={(id) => deleteExternalMutation.mutate(id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Legend */}
+      {groupedDependencies.length > 0 && (
+        <Card className="mt-8">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Bağımlılık Türleri</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4">
+              {Object.entries(dependencyTypeConfig).map(([key, config]) => {
+                const IconComponent = config.icon
                 return (
-                  <Card key={dep.id} className="hover:border-primary/30 transition-colors">
-                    <CardContent className="py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 flex-1">
-                          <Badge className={`${dependencyTypeColors[dep.dependency_type] || 'bg-gray-500'} text-white`}>
-                            {dep.dependency_type.toUpperCase()}
-                          </Badge>
-                          
-                          {/* Source Namespace */}
-                          <div className="flex items-center gap-3 flex-1">
-                            <div className="bg-muted rounded-lg px-3 py-2 min-w-[180px]">
-                              <div className="flex items-center gap-2">
-                                <Server className="h-4 w-4 text-muted-foreground" />
-                                <div>
-                                  <p className="font-medium text-sm">{getNamespaceName(dep.source_namespace_id)}</p>
-                                  {sourceCluster && (
-                                    <p className="text-xs text-muted-foreground">{sourceCluster.name}</p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <ArrowRight className="h-5 w-5 text-primary flex-shrink-0" />
-                            
-                            {/* Target Namespace */}
-                            <div className="bg-muted rounded-lg px-3 py-2 min-w-[180px]">
-                              <div className="flex items-center gap-2">
-                                <Server className="h-4 w-4 text-muted-foreground" />
-                                <div>
-                                  <p className="font-medium text-sm">{getNamespaceName(dep.target_namespace_id)}</p>
-                                  {targetCluster && (
-                                    <p className="text-xs text-muted-foreground">{targetCluster.name}</p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-3 ml-4">
-                          {dep.is_critical && (
-                            <Badge variant="destructive">
-                              <AlertTriangle className="mr-1 h-3 w-3" />
-                              Critical
-                            </Badge>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground hover:text-destructive"
-                            onClick={() => deleteInternalMutation.mutate(dep.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      {dep.description && (
-                        <p className="text-sm text-muted-foreground mt-2 ml-[100px]">{dep.description}</p>
-                      )}
-                    </CardContent>
-                  </Card>
+                  <div key={key} className="flex items-center gap-2">
+                    <div className={`p-1.5 rounded ${config.bgColor}/10`}>
+                      <IconComponent className={`h-4 w-4 ${config.color}`} />
+                    </div>
+                    <span className="text-sm">{config.label}</span>
+                  </div>
                 )
               })}
             </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="external" className="space-y-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : filteredExternal.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <ExternalLink className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">No external dependencies</h3>
-                <p className="text-muted-foreground mb-4">
-                  Add external services your application depends on
-                </p>
-                <Button onClick={() => setIsAddExternalOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add External Dependency
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {filteredExternal.map((dep) => {
-                const nsCluster = getClusterForNamespace(dep.namespace_id)
-                return (
-                  <Card key={dep.id} className="hover:border-primary/30 transition-colors">
-                    <CardContent className="py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 flex-1">
-                          <Badge className={`${dependencyTypeColors[dep.system_type] || 'bg-gray-500'} text-white`}>
-                            {dep.system_type.toUpperCase()}
-                          </Badge>
-                          
-                          {/* Namespace */}
-                          <div className="bg-muted rounded-lg px-3 py-2 min-w-[180px]">
-                            <div className="flex items-center gap-2">
-                              <Server className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <p className="font-medium text-sm">{getNamespaceName(dep.namespace_id)}</p>
-                                {nsCluster && (
-                                  <p className="text-xs text-muted-foreground">{nsCluster.name}</p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <ArrowRight className="h-5 w-5 text-primary flex-shrink-0" />
-                          
-                          {/* External System */}
-                          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2 min-w-[200px]">
-                            <div className="flex items-center gap-2">
-                              <ExternalLink className="h-4 w-4 text-blue-500" />
-                              <div>
-                                <p className="font-medium text-sm">{dep.name}</p>
-                                {dep.endpoint && (
-                                  <p className="text-xs text-muted-foreground truncate max-w-[200px]">{dep.endpoint}</p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-3 ml-4">
-                          {dep.is_critical && (
-                            <Badge variant="destructive">
-                              <AlertTriangle className="mr-1 h-3 w-3" />
-                              Critical
-                            </Badge>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground hover:text-destructive"
-                            onClick={() => deleteExternalMutation.mutate(dep.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      {dep.description && (
-                        <p className="text-sm text-muted-foreground mt-2 ml-[100px]">{dep.description}</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Add Internal Dependency Dialog */}
       <Dialog open={isAddInternalOpen} onOpenChange={setIsAddInternalOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add Internal Dependency</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <GitBranch className="h-5 w-5 text-blue-500" />
+              Internal Bağımlılık Ekle
+            </DialogTitle>
             <DialogDescription>
-              Create a dependency between two namespaces
+              Namespace'ler arasında internal bağımlılık tanımlayın
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Source Namespace *</Label>
-              <Select
-                value={internalForm.source_namespace_id}
-                onValueChange={(val) => setInternalForm({ ...internalForm, source_namespace_id: val })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select source namespace" />
-                </SelectTrigger>
-                <SelectContent>
-                  {formNamespaces.map((ns) => (
-                    <SelectItem key={ns.id} value={ns.id}>
-                      {ns.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Kaynak Namespace *</Label>
+                <Select
+                  value={internalForm.source_namespace_id}
+                  onValueChange={(v) => setInternalForm({ ...internalForm, source_namespace_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formNamespaces.map((ns) => (
+                      <SelectItem key={ns.id} value={ns.id}>
+                        {ns.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Hedef Namespace *</Label>
+                <Select
+                  value={internalForm.target_namespace_id}
+                  onValueChange={(v) => setInternalForm({ ...internalForm, target_namespace_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formNamespaces.map((ns) => (
+                      <SelectItem key={ns.id} value={ns.id}>
+                        {ns.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Target Namespace *</Label>
-              <Select
-                value={internalForm.target_namespace_id}
-                onValueChange={(val) => setInternalForm({ ...internalForm, target_namespace_id: val })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select target namespace" />
-                </SelectTrigger>
-                <SelectContent>
-                  {formNamespaces.map((ns) => (
-                    <SelectItem key={ns.id} value={ns.id}>
-                      {ns.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Dependency Type</Label>
+              <Label>Bağımlılık Türü</Label>
               <Select
                 value={internalForm.dependency_type}
-                onValueChange={(val) => setInternalForm({ ...internalForm, dependency_type: val })}
+                onValueChange={(v) => setInternalForm({ ...internalForm, dependency_type: v })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -657,30 +704,33 @@ export default function Dependencies() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>Açıklama</Label>
               <Textarea
+                placeholder="Bağımlılık hakkında not..."
                 value={internalForm.description}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInternalForm({ ...internalForm, description: e.target.value })}
-                placeholder="Describe this dependency..."
+                onChange={(e) => setInternalForm({ ...internalForm, description: e.target.value })}
               />
             </div>
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="internal-critical"
                 checked={internalForm.is_critical}
-                onCheckedChange={(checked: boolean | 'indeterminate') =>
-                  setInternalForm({ ...internalForm, is_critical: checked === true })
-                }
+                onCheckedChange={(checked) => setInternalForm({ ...internalForm, is_critical: !!checked })}
               />
-              <Label htmlFor="internal-critical">Mark as critical dependency</Label>
+              <Label htmlFor="internal-critical" className="text-sm">
+                Kritik bağımlılık olarak işaretle
+              </Label>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddInternalOpen(false)}>
-              Cancel
+              İptal
             </Button>
-            <Button onClick={handleCreateInternal} disabled={createInternalMutation.isPending}>
-              {createInternalMutation.isPending ? 'Creating...' : 'Create'}
+            <Button
+              onClick={() => createInternalMutation.mutate(internalForm)}
+              disabled={!internalForm.source_namespace_id || !internalForm.target_namespace_id || createInternalMutation.isPending}
+            >
+              {createInternalMutation.isPending ? 'Ekleniyor...' : 'Ekle'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -688,11 +738,14 @@ export default function Dependencies() {
 
       {/* Add External Dependency Dialog */}
       <Dialog open={isAddExternalOpen} onOpenChange={setIsAddExternalOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add External Dependency</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <ExternalLink className="h-5 w-5 text-purple-500" />
+              External Bağımlılık Ekle
+            </DialogTitle>
             <DialogDescription>
-              Add an external service dependency
+              Dış sistemlere olan bağımlılıkları tanımlayın
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -700,10 +753,10 @@ export default function Dependencies() {
               <Label>Namespace *</Label>
               <Select
                 value={externalForm.namespace_id}
-                onValueChange={(val) => setExternalForm({ ...externalForm, namespace_id: val })}
+                onValueChange={(v) => setExternalForm({ ...externalForm, namespace_id: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select namespace" />
+                  <SelectValue placeholder="Namespace seçin" />
                 </SelectTrigger>
                 <SelectContent>
                   {formNamespaces.map((ns) => (
@@ -714,65 +767,70 @@ export default function Dependencies() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>System Name *</Label>
-              <Input
-                value={externalForm.name}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExternalForm({ ...externalForm, name: e.target.value })}
-                placeholder="e.g., Stripe, AWS S3, Twilio"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>System Type</Label>
-              <Select
-                value={externalForm.system_type}
-                onValueChange={(val) => setExternalForm({ ...externalForm, system_type: val })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="saas">SaaS</SelectItem>
-                  <SelectItem value="payment-gateway">Payment Gateway</SelectItem>
-                  <SelectItem value="storage">Storage</SelectItem>
-                  <SelectItem value="api">External API</SelectItem>
-                  <SelectItem value="database">External Database</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Servis Adı *</Label>
+                <Input
+                  placeholder="örn: Stripe, AWS S3"
+                  value={externalForm.name}
+                  onChange={(e) => setExternalForm({ ...externalForm, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Sistem Türü</Label>
+                <Select
+                  value={externalForm.system_type}
+                  onValueChange={(v) => setExternalForm({ ...externalForm, system_type: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="saas">SaaS</SelectItem>
+                    <SelectItem value="payment-gateway">Payment Gateway</SelectItem>
+                    <SelectItem value="api">External API</SelectItem>
+                    <SelectItem value="database">External Database</SelectItem>
+                    <SelectItem value="storage">Cloud Storage</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Endpoint URL</Label>
               <Input
-                value={externalForm.endpoint}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExternalForm({ ...externalForm, endpoint: e.target.value })}
                 placeholder="https://api.example.com"
+                value={externalForm.endpoint}
+                onChange={(e) => setExternalForm({ ...externalForm, endpoint: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>Açıklama</Label>
               <Textarea
+                placeholder="Bu bağımlılık hakkında not..."
                 value={externalForm.description}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setExternalForm({ ...externalForm, description: e.target.value })}
-                placeholder="Describe this dependency..."
+                onChange={(e) => setExternalForm({ ...externalForm, description: e.target.value })}
               />
             </div>
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="external-critical"
                 checked={externalForm.is_critical}
-                onCheckedChange={(checked: boolean | 'indeterminate') =>
-                  setExternalForm({ ...externalForm, is_critical: checked === true })
-                }
+                onCheckedChange={(checked) => setExternalForm({ ...externalForm, is_critical: !!checked })}
               />
-              <Label htmlFor="external-critical">Mark as critical dependency</Label>
+              <Label htmlFor="external-critical" className="text-sm">
+                Kritik bağımlılık olarak işaretle
+              </Label>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddExternalOpen(false)}>
-              Cancel
+              İptal
             </Button>
-            <Button onClick={handleCreateExternal} disabled={createExternalMutation.isPending}>
-              {createExternalMutation.isPending ? 'Creating...' : 'Create'}
+            <Button
+              onClick={() => createExternalMutation.mutate(externalForm)}
+              disabled={!externalForm.namespace_id || !externalForm.name || createExternalMutation.isPending}
+            >
+              {createExternalMutation.isPending ? 'Ekleniyor...' : 'Ekle'}
             </Button>
           </DialogFooter>
         </DialogContent>

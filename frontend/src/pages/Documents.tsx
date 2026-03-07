@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { 
   FileText, 
@@ -41,6 +42,7 @@ function getFileIcon(mimeType: string) {
 }
 
 export default function Documents() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [isUploadOpen, setIsUploadOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -53,6 +55,18 @@ export default function Documents() {
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
+  
+  // Get namespace_id from URL and auto-open upload dialog
+  const urlNamespaceId = searchParams.get('namespace_id')
+  
+  useEffect(() => {
+    if (urlNamespaceId) {
+      setUploadData(prev => ({ ...prev, namespace_id: urlNamespaceId }))
+      setIsUploadOpen(true)
+      // Clear the URL param
+      setSearchParams({})
+    }
+  }, [urlNamespaceId, setSearchParams])
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ['documents'],

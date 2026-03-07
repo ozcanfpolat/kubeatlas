@@ -64,6 +64,17 @@ KubeAtlas provides a **central source of truth** for all your Kubernetes resourc
 | 📊 **Reports & Export** | Excel export for compliance reporting |
 | 🔐 **Encryption** | AES-256-GCM for sensitive data |
 
+### 🤖 AI Assistant (Optional Addon)
+
+| Feature | Description |
+|---------|-------------|
+| 💬 **Natural Language Chat** | Ask questions about your clusters in plain English or Turkish |
+| 🧠 **Local LLM Powered** | Uses your own LLM (LiteLLM/vLLM/Ollama) — no data leaves your network |
+| 🔧 **16 Built-in Tools** | Queries clusters, namespaces, teams, dependencies, audit logs, and reports |
+| 🌍 **Bilingual UI** | English and Turkish interface with one-click toggle |
+
+> The AI Assistant is completely optional and does not affect the core KubeAtlas installation. See [AI Assistant docs](docs/AI_ASSISTANT.md) for setup instructions.
+
 ---
 
 ## 📸 Screenshots
@@ -592,6 +603,9 @@ kubeatlas/
 │   └── seed.sql              # Initial data
 ├── deploy/
 │   └── openshift/            # OpenShift manifests
+├── ai-assistant/              # Optional AI chat assistant
+│   ├── app/                  # Python FastAPI application
+│   └── requirements.txt
 ├── helm/kubeatlas/           # Helm chart
 ├── docker-compose.yml        # Docker Compose
 └── docs/                     # Documentation
@@ -676,6 +690,7 @@ curl http://localhost/health
 | [Adding Clusters](docs/ADDING_CLUSTERS.md) | How to connect Kubernetes clusters |
 | [API Reference](docs/api/) | REST API documentation |
 | [OpenShift Guide](deploy/openshift/MANUAL_INSTALL.md) | OpenShift-specific instructions |
+| [AI Assistant](docs/AI_ASSISTANT.md) | Optional AI-powered chat assistant setup |
 
 ---
 

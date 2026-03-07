@@ -628,3 +628,44 @@ podSecurityStandard:
   enforce: true
   audit: true
   warn: true
+
+# ============================================
+# AI Assistant (Optional)
+# ============================================
+# Enable to deploy an AI-powered chat assistant
+# that uses your local LLM to query KubeAtlas data.
+# See docs/AI_ASSISTANT.md for details.
+ai:
+  enabled: false
+
+  image:
+    repository: ghcr.io/ozcanfpolat/kubeatlas/ai-assistant
+    tag: "latest"
+    pullPolicy: Always
+
+  replicaCount: 1
+
+  # Your LLM endpoint (OpenAI-compatible API)
+  litellm:
+    baseUrl: "https://YOUR_LLM_ENDPOINT/v1"
+    apiKey: "YOUR_API_KEY"
+    model: "your-model-name"
+
+  # KubeAtlas API credentials
+  kubeatlas:
+    email: "admin@kubeatlas.local"
+    password: ""
+
+  tlsSkipVerify: false
+
+  route:
+    enabled: true
+    host: ""
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi

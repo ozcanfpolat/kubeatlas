@@ -1,0 +1,163 @@
+# ============================================
+# KubeAtlas AI Assistant - OpenShift Deployment
+# ============================================
+# OPTIONAL ADDON - Does NOT affect the core KubeAtlas installation.
+# Requires a running KubeAtlas API in the same namespace.
+#
+# Prerequisites:
+#   - KubeAtlas deployed in 'kubeatlas' namespace
+#   - An OpenAI-compatible LLM endpoint (LiteLLM, vLLM, Ollama, etc.)
+#
+# Deploy:
+#   oc apply -f ai-assistant.yaml -n kubeatlas
+#
+# Access:
+#   https://$(oc get route kubeatlas-ai -n kubeatlas -o jsonpath='{.spec.host}')
+#   or: oc port-forward svc/kubeatlas-ai 8090:8090 -n kubeatlas
+# ============================================
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kubeatlas-ai-secret
+  labels:
+    app.kubernetes.io/name: kubeatlas-ai
+    app.kubernetes.io/component: ai-assistant
+    app.kubernetes.io/part-of: kubeatlas
+type: Opaque
+stringData:
+  # ============================================
+  # UPDATE THESE VALUES BEFORE DEPLOYING
+  # ============================================
+
+  # Your LLM endpoint (OpenAI-compatible API)
+  # Examples:
+  #   LiteLLM:  https://litellm.apps.example.com/v1
+  #   vLLM:     http://vllm-service:8000/v1
+  #   Ollama:   http://ollama-service:11434/v1
+  LITELLM_BASE_URL: "https://YOUR_LLM_ENDPOINT/v1"
+  LITELLM_API_KEY: "YOUR_API_KEY"
+
+  # Model name as configured in your LLM endpoint
+  LITELLM_MODEL: "your-model-name"
+
+  # KubeAtlas API credentials (same as your KubeAtlas admin login)
+  KUBEATLAS_API_EMAIL: "admin@kubeatlas.local"
+  KUBEATLAS_API_PASSWORD: "YOUR_KUBEATLAS_ADMIN_PASSWORD"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubeatlas-ai-config
+  labels:
+    app.kubernetes.io/name: kubeatlas-ai
+    app.kubernetes.io/component: ai-assistant
+    app.kubernetes.io/part-of: kubeatlas
+data:
+  # Internal KubeAtlas API (same namespace, no external access needed)
+  KUBEATLAS_API_URL: "http://kubeatlas-api:8080/api/v1"
+  SERVER_PORT: "8090"
+  TLS_SKIP_VERIFY: "false"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubeatlas-ai
+  labels:
+    app.kubernetes.io/name: kubeatlas-ai
+    app.kubernetes.io/component: ai-assistant
+    app.kubernetes.io/part-of: kubeatlas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubeatlas-ai
+      app.kubernetes.io/component: ai-assistant
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubeatlas-ai
+        app.kubernetes.io/component: ai-assistant
+        app.kubernetes.io/part-of: kubeatlas
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: ai-assistant
+          image: ghcr.io/ozcanfpolat/kubeatlas/ai-assistant:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8090
+          envFrom:
+            - secretRef:
+                name: kubeatlas-ai-secret
+            - configMapRef:
+                name: kubeatlas-ai-config
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubeatlas-ai
+  labels:
+    app.kubernetes.io/name: kubeatlas-ai
+    app.kubernetes.io/component: ai-assistant
+    app.kubernetes.io/part-of: kubeatlas
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8090
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: kubeatlas-ai
+    app.kubernetes.io/component: ai-assistant
+
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: kubeatlas-ai
+  labels:
+    app.kubernetes.io/name: kubeatlas-ai
+    app.kubernetes.io/component: ai-assistant
+    app.kubernetes.io/part-of: kubeatlas
+  annotations:
+    haproxy.router.openshift.io/timeout: 300s
+spec:
+  to:
+    kind: Service
+    name: kubeatlas-ai
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

@@ -1,0 +1,131 @@
+{{- if .Values.ai.enabled }}
+# ============================================
+# KubeAtlas AI Assistant (Optional Addon)
+# ============================================
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "kubeatlas.fullname" . }}-ai-secret
+  labels:
+    {{- include "kubeatlas.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-assistant
+type: Opaque
+stringData:
+  LITELLM_BASE_URL: {{ .Values.ai.litellm.baseUrl | quote }}
+  LITELLM_API_KEY: {{ .Values.ai.litellm.apiKey | quote }}
+  LITELLM_MODEL: {{ .Values.ai.litellm.model | quote }}
+  KUBEATLAS_API_EMAIL: {{ .Values.ai.kubeatlas.email | quote }}
+  KUBEATLAS_API_PASSWORD: {{ .Values.ai.kubeatlas.password | quote }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kubeatlas.fullname" . }}-ai-config
+  labels:
+    {{- include "kubeatlas.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-assistant
+data:
+  KUBEATLAS_API_URL: "http://{{ include "kubeatlas.fullname" . }}-api:8080/api/v1"
+  SERVER_PORT: "8090"
+  TLS_SKIP_VERIFY: {{ .Values.ai.tlsSkipVerify | default "false" | quote }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kubeatlas.fullname" . }}-ai
+  labels:
+    {{- include "kubeatlas.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-assistant
+spec:
+  replicas: {{ .Values.ai.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "kubeatlas.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ai-assistant
+  template:
+    metadata:
+      labels:
+        {{- include "kubeatlas.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ai-assistant
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: ai-assistant
+          image: "{{ .Values.ai.image.repository }}:{{ .Values.ai.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.ai.image.pullPolicy | default "Always" }}
+          ports:
+            - name: http
+              containerPort: 8090
+          envFrom:
+            - secretRef:
+                name: {{ include "kubeatlas.fullname" . }}-ai-secret
+            - configMapRef:
+                name: {{ include "kubeatlas.fullname" . }}-ai-config
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.ai.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kubeatlas.fullname" . }}-ai
+  labels:
+    {{- include "kubeatlas.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-assistant
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8090
+      targetPort: http
+  selector:
+    {{- include "kubeatlas.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-assistant
+
+{{- if .Values.ai.route.enabled }}
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "kubeatlas.fullname" . }}-ai
+  labels:
+    {{- include "kubeatlas.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-assistant
+  annotations:
+    haproxy.router.openshift.io/timeout: 300s
+spec:
+  {{- if .Values.ai.route.host }}
+  host: {{ .Values.ai.route.host }}
+  {{- end }}
+  to:
+    kind: Service
+    name: {{ include "kubeatlas.fullname" . }}-ai
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+{{- end }}
+
+{{- end }}

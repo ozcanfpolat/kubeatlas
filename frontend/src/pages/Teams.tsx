@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Users, MoreVertical, Trash, Edit, Mail, MessageSquare, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, UserCircle } from 'lucide-react'
+import { Plus, Users, MoreVertical, Trash, Edit, Mail, MessageSquare, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, UserCircle, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -20,14 +20,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { teamsApi } from '@/api'
-import type { Team, TeamMember } from '@/types'
+import { teamsApi, usersApi } from '@/api'
+import type { Team, TeamMember, User } from '@/types'
 
 export default function Teams() {
   const queryClient = useQueryClient()
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false)
+  const [addMemberTeamId, setAddMemberTeamId] = useState<string | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState<string>('')
+  const [memberRole, setMemberRole] = useState<string>('member')
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -43,6 +54,14 @@ export default function Teams() {
     queryFn: teamsApi.list,
     retry: 1,
   })
+
+  // Get all users for member selection
+  const { data: usersData } = useQuery({
+    queryKey: ['users-for-teams'],
+    queryFn: () => usersApi.list({ page: 1, page_size: 100 }),
+  })
+
+  const allUsers: User[] = usersData?.items || []
 
   // Get members for expanded team
   const { data: membersData } = useQuery({
@@ -86,6 +105,35 @@ export default function Teams() {
     },
     onError: (err: Error) => {
       setError(err.message || 'Failed to delete team')
+    },
+  })
+
+  const addMemberMutation = useMutation({
+    mutationFn: ({ teamId, userId, role }: { teamId: string; userId: string; role: string }) => 
+      teamsApi.addMember(teamId, userId, role),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-members', addMemberTeamId] })
+      queryClient.invalidateQueries({ queryKey: ['teams'] })
+      setIsAddMemberDialogOpen(false)
+      setSelectedUserId('')
+      setMemberRole('member')
+      setError(null)
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'Failed to add member')
+    },
+  })
+
+  const removeMemberMutation = useMutation({
+    mutationFn: ({ teamId, userId }: { teamId: string; userId: string }) => 
+      teamsApi.removeMember(teamId, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-members', expandedTeam] })
+      queryClient.invalidateQueries({ queryKey: ['teams'] })
+      setError(null)
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'Failed to remove member')
     },
   })
 
@@ -273,7 +321,20 @@ export default function Teams() {
                 {/* Members List */}
                 {expandedTeam === team.id && (
                   <div className="mt-4 pt-4 border-t">
-                    <p className="text-sm font-medium mb-3">Üyeler</p>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-medium">Üyeler</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setAddMemberTeamId(team.id)
+                          setIsAddMemberDialogOpen(true)
+                        }}
+                      >
+                        <UserPlus className="h-4 w-4 mr-1" />
+                        Üye Ekle
+                      </Button>
+                    </div>
                     {membersData && membersData.length > 0 ? (
                       <div className="space-y-2">
                         {membersData.map((member: TeamMember) => (
@@ -283,6 +344,14 @@ export default function Teams() {
                               <p className="text-sm font-medium">{member.user?.full_name || member.user?.email || 'Unknown'}</p>
                               <p className="text-xs text-muted-foreground">{member.role}</p>
                             </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                              onClick={() => removeMemberMutation.mutate({ teamId: team.id, userId: member.user_id })}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
                           </div>
                         ))}
                       </div>
@@ -406,6 +475,74 @@ export default function Teams() {
             </Button>
             <Button onClick={handleUpdate} disabled={updateMutation.isPending || !formData.name.trim()}>
               {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Member Dialog */}
+      <Dialog open={isAddMemberDialogOpen} onOpenChange={setIsAddMemberDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Takıma Üye Ekle
+            </DialogTitle>
+            <DialogDescription>
+              Kullanıcı seçin ve takıma ekleyin
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Kullanıcı *</Label>
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Kullanıcı seçin..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allUsers.length === 0 ? (
+                    <SelectItem value="none" disabled>Kullanıcı bulunamadı</SelectItem>
+                  ) : (
+                    allUsers.map((u: User) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        <div className="flex items-center gap-2">
+                          <UserCircle className="h-4 w-4" />
+                          <span>{u.full_name || u.email}</span>
+                          <span className="text-xs text-muted-foreground">({u.email})</span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Rol</Label>
+              <Select value={memberRole} onValueChange={setMemberRole}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Üye</SelectItem>
+                  <SelectItem value="lead">Takım Lideri</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddMemberDialogOpen(false)}>
+              İptal
+            </Button>
+            <Button 
+              onClick={() => {
+                if (addMemberTeamId && selectedUserId) {
+                  addMemberMutation.mutate({ teamId: addMemberTeamId, userId: selectedUserId, role: memberRole })
+                }
+              }}
+              disabled={!selectedUserId || addMemberMutation.isPending}
+            >
+              {addMemberMutation.isPending ? 'Ekleniyor...' : 'Üye Ekle'}
             </Button>
           </DialogFooter>
         </DialogContent>

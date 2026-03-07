@@ -230,7 +230,7 @@ func ListUsers(svc *services.Services) gin.HandlerFunc {
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}
-		respondSuccess(c, result)
+		respondPaginated(c, result.Items, result.Total, result.Page, result.PageSize, result.TotalPages)
 	}
 }
 

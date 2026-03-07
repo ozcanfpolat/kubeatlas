@@ -91,6 +91,7 @@ export default function Settings() {
   const [showSaved, setShowSaved] = useState(false)
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null)
   
   const [profileData, setProfileData] = useState({
@@ -144,6 +145,12 @@ export default function Settings() {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setIsCreateUserOpen(false)
       setCreateUserForm({ email: '', password: '', full_name: '', role: 'viewer' })
+      setErrorMessage(null)
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || error?.message || 'Failed to create user'
+      setErrorMessage(msg)
+      console.error('Create user error:', error?.response?.data || error)
     },
   })
 
@@ -1053,8 +1060,19 @@ export default function Settings() {
               </Select>
             </div>
           </div>
+          
+          {/* Error Message */}
+          {(createUserMutation.isError || errorMessage) && (
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
+              {errorMessage || 'Failed to create user. Please check your input.'}
+            </div>
+          )}
+          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateUserOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsCreateUserOpen(false)
+              setErrorMessage(null)
+            }}>
               {t('common.cancel')}
             </Button>
             <Button 

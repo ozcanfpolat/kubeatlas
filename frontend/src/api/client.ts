@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/store/authStore'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 // Track if we're currently refreshing to prevent infinite loops
 let isRefreshing = false

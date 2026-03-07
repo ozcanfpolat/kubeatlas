@@ -255,34 +255,52 @@ func CreateUser(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req services.CreateUserRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			log.Printf("ERROR CreateUser - bind error: %v, request body error", err)
+			log.Printf("ERROR CreateUser - bind error: %v", err)
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":   "validation_error",
-				"message": err.Error(),
+				"message": "Invalid request: " + err.Error(),
+				"details": "Email must be valid, password is required",
 			})
 			return
 		}
 
-		log.Printf("INFO CreateUser - email: %s, role: %s", req.Email, req.Role)
+		log.Printf("INFO CreateUser - email: %s, role: %s, has_password: %v", req.Email, req.Role, req.Password != "")
 
 		// Validate password for local users
 		if req.Password == "" {
-			respondErrorStr(c, http.StatusBadRequest, "Password is required for local users")
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "validation_error",
+				"message": "Password is required for local users",
+			})
 			return
 		}
 
 		// Validate role
-		if req.Role != "" && req.Role != "admin" && req.Role != "editor" && req.Role != "viewer" {
-			respondErrorStr(c, http.StatusBadRequest, "Invalid role. Must be 'admin', 'editor', or 'viewer'")
+		validRoles := map[string]bool{"admin": true, "editor": true, "viewer": true, "": true}
+		if !validRoles[req.Role] {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "validation_error",
+				"message": "Invalid role. Must be 'admin', 'editor', or 'viewer'",
+			})
 			return
+		}
+
+		// Set default role
+		if req.Role == "" {
+			req.Role = "viewer"
 		}
 
 		user, err := svc.User.Create(c.Request.Context(), getAuditContext(c), req)
 		if err != nil {
-			log.Printf("ERROR CreateUser: %v", err)
-			respondError(c, http.StatusInternalServerError, err)
+			log.Printf("ERROR CreateUser - create failed: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "create_failed",
+				"message": err.Error(),
+			})
 			return
 		}
+		
+		log.Printf("INFO CreateUser - success: %s", user.Email)
 		c.JSON(http.StatusCreated, gin.H{"data": user})
 	}
 }

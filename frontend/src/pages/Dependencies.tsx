@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import * as d3 from 'd3'
+import { useState, useMemo } from 'react'
 import {
   GitBranch,
   Plus,
@@ -12,13 +11,13 @@ import {
   Server,
   Cloud,
   Filter,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
+  Trash2,
+  ArrowRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -40,47 +39,33 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { dependenciesApi, namespacesApi, clustersApi } from '@/api'
 import type { InternalDependency, ExternalDependency, Cluster, Namespace } from '@/types'
 
-const dependencyTypeColors: Record<string, string> = {
-  api: '#3b82f6',
-  database: '#22c55e',
-  queue: '#a855f7',
-  cache: '#f97316',
-  storage: '#06b6d4',
-  saas: '#ec4899',
-  'payment-gateway': '#ef4444',
+const dependencyTypeColors: Record<string, { bg: string; text: string; stroke: string }> = {
+  api: { bg: 'bg-blue-500/10', text: 'text-blue-500', stroke: '#3b82f6' },
+  database: { bg: 'bg-green-500/10', text: 'text-green-500', stroke: '#22c55e' },
+  queue: { bg: 'bg-purple-500/10', text: 'text-purple-500', stroke: '#a855f7' },
+  cache: { bg: 'bg-orange-500/10', text: 'text-orange-500', stroke: '#f97316' },
+  storage: { bg: 'bg-cyan-500/10', text: 'text-cyan-500', stroke: '#06b6d4' },
+  saas: { bg: 'bg-pink-500/10', text: 'text-pink-500', stroke: '#ec4899' },
+  'payment-gateway': { bg: 'bg-red-500/10', text: 'text-red-500', stroke: '#ef4444' },
 }
 
-interface GraphNode {
+interface NodePosition {
   id: string
+  x: number
+  y: number
   name: string
   type: 'namespace' | 'external'
   cluster?: string
-  x?: number
-  y?: number
-  fx?: number | null
-  fy?: number | null
-}
-
-interface GraphLink {
-  source: string | GraphNode
-  target: string | GraphNode
-  type: string
-  isCritical: boolean
-  id: string
 }
 
 export default function Dependencies() {
   const queryClient = useQueryClient()
-  const svgRef = useRef<SVGSVGElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
   const [searchQuery, setSearchQuery] = useState('')
   const [clusterFilter, setClusterFilter] = useState<string>('all')
-  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null)
+  const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [isAddInternalOpen, setIsAddInternalOpen] = useState(false)
   const [isAddExternalOpen, setIsAddExternalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 })
 
   // Form states
   const [internalForm, setInternalForm] = useState({
@@ -138,7 +123,7 @@ export default function Dependencies() {
 
   // Mutations
   const createInternalMutation = useMutation({
-    mutationFn: (data: any) => dependenciesApi.createInternal(data),
+    mutationFn: (data: typeof internalForm) => dependenciesApi.createInternal(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['internal-dependencies'] })
       setIsAddInternalOpen(false)
@@ -157,7 +142,7 @@ export default function Dependencies() {
   })
 
   const createExternalMutation = useMutation({
-    mutationFn: (data: any) => dependenciesApi.createExternal(data),
+    mutationFn: (data: typeof externalForm) => dependenciesApi.createExternal(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['external-dependencies'] })
       setIsAddExternalOpen(false)
@@ -176,311 +161,141 @@ export default function Dependencies() {
     },
   })
 
+  const deleteInternalMutation = useMutation({
+    mutationFn: (id: string) => dependenciesApi.deleteInternal(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['internal-dependencies'] })
+    },
+  })
+
+  const deleteExternalMutation = useMutation({
+    mutationFn: (id: string) => dependenciesApi.deleteExternal(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['external-dependencies'] })
+    },
+  })
+
   const isLoading = loadingInternal || loadingExternal
 
-  // Build graph data
-  const graphData = useMemo(() => {
+  // Build topology data
+  const topologyData = useMemo(() => {
     const internalList: InternalDependency[] = internalDeps?.items || []
     const externalList: ExternalDependency[] = Array.isArray(externalDeps) ? externalDeps : []
     
-    const nodes: GraphNode[] = []
-    const links: GraphLink[] = []
-    const nodeMap = new Map<string, GraphNode>()
+    const nodeMap = new Map<string, NodePosition>()
+    const links: { source: string; target: string; type: string; isCritical: boolean; id: string; isExternal: boolean }[] = []
 
-    // Add namespace nodes from internal dependencies
+    // Collect all unique namespaces from dependencies
     internalList.forEach(dep => {
-      // Source namespace
       if (!nodeMap.has(dep.source_namespace_id)) {
         const ns = namespaces.find(n => n.id === dep.source_namespace_id)
         if (ns) {
           const cluster = clusters.find(c => c.id === ns.cluster_id)
-          const node: GraphNode = {
+          nodeMap.set(ns.id, {
             id: ns.id,
+            x: 0,
+            y: 0,
             name: ns.name,
             type: 'namespace',
-            cluster: cluster?.name || cluster?.display_name,
-          }
-          nodeMap.set(ns.id, node)
-          nodes.push(node)
+            cluster: cluster?.display_name || cluster?.name,
+          })
         }
       }
-      
-      // Target namespace
       if (!nodeMap.has(dep.target_namespace_id)) {
         const ns = namespaces.find(n => n.id === dep.target_namespace_id)
         if (ns) {
           const cluster = clusters.find(c => c.id === ns.cluster_id)
-          const node: GraphNode = {
+          nodeMap.set(ns.id, {
             id: ns.id,
+            x: 0,
+            y: 0,
             name: ns.name,
             type: 'namespace',
-            cluster: cluster?.name || cluster?.display_name,
-          }
-          nodeMap.set(ns.id, node)
-          nodes.push(node)
+            cluster: cluster?.display_name || cluster?.name,
+          })
         }
       }
-
-      // Add link
       links.push({
         source: dep.source_namespace_id,
         target: dep.target_namespace_id,
         type: dep.dependency_type,
         isCritical: dep.is_critical,
         id: dep.id,
+        isExternal: false,
       })
     })
 
-    // Add external dependencies
     externalList.forEach(dep => {
-      // Source namespace
       if (!nodeMap.has(dep.namespace_id)) {
         const ns = namespaces.find(n => n.id === dep.namespace_id)
         if (ns) {
           const cluster = clusters.find(c => c.id === ns.cluster_id)
-          const node: GraphNode = {
+          nodeMap.set(ns.id, {
             id: ns.id,
+            x: 0,
+            y: 0,
             name: ns.name,
             type: 'namespace',
-            cluster: cluster?.name || cluster?.display_name,
-          }
-          nodeMap.set(ns.id, node)
-          nodes.push(node)
+            cluster: cluster?.display_name || cluster?.name,
+          })
         }
       }
-
-      // External service node
-      const externalId = `ext_${dep.id}`
-      if (!nodeMap.has(externalId)) {
-        const node: GraphNode = {
-          id: externalId,
+      const extId = `ext_${dep.id}`
+      if (!nodeMap.has(extId)) {
+        nodeMap.set(extId, {
+          id: extId,
+          x: 0,
+          y: 0,
           name: dep.name,
           type: 'external',
-        }
-        nodeMap.set(externalId, node)
-        nodes.push(node)
+        })
       }
-
-      // Add link
       links.push({
         source: dep.namespace_id,
-        target: externalId,
+        target: extId,
         type: dep.system_type || 'external',
         isCritical: dep.is_critical,
         id: dep.id,
+        isExternal: true,
       })
     })
 
-    // Filter by cluster
-    let filteredNodes = nodes
+    // Calculate positions in a circular layout
+    const nodes = Array.from(nodeMap.values())
+    const centerX = 400
+    const centerY = 300
+    const radius = Math.min(250, nodes.length * 30)
+
+    nodes.forEach((node, i) => {
+      const angle = (2 * Math.PI * i) / nodes.length - Math.PI / 2
+      node.x = centerX + radius * Math.cos(angle)
+      node.y = centerY + radius * Math.sin(angle)
+    })
+
+    return { nodes, links, nodeMap }
+  }, [internalDeps, externalDeps, namespaces, clusters])
+
+  // Filter nodes
+  const filteredNodes = useMemo(() => {
+    let nodes = topologyData.nodes
+
     if (clusterFilter !== 'all') {
-      const clusterName = clusters.find(c => c.id === clusterFilter)?.name
-      filteredNodes = nodes.filter(n => n.type === 'external' || n.cluster === clusterName)
+      const clusterName = clusters.find(c => c.id === clusterFilter)?.name || 
+                          clusters.find(c => c.id === clusterFilter)?.display_name
+      nodes = nodes.filter(n => n.type === 'external' || n.cluster === clusterName)
     }
 
-    // Filter by search
     if (searchQuery) {
-      filteredNodes = filteredNodes.filter(n => 
-        n.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      nodes = nodes.filter(n => n.name.toLowerCase().includes(searchQuery.toLowerCase()))
     }
 
-    const filteredNodeIds = new Set(filteredNodes.map(n => n.id))
-    const filteredLinks = links.filter(l => {
-      const sourceId = typeof l.source === 'string' ? l.source : l.source.id
-      const targetId = typeof l.target === 'string' ? l.target : l.target.id
-      return filteredNodeIds.has(sourceId) && filteredNodeIds.has(targetId)
-    })
+    return nodes
+  }, [topologyData.nodes, clusterFilter, searchQuery, clusters])
 
-    return { nodes: filteredNodes, links: filteredLinks }
-  }, [internalDeps, externalDeps, namespaces, clusters, clusterFilter, searchQuery])
-
-  // Update dimensions on resize
-  useEffect(() => {
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect()
-        setDimensions({ width: rect.width, height: Math.max(600, rect.height) })
-      }
-    }
-    updateDimensions()
-    window.addEventListener('resize', updateDimensions)
-    return () => window.removeEventListener('resize', updateDimensions)
-  }, [])
-
-  // D3 Force simulation
-  useEffect(() => {
-    if (!svgRef.current || graphData.nodes.length === 0) return
-
-    const svg = d3.select(svgRef.current)
-    svg.selectAll('*').remove()
-
-    const width = dimensions.width
-    const height = dimensions.height
-
-    // Create container group for zoom
-    const g = svg.append('g')
-
-    // Define arrow markers
-    const defs = svg.append('defs')
-    
-    Object.entries(dependencyTypeColors).forEach(([type, color]) => {
-      defs.append('marker')
-        .attr('id', `arrow-${type}`)
-        .attr('viewBox', '0 -5 10 10')
-        .attr('refX', 25)
-        .attr('refY', 0)
-        .attr('markerWidth', 6)
-        .attr('markerHeight', 6)
-        .attr('orient', 'auto')
-        .append('path')
-        .attr('fill', color)
-        .attr('d', 'M0,-5L10,0L0,5')
-    })
-
-    // Default arrow
-    defs.append('marker')
-      .attr('id', 'arrow-default')
-      .attr('viewBox', '0 -5 10 10')
-      .attr('refX', 25)
-      .attr('refY', 0)
-      .attr('markerWidth', 6)
-      .attr('markerHeight', 6)
-      .attr('orient', 'auto')
-      .append('path')
-      .attr('fill', '#94a3b8')
-      .attr('d', 'M0,-5L10,0L0,5')
-
-    // Create simulation
-    const simulation = d3.forceSimulation(graphData.nodes as d3.SimulationNodeDatum[])
-      .force('link', d3.forceLink(graphData.links)
-        .id((d: any) => d.id)
-        .distance(150)
-      )
-      .force('charge', d3.forceManyBody().strength(-400))
-      .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(50))
-
-    // Draw links
-    const link = g.append('g')
-      .attr('class', 'links')
-      .selectAll('path')
-      .data(graphData.links)
-      .enter()
-      .append('path')
-      .attr('fill', 'none')
-      .attr('stroke', (d: GraphLink) => dependencyTypeColors[d.type] || '#94a3b8')
-      .attr('stroke-width', (d: GraphLink) => d.isCritical ? 3 : 2)
-      .attr('stroke-dasharray', (d: GraphLink) => {
-        const target = typeof d.target === 'string' ? d.target : d.target.id
-        return target.startsWith('ext_') ? '5,5' : 'none'
-      })
-      .attr('marker-end', (d: GraphLink) => `url(#arrow-${d.type})`)
-      .attr('opacity', 0.7)
-
-    // Draw nodes
-    const node = g.append('g')
-      .attr('class', 'nodes')
-      .selectAll('g')
-      .data(graphData.nodes)
-      .enter()
-      .append('g')
-      .attr('cursor', 'pointer')
-      .call(d3.drag<SVGGElement, GraphNode>()
-        .on('start', (event, d) => {
-          if (!event.active) simulation.alphaTarget(0.3).restart()
-          d.fx = d.x
-          d.fy = d.y
-        })
-        .on('drag', (event, d) => {
-          d.fx = event.x
-          d.fy = event.y
-        })
-        .on('end', (event, d) => {
-          if (!event.active) simulation.alphaTarget(0)
-          d.fx = null
-          d.fy = null
-        })
-      )
-      .on('click', (_event, d) => {
-        setSelectedNode(d)
-      })
-
-    // Node circles
-    node.append('circle')
-      .attr('r', 20)
-      .attr('fill', (d: GraphNode) => d.type === 'external' ? '#ec4899' : '#3b82f6')
-      .attr('stroke', '#fff')
-      .attr('stroke-width', 2)
-      .attr('filter', 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))')
-
-    // Node icons
-    node.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dominant-baseline', 'central')
-      .attr('fill', 'white')
-      .attr('font-size', '14px')
-      .text((d: GraphNode) => d.type === 'external' ? '☁' : '⬡')
-
-    // Node labels
-    node.append('text')
-      .attr('dy', 35)
-      .attr('text-anchor', 'middle')
-      .attr('fill', 'currentColor')
-      .attr('font-size', '12px')
-      .attr('font-weight', '500')
-      .text((d: GraphNode) => d.name.length > 20 ? d.name.slice(0, 18) + '...' : d.name)
-
-    // Cluster labels
-    node.filter((d: GraphNode) => d.type === 'namespace' && !!d.cluster)
-      .append('text')
-      .attr('dy', 48)
-      .attr('text-anchor', 'middle')
-      .attr('fill', '#94a3b8')
-      .attr('font-size', '10px')
-      .text((d: GraphNode) => d.cluster || '')
-
-    // Update positions on tick
-    simulation.on('tick', () => {
-      link.attr('d', (d: any) => {
-        const dx = d.target.x - d.source.x
-        const dy = d.target.y - d.source.y
-        const dr = Math.sqrt(dx * dx + dy * dy) * 2
-        return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`
-      })
-
-      node.attr('transform', (d: any) => `translate(${d.x},${d.y})`)
-    })
-
-    // Zoom behavior
-    const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.2, 4])
-      .on('zoom', (event) => {
-        g.attr('transform', event.transform)
-        setTransform({ x: event.transform.x, y: event.transform.y, k: event.transform.k })
-      })
-
-    svg.call(zoom)
-
-    // Cleanup
-    return () => {
-      simulation.stop()
-    }
-  }, [graphData, dimensions])
-
-  // Zoom controls
-  const handleZoom = useCallback((direction: 'in' | 'out' | 'reset') => {
-    if (!svgRef.current) return
-    const svg = d3.select(svgRef.current)
-    const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.2, 4])
-    
-    if (direction === 'reset') {
-      svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity)
-    } else {
-      const scale = direction === 'in' ? 1.3 : 0.7
-      svg.transition().duration(300).call(zoom.scaleBy, scale)
-    }
-  }, [])
+  const filteredNodeIds = new Set(filteredNodes.map(n => n.id))
+  const filteredLinks = topologyData.links.filter(l => 
+    filteredNodeIds.has(l.source) && filteredNodeIds.has(l.target)
+  )
 
   // Stats
   const internalList: InternalDependency[] = internalDeps?.items || []
@@ -488,6 +303,13 @@ export default function Dependencies() {
   const totalInternal = internalList.length
   const totalExternal = externalList.length
   const criticalCount = [...internalList, ...externalList].filter(d => d.is_critical).length
+
+  // Get node details for selected
+  const selectedNodeData = selectedNode ? topologyData.nodeMap.get(selectedNode) : null
+  const selectedNodeLinks = selectedNode ? {
+    incoming: filteredLinks.filter(l => l.target === selectedNode),
+    outgoing: filteredLinks.filter(l => l.source === selectedNode),
+  } : null
 
   if (isError) {
     return (
@@ -524,6 +346,10 @@ export default function Dependencies() {
           <p className="text-muted-foreground">Servis bağımlılıklarını görsel harita üzerinde görüntüleyin</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => refetch()}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Yenile
+          </Button>
           <Button onClick={() => setIsAddInternalOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Internal
@@ -593,7 +419,7 @@ export default function Dependencies() {
                 <Network className="h-6 w-6 text-green-500" />
               </div>
               <div>
-                <p className="text-3xl font-bold text-green-500">{graphData.nodes.length}</p>
+                <p className="text-3xl font-bold text-green-500">{filteredNodes.length}</p>
                 <p className="text-sm text-muted-foreground">Node</p>
               </div>
             </div>
@@ -601,87 +427,283 @@ export default function Dependencies() {
         </Card>
       </div>
 
-      {/* Filters and Controls */}
-      <div className="flex items-center justify-between gap-4 p-4 rounded-lg bg-muted/50 border">
-        <div className="flex items-center gap-4">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <div className="relative max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Namespace ara..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-48"
-            />
-          </div>
-          <Select value={clusterFilter} onValueChange={setClusterFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Tüm Clusterlar" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Clusterlar</SelectItem>
-              {clusters.map((cluster) => (
-                <SelectItem key={cluster.id} value={cluster.id}>
-                  {cluster.display_name || cluster.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Filters */}
+      <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50 border">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <div className="relative max-w-xs">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Namespace ara..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 w-48"
+          />
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => handleZoom('out')}>
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => handleZoom('in')}>
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => handleZoom('reset')}>
-            <Maximize2 className="h-4 w-4" />
-          </Button>
-          <span className="text-sm text-muted-foreground ml-2">
-            {Math.round(transform.k * 100)}%
-          </span>
-        </div>
+        <Select value={clusterFilter} onValueChange={setClusterFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Tüm Clusterlar" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tüm Clusterlar</SelectItem>
+            {clusters.map((cluster) => (
+              <SelectItem key={cluster.id} value={cluster.id}>
+                {cluster.display_name || cluster.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Topology View */}
-      <Card className="overflow-hidden">
-        <CardContent className="p-0" ref={containerRef}>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-[600px]">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-          ) : graphData.nodes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-[600px] bg-muted/30">
-              <div className="p-4 rounded-full bg-muted mb-4">
-                <Network className="h-12 w-12 text-muted-foreground" />
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2 overflow-hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Network className="h-5 w-5" />
+              Topology Map
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-[500px]">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Henüz bağımlılık yok</h3>
-              <p className="text-muted-foreground text-center max-w-md mb-6">
-                Namespace'leriniz arasında bağımlılık tanımlayarak topology haritasını oluşturun.
-              </p>
-              <div className="flex gap-3">
-                <Button onClick={() => setIsAddInternalOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Internal Bağımlılık Ekle
-                </Button>
-                <Button onClick={() => setIsAddExternalOpen(true)} variant="outline">
-                  <Plus className="mr-2 h-4 w-4" />
-                  External Bağımlılık Ekle
-                </Button>
+            ) : filteredNodes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-[500px] bg-muted/30">
+                <div className="p-4 rounded-full bg-muted mb-4">
+                  <Network className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Henüz bağımlılık yok</h3>
+                <p className="text-muted-foreground text-center max-w-md mb-6">
+                  Namespace'leriniz arasında bağımlılık tanımlayarak topology haritasını oluşturun.
+                </p>
+                <div className="flex gap-3">
+                  <Button onClick={() => setIsAddInternalOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Internal Ekle
+                  </Button>
+                  <Button onClick={() => setIsAddExternalOpen(true)} variant="outline">
+                    <Plus className="mr-2 h-4 w-4" />
+                    External Ekle
+                  </Button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <svg
-              ref={svgRef}
-              width={dimensions.width}
-              height={dimensions.height}
-              className="bg-gradient-to-br from-background to-muted/30"
-              style={{ cursor: 'grab' }}
-            />
-          )}
-        </CardContent>
-      </Card>
+            ) : (
+              <svg
+                viewBox="0 0 800 600"
+                className="w-full h-[500px] bg-gradient-to-br from-background to-muted/30"
+              >
+                {/* Arrow markers */}
+                <defs>
+                  {Object.entries(dependencyTypeColors).map(([type, colors]) => (
+                    <marker
+                      key={type}
+                      id={`arrow-${type}`}
+                      viewBox="0 0 10 10"
+                      refX="9"
+                      refY="5"
+                      markerWidth="6"
+                      markerHeight="6"
+                      orient="auto-start-reverse"
+                    >
+                      <path d="M 0 0 L 10 5 L 0 10 z" fill={colors.stroke} />
+                    </marker>
+                  ))}
+                  <marker
+                    id="arrow-default"
+                    viewBox="0 0 10 10"
+                    refX="9"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto-start-reverse"
+                  >
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
+                  </marker>
+                </defs>
+
+                {/* Links */}
+                {filteredLinks.map((link) => {
+                  const source = topologyData.nodeMap.get(link.source)
+                  const target = topologyData.nodeMap.get(link.target)
+                  if (!source || !target) return null
+
+                  const colors = dependencyTypeColors[link.type] || { stroke: '#94a3b8' }
+                  
+                  // Calculate curved path
+                  const dx = target.x - source.x
+                  const dy = target.y - source.y
+                  const dr = Math.sqrt(dx * dx + dy * dy) * 0.8
+
+                  return (
+                    <g key={link.id}>
+                      <path
+                        d={`M ${source.x} ${source.y} A ${dr} ${dr} 0 0 1 ${target.x} ${target.y}`}
+                        fill="none"
+                        stroke={colors.stroke}
+                        strokeWidth={link.isCritical ? 3 : 2}
+                        strokeDasharray={link.isExternal ? '5,5' : 'none'}
+                        markerEnd={`url(#arrow-${link.type})`}
+                        opacity={selectedNode ? (link.source === selectedNode || link.target === selectedNode ? 1 : 0.2) : 0.7}
+                        className="transition-opacity duration-200"
+                      />
+                    </g>
+                  )
+                })}
+
+                {/* Nodes */}
+                {filteredNodes.map((node) => (
+                  <g
+                    key={node.id}
+                    transform={`translate(${node.x}, ${node.y})`}
+                    onClick={() => setSelectedNode(selectedNode === node.id ? null : node.id)}
+                    className="cursor-pointer"
+                    opacity={selectedNode ? (selectedNode === node.id || 
+                      filteredLinks.some(l => l.source === selectedNode && l.target === node.id) ||
+                      filteredLinks.some(l => l.target === selectedNode && l.source === node.id) ? 1 : 0.3) : 1}
+                  >
+                    {/* Node circle */}
+                    <circle
+                      r={selectedNode === node.id ? 28 : 24}
+                      fill={node.type === 'external' ? '#ec4899' : '#3b82f6'}
+                      stroke={selectedNode === node.id ? '#fff' : 'transparent'}
+                      strokeWidth={3}
+                      className="transition-all duration-200"
+                    />
+                    {/* Node icon */}
+                    <text
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fill="white"
+                      fontSize="16"
+                    >
+                      {node.type === 'external' ? '☁' : '⬡'}
+                    </text>
+                    {/* Node label */}
+                    <text
+                      y={38}
+                      textAnchor="middle"
+                      fill="currentColor"
+                      fontSize="11"
+                      fontWeight="500"
+                      className="pointer-events-none"
+                    >
+                      {node.name.length > 18 ? node.name.slice(0, 16) + '...' : node.name}
+                    </text>
+                    {/* Cluster label */}
+                    {node.cluster && (
+                      <text
+                        y={50}
+                        textAnchor="middle"
+                        fill="#94a3b8"
+                        fontSize="9"
+                        className="pointer-events-none"
+                      >
+                        {node.cluster}
+                      </text>
+                    )}
+                  </g>
+                ))}
+              </svg>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Details Panel */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">
+              {selectedNodeData ? selectedNodeData.name : 'Detaylar'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {selectedNodeData ? (
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Tür</p>
+                  <div className="flex items-center gap-2">
+                    {selectedNodeData.type === 'external' ? (
+                      <Cloud className="h-5 w-5 text-pink-500" />
+                    ) : (
+                      <Server className="h-5 w-5 text-blue-500" />
+                    )}
+                    <span className="font-medium capitalize">{selectedNodeData.type}</span>
+                  </div>
+                </div>
+
+                {selectedNodeData.cluster && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Cluster</p>
+                    <p className="font-medium">{selectedNodeData.cluster}</p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Giden Bağlantılar ({selectedNodeLinks?.outgoing.length || 0})</p>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {selectedNodeLinks?.outgoing.map((link) => {
+                      const target = topologyData.nodeMap.get(link.target)
+                      const colors = dependencyTypeColors[link.type]
+                      return (
+                        <div key={link.id} className="flex items-center gap-2 text-sm p-2 rounded bg-muted/50">
+                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                          <Badge variant="outline" className={colors?.text}>{link.type}</Badge>
+                          <span className="truncate">{target?.name}</span>
+                          {link.isCritical && <Badge variant="destructive" className="text-xs">Kritik</Badge>}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 ml-auto"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (link.isExternal) {
+                                deleteExternalMutation.mutate(link.id)
+                              } else {
+                                deleteInternalMutation.mutate(link.id)
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </div>
+                      )
+                    })}
+                    {selectedNodeLinks?.outgoing.length === 0 && (
+                      <p className="text-sm text-muted-foreground">Yok</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Gelen Bağlantılar ({selectedNodeLinks?.incoming.length || 0})</p>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {selectedNodeLinks?.incoming.map((link) => {
+                      const source = topologyData.nodeMap.get(link.source)
+                      const colors = dependencyTypeColors[link.type]
+                      return (
+                        <div key={link.id} className="flex items-center gap-2 text-sm p-2 rounded bg-muted/50">
+                          <ArrowRight className="h-3 w-3 text-muted-foreground rotate-180" />
+                          <Badge variant="outline" className={colors?.text}>{link.type}</Badge>
+                          <span className="truncate">{source?.name}</span>
+                          {link.isCritical && <Badge variant="destructive" className="text-xs">Kritik</Badge>}
+                        </div>
+                      )
+                    })}
+                    {selectedNodeLinks?.incoming.length === 0 && (
+                      <p className="text-sm text-muted-foreground">Yok</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Network className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p>Detay görüntülemek için bir node seçin</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Legend */}
       <Card>
@@ -703,72 +725,19 @@ export default function Dependencies() {
             </div>
             <div className="flex items-center gap-4">
               <span className="text-sm font-medium">Bağlantı Türleri:</span>
-              {Object.entries(dependencyTypeColors).slice(0, 5).map(([type, color]) => (
+              {Object.entries(dependencyTypeColors).slice(0, 5).map(([type, colors]) => (
                 <div key={type} className="flex items-center gap-2">
-                  <div className="w-6 h-0.5" style={{ backgroundColor: color }} />
+                  <div className="w-6 h-0.5" style={{ backgroundColor: colors.stroke }} />
                   <span className="text-sm capitalize">{type}</span>
                 </div>
               ))}
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-3">
-            💡 Node'ları sürükleyerek taşıyabilir, fare tekerleği ile zoom yapabilirsiniz.
+            💡 Node'lara tıklayarak detayları görebilir ve bağımlılıkları silebilirsiniz.
           </p>
         </CardContent>
       </Card>
-
-      {/* Selected Node Details */}
-      {selectedNode && (
-        <Card className="border-primary/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                {selectedNode.type === 'external' ? (
-                  <Cloud className="h-5 w-5 text-pink-500" />
-                ) : (
-                  <Server className="h-5 w-5 text-blue-500" />
-                )}
-                {selectedNode.name}
-              </CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedNode(null)}>
-                ✕
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <p className="text-sm text-muted-foreground">Tür</p>
-                <p className="font-medium capitalize">{selectedNode.type}</p>
-              </div>
-              {selectedNode.cluster && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Cluster</p>
-                  <p className="font-medium">{selectedNode.cluster}</p>
-                </div>
-              )}
-              <div>
-                <p className="text-sm text-muted-foreground">Gelen Bağlantılar</p>
-                <p className="font-medium">
-                  {graphData.links.filter(l => {
-                    const targetId = typeof l.target === 'string' ? l.target : l.target.id
-                    return targetId === selectedNode.id
-                  }).length}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Giden Bağlantılar</p>
-                <p className="font-medium">
-                  {graphData.links.filter(l => {
-                    const sourceId = typeof l.source === 'string' ? l.source : l.source.id
-                    return sourceId === selectedNode.id
-                  }).length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Add Internal Dependency Dialog */}
       <Dialog open={isAddInternalOpen} onOpenChange={setIsAddInternalOpen}>

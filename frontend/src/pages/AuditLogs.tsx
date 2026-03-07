@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import ExcelJS from 'exceljs'
 import {
   Shield,
   Search,
@@ -53,8 +54,9 @@ export default function AuditLogs() {
   const [actionFilter, setActionFilter] = useState<string>('all')
   const [resourceFilter, setResourceFilter] = useState<string>('all')
   const [expandedLog, setExpandedLog] = useState<string | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
 
-  const { data: logsResult, isLoading, refetch } = useQuery({
+  const { data: logsResult, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['audit-logs', page, actionFilter, resourceFilter],
     queryFn: () =>
       auditApi.list({
@@ -64,6 +66,104 @@ export default function AuditLogs() {
         ...(resourceFilter !== 'all' && { resource_type: resourceFilter }),
       }),
   })
+
+  // Export audit logs to Excel
+  const exportLogs = async () => {
+    setIsExporting(true)
+    try {
+      // Fetch all logs for export
+      const allLogs = await auditApi.list({ page: 1, page_size: 1000 })
+      const logs = allLogs?.items || []
+
+      const workbook = new ExcelJS.Workbook()
+      workbook.creator = 'KubeAtlas'
+      workbook.created = new Date()
+
+      const sheet = workbook.addWorksheet('Audit Logs', {
+        properties: { tabColor: { argb: '8B5CF6' } }
+      })
+
+      // Başlık
+      sheet.mergeCells('A1:F1')
+      const titleCell = sheet.getCell('A1')
+      titleCell.value = '🛡️ KubeAtlas Audit Log Raporu'
+      titleCell.font = { size: 20, bold: true, color: { argb: '6D28D9' } }
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
+      sheet.getRow(1).height = 35
+
+      // Tarih
+      sheet.mergeCells('A2:F2')
+      const dateCell = sheet.getCell('A2')
+      dateCell.value = `Oluşturulma: ${new Date().toLocaleDateString('tr-TR', { 
+        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+      })}`
+      dateCell.font = { size: 11, italic: true, color: { argb: '6B7280' } }
+      dateCell.alignment = { horizontal: 'center' }
+
+      sheet.addRow([])
+
+      // Tablo başlığı
+      const headerRow = sheet.addRow(['Tarih', 'Kullanıcı', 'İşlem', 'Kaynak Türü', 'Kaynak', 'IP Adresi'])
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFF' } }
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '7C3AED' } }
+        cell.alignment = { horizontal: 'center' }
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        }
+      })
+
+      // Veriler
+      logs.forEach((log: AuditLog, idx: number) => {
+        const row = sheet.addRow([
+          new Date(log.created_at).toLocaleString('tr-TR'),
+          log.user_email || '-',
+          log.action,
+          log.resource_type,
+          log.resource_name || log.resource_id || '-',
+          log.user_ip || '-'
+        ])
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          }
+          if (idx % 2 === 0) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F5F3FF' } }
+          }
+        })
+      })
+
+      // Sütun genişlikleri
+      sheet.columns = [
+        { width: 22 },
+        { width: 30 },
+        { width: 12 },
+        { width: 20 },
+        { width: 35 },
+        { width: 18 },
+      ]
+
+      // Download
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `kubeatlas-audit-logs-${new Date().toISOString().split('T')[0]}.xlsx`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Export failed:', error)
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   if (isLoading) {
     return <LoadingPage message="Loading audit logs..." />
@@ -83,13 +183,13 @@ export default function AuditLogs() {
         description="Track all changes and activities across your organization"
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => refetch()}>
-              <RefreshCw className="mr-2 h-4 w-4" />
+            <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <Button variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Export
+            <Button variant="outline" onClick={exportLogs} disabled={isExporting}>
+              <Download className={`mr-2 h-4 w-4 ${isExporting ? 'animate-pulse' : ''}`} />
+              {isExporting ? 'Exporting...' : 'Export'}
             </Button>
           </div>
         }

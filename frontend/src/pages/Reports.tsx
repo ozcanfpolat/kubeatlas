@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { 
   BarChart3, 
   Users, 
@@ -59,73 +59,280 @@ export default function Reports() {
     return '-'
   }
 
-  // Generate and download Excel report
-  const downloadReport = () => {
+  // Generate and download Excel report with ExcelJS
+  const downloadReport = async () => {
     if (!stats) return
     
-    // Create workbook
-    const wb = XLSX.utils.book_new()
-    
-    // ===== Summary Sheet =====
-    const summaryData = [
-      ['KubeAtlas Envanter Raporu'],
-      [''],
-      ['Oluşturulma Tarihi:', new Date().toLocaleDateString('tr-TR', { 
-        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-      })],
-      [''],
-      ['GENEL İSTATİSTİKLER'],
-      ['Metrik', 'Değer', 'Yüzde'],
-      ['Toplam Namespace', stats.total_namespaces || 0, '100%'],
-      ['Sahipli Namespace', stats.namespaces_with_owner || 0, 
-        stats.total_namespaces ? `${Math.round((stats.namespaces_with_owner / stats.total_namespaces) * 100)}%` : '0%'],
-      ['Dokümanlı Namespace', stats.namespaces_documented || 0,
-        stats.total_namespaces ? `${Math.round((stats.namespaces_documented / stats.total_namespaces) * 100)}%` : '0%'],
-      ['Bağımlılık Tanımlı', stats.namespaces_with_dependencies || 0,
-        stats.total_namespaces ? `${Math.round((stats.namespaces_with_dependencies / stats.total_namespaces) * 100)}%` : '0%'],
-      [''],
-      ['EKSİKLİK ANALİZİ'],
-      ['Durum', 'Sayı'],
-      ['Sahipsiz Namespace', (stats.total_namespaces || 0) - (stats.namespaces_with_owner || 0)],
-      ['Dokümansız Namespace', (stats.total_namespaces || 0) - (stats.namespaces_documented || 0)],
+    const workbook = new ExcelJS.Workbook()
+    workbook.creator = 'KubeAtlas'
+    workbook.created = new Date()
+
+    // ===== ÖZET SAYFASI =====
+    const summarySheet = workbook.addWorksheet('Özet', {
+      properties: { tabColor: { argb: '3B82F6' } }
+    })
+
+    // Başlık
+    summarySheet.mergeCells('A1:D1')
+    const titleCell = summarySheet.getCell('A1')
+    titleCell.value = '🚀 KubeAtlas Envanter Raporu'
+    titleCell.font = { size: 24, bold: true, color: { argb: '1E3A8A' } }
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
+    summarySheet.getRow(1).height = 40
+
+    // Tarih
+    summarySheet.mergeCells('A2:D2')
+    const dateCell = summarySheet.getCell('A2')
+    dateCell.value = `Oluşturulma: ${new Date().toLocaleDateString('tr-TR', { 
+      year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+    })}`
+    dateCell.font = { size: 11, italic: true, color: { argb: '6B7280' } }
+    dateCell.alignment = { horizontal: 'center' }
+
+    // Boş satır
+    summarySheet.addRow([])
+
+    // İstatistikler başlığı
+    summarySheet.mergeCells('A4:D4')
+    const statsHeader = summarySheet.getCell('A4')
+    statsHeader.value = '📊 GENEL İSTATİSTİKLER'
+    statsHeader.font = { size: 14, bold: true, color: { argb: 'FFFFFF' } }
+    statsHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '3B82F6' } }
+    statsHeader.alignment = { horizontal: 'center' }
+    summarySheet.getRow(4).height = 28
+
+    // Tablo başlığı
+    const headerRow = summarySheet.addRow(['Metrik', 'Değer', 'Yüzde', 'Durum'])
+    headerRow.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFF' } }
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E40AF' } }
+      cell.alignment = { horizontal: 'center' }
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      }
+    })
+
+    // Veri satırları
+    const total = stats.total_namespaces || 0
+    const withOwner = stats.namespaces_with_owner || 0
+    const documented = stats.namespaces_documented || 0
+    const withDeps = stats.namespaces_with_dependencies || 0
+
+    const statsData = [
+      ['Toplam Namespace', total, '100%', '✅'],
+      ['Sahipli Namespace', withOwner, total ? `${Math.round((withOwner / total) * 100)}%` : '0%', withOwner === total ? '✅' : '⚠️'],
+      ['Dokümanlı Namespace', documented, total ? `${Math.round((documented / total) * 100)}%` : '0%', documented === total ? '✅' : 'ℹ️'],
+      ['Bağımlılık Tanımlı', withDeps, total ? `${Math.round((withDeps / total) * 100)}%` : '0%', withDeps > 0 ? '✅' : 'ℹ️'],
     ]
-    
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData)
-    
-    // Set column widths
-    summarySheet['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 12 }]
-    
-    XLSX.utils.book_append_sheet(wb, summarySheet, 'Özet')
-    
-    // ===== Orphaned Namespaces Sheet =====
-    const orphanedHeader = [['SAHİPSİZ NAMESPACE LİSTESİ'], [''], ['Namespace Adı', 'Cluster', 'Durum']]
-    const orphanedRows = (missingInfo?.orphaned || []).map((item: any) => [
-      item.name,
-      getClusterName(item),
-      'Sahip Atanmamış'
-    ])
-    
-    const orphanedData = [...orphanedHeader, ...orphanedRows]
-    const orphanedSheet = XLSX.utils.aoa_to_sheet(orphanedData)
-    orphanedSheet['!cols'] = [{ wch: 40 }, { wch: 25 }, { wch: 20 }]
-    XLSX.utils.book_append_sheet(wb, orphanedSheet, 'Sahipsiz Namespace')
-    
-    // ===== Undocumented Namespaces Sheet =====
-    const undocHeader = [['DOKÜMANSIZ NAMESPACE LİSTESİ'], [''], ['Namespace Adı', 'Cluster', 'Durum']]
-    const undocRows = (missingInfo?.undocumented || []).map((item: any) => [
-      item.name,
-      getClusterName(item),
-      'Doküman Yok'
-    ])
-    
-    const undocData = [...undocHeader, ...undocRows]
-    const undocSheet = XLSX.utils.aoa_to_sheet(undocData)
-    undocSheet['!cols'] = [{ wch: 40 }, { wch: 25 }, { wch: 20 }]
-    XLSX.utils.book_append_sheet(wb, undocSheet, 'Dokümansız Namespace')
-    
+
+    statsData.forEach((row, idx) => {
+      const dataRow = summarySheet.addRow(row)
+      dataRow.eachCell((cell, colNumber) => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        }
+        cell.alignment = { horizontal: colNumber === 1 ? 'left' : 'center' }
+        // Alternatif satır rengi
+        if (idx % 2 === 0) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'EFF6FF' } }
+        }
+      })
+    })
+
+    // Boş satır
+    summarySheet.addRow([])
+    summarySheet.addRow([])
+
+    // Eksiklik Analizi
+    summarySheet.mergeCells(`A${summarySheet.rowCount + 1}:D${summarySheet.rowCount + 1}`)
+    const missingHeader = summarySheet.getCell(`A${summarySheet.rowCount}`)
+    missingHeader.value = '⚠️ EKSİKLİK ANALİZİ'
+    missingHeader.font = { size: 14, bold: true, color: { argb: 'FFFFFF' } }
+    missingHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F59E0B' } }
+    missingHeader.alignment = { horizontal: 'center' }
+    summarySheet.getRow(summarySheet.rowCount).height = 28
+
+    const missingHeaderRow = summarySheet.addRow(['Durum', 'Sayı', 'Öncelik', 'Aksiyon'])
+    missingHeaderRow.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFF' } }
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'D97706' } }
+      cell.alignment = { horizontal: 'center' }
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      }
+    })
+
+    const orphanedCount = total - withOwner
+    const undocCount = total - documented
+
+    const missingData = [
+      ['Sahipsiz Namespace', orphanedCount, orphanedCount > 0 ? '🔴 Yüksek' : '🟢 Yok', orphanedCount > 0 ? 'Sahip ataması yapın' : 'Aksiyon gerekmiyor'],
+      ['Dokümansız Namespace', undocCount, undocCount > 10 ? '🟡 Orta' : '🟢 Düşük', undocCount > 0 ? 'Döküman ekleyin' : 'Aksiyon gerekmiyor'],
+    ]
+
+    missingData.forEach((row, idx) => {
+      const dataRow = summarySheet.addRow(row)
+      dataRow.eachCell((cell, colNumber) => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        }
+        cell.alignment = { horizontal: colNumber === 1 ? 'left' : 'center' }
+        // Renklendirme
+        if (idx === 0 && orphanedCount > 0) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEF2F2' } }
+        } else if (idx === 1 && undocCount > 0) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFBEB' } }
+        } else {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F0FDF4' } }
+        }
+      })
+    })
+
+    // Sütun genişlikleri
+    summarySheet.columns = [
+      { width: 25 },
+      { width: 15 },
+      { width: 15 },
+      { width: 25 },
+    ]
+
+    // ===== SAHİPSİZ NAMESPACE SAYFASI =====
+    const orphanedSheet = workbook.addWorksheet('Sahipsiz Namespace', {
+      properties: { tabColor: { argb: 'EF4444' } }
+    })
+
+    // Başlık
+    orphanedSheet.mergeCells('A1:C1')
+    const orphanedTitle = orphanedSheet.getCell('A1')
+    orphanedTitle.value = '🚨 Sahipsiz Namespace Listesi'
+    orphanedTitle.font = { size: 18, bold: true, color: { argb: 'DC2626' } }
+    orphanedTitle.alignment = { horizontal: 'center', vertical: 'middle' }
+    orphanedSheet.getRow(1).height = 35
+
+    orphanedSheet.addRow([])
+
+    // Tablo başlığı
+    const orphanedHeaderRow = orphanedSheet.addRow(['#', 'Namespace Adı', 'Cluster'])
+    orphanedHeaderRow.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFF' } }
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'DC2626' } }
+      cell.alignment = { horizontal: 'center' }
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      }
+    })
+
+    // Veriler
+    const orphanedItems = missingInfo?.orphaned || []
+    orphanedItems.forEach((item: any, idx: number) => {
+      const row = orphanedSheet.addRow([idx + 1, item.name, getClusterName(item)])
+      row.eachCell((cell, colNumber) => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        }
+        cell.alignment = { horizontal: colNumber === 1 ? 'center' : 'left' }
+        if (idx % 2 === 0) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEF2F2' } }
+        }
+      })
+    })
+
+    if (orphanedItems.length === 0) {
+      orphanedSheet.addRow(['', '✅ Tüm namespace\'ler sahipli!', ''])
+      orphanedSheet.getCell(`B${orphanedSheet.rowCount}`).font = { color: { argb: '16A34A' }, bold: true }
+    }
+
+    orphanedSheet.columns = [
+      { width: 8 },
+      { width: 45 },
+      { width: 30 },
+    ]
+
+    // ===== DOKÜMANSIZ NAMESPACE SAYFASI =====
+    const undocSheet = workbook.addWorksheet('Dokümansız Namespace', {
+      properties: { tabColor: { argb: 'F59E0B' } }
+    })
+
+    // Başlık
+    undocSheet.mergeCells('A1:C1')
+    const undocTitle = undocSheet.getCell('A1')
+    undocTitle.value = '📄 Dokümansız Namespace Listesi'
+    undocTitle.font = { size: 18, bold: true, color: { argb: 'D97706' } }
+    undocTitle.alignment = { horizontal: 'center', vertical: 'middle' }
+    undocSheet.getRow(1).height = 35
+
+    undocSheet.addRow([])
+
+    // Tablo başlığı
+    const undocHeaderRow = undocSheet.addRow(['#', 'Namespace Adı', 'Cluster'])
+    undocHeaderRow.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFF' } }
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'D97706' } }
+      cell.alignment = { horizontal: 'center' }
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      }
+    })
+
+    // Veriler
+    const undocItems = missingInfo?.undocumented || []
+    undocItems.forEach((item: any, idx: number) => {
+      const row = undocSheet.addRow([idx + 1, item.name, getClusterName(item)])
+      row.eachCell((cell, colNumber) => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        }
+        cell.alignment = { horizontal: colNumber === 1 ? 'center' : 'left' }
+        if (idx % 2 === 0) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFBEB' } }
+        }
+      })
+    })
+
+    if (undocItems.length === 0) {
+      undocSheet.addRow(['', '✅ Tüm namespace\'ler dokümante edilmiş!', ''])
+      undocSheet.getCell(`B${undocSheet.rowCount}`).font = { color: { argb: '16A34A' }, bold: true }
+    }
+
+    undocSheet.columns = [
+      { width: 8 },
+      { width: 45 },
+      { width: 30 },
+    ]
+
     // Download
-    const fileName = `kubeatlas-rapor-${new Date().toISOString().split('T')[0]}.xlsx`
-    XLSX.writeFile(wb, fileName)
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `kubeatlas-rapor-${new Date().toISOString().split('T')[0]}.xlsx`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   if (statsLoading) {

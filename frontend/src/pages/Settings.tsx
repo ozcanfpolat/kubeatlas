@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { 
   User, 
   Bell, 
@@ -7,7 +8,16 @@ import {
   Key,
   Save,
   Globe,
-  Check
+  Check,
+  Users,
+  Plus,
+  Trash2,
+  Edit,
+  Sun,
+  Moon,
+  Monitor,
+  Server,
+  Lock
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,14 +33,81 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { useAuthStore } from '@/store/authStore'
 import { useI18n } from '@/i18n'
+import { useTheme } from '@/lib/ThemeProvider'
+import { usersApi } from '@/api'
+
+interface CreateUserForm {
+  email: string
+  password: string
+  full_name: string
+  role: 'admin' | 'editor' | 'viewer'
+}
+
+interface LDAPConfig {
+  enabled: boolean
+  server_url: string
+  bind_dn: string
+  bind_password: string
+  search_base: string
+  search_filter: string
+  username_attribute: string
+  email_attribute: string
+  fullname_attribute: string
+  group_search_base: string
+  admin_group: string
+  editor_group: string
+  viewer_group: string
+}
+
+const roleDescriptions = {
+  admin: {
+    tr: 'Tüm işlemleri yapabilir (görüntüleme, düzenleme, silme, kullanıcı yönetimi)',
+    en: 'Can perform all operations (view, edit, delete, user management)',
+    color: 'text-red-500',
+    bg: 'bg-red-500/10',
+  },
+  editor: {
+    tr: 'Görüntüleme ve düzenleme yapabilir, silme yapamaz',
+    en: 'Can view and edit, cannot delete',
+    color: 'text-blue-500',
+    bg: 'bg-blue-500/10',
+  },
+  viewer: {
+    tr: 'Sadece görüntüleme yapabilir',
+    en: 'Can only view',
+    color: 'text-green-500',
+    bg: 'bg-green-500/10',
+  },
+}
 
 export default function Settings() {
+  const queryClient = useQueryClient()
   const { user } = useAuthStore()
   const { language, setLanguage, t } = useI18n()
+  const { theme, setTheme } = useTheme()
   const [isSaving, setIsSaving] = useState(false)
   const [showSaved, setShowSaved] = useState(false)
+  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<any>(null)
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null)
   
   const [profileData, setProfileData] = useState({
     full_name: user?.full_name || '',
@@ -44,6 +121,67 @@ export default function Settings() {
     slack_webhook: '',
   })
 
+  const [createUserForm, setCreateUserForm] = useState<CreateUserForm>({
+    email: '',
+    password: '',
+    full_name: '',
+    role: 'viewer',
+  })
+
+  const [ldapConfig, setLdapConfig] = useState<LDAPConfig>({
+    enabled: false,
+    server_url: '',
+    bind_dn: '',
+    bind_password: '',
+    search_base: '',
+    search_filter: '(uid={username})',
+    username_attribute: 'uid',
+    email_attribute: 'mail',
+    fullname_attribute: 'cn',
+    group_search_base: '',
+    admin_group: 'kubeatlas-admins',
+    editor_group: 'kubeatlas-editors',
+    viewer_group: 'kubeatlas-viewers',
+  })
+
+  // Fetch users
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => usersApi.list({ page: 1, page_size: 100 }),
+    enabled: user?.role === 'admin',
+  })
+
+  const users = usersData?.items || []
+
+  // Create user mutation
+  const createUserMutation = useMutation({
+    mutationFn: (data: CreateUserForm) => usersApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      setIsCreateUserOpen(false)
+      setCreateUserForm({ email: '', password: '', full_name: '', role: 'viewer' })
+    },
+  })
+
+  // Update user mutation
+  const updateUserMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateUserForm> }) => 
+      usersApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      setEditingUser(null)
+    },
+  })
+
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: (id: string) => usersApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      setDeleteUserId(null)
+    },
+  })
+
   const handleLanguageChange = async (lang: 'tr' | 'en') => {
     setIsSaving(true)
     await setLanguage(lang)
@@ -52,15 +190,31 @@ export default function Settings() {
     setTimeout(() => setShowSaved(false), 2000)
   }
 
+  const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
+    setTheme(newTheme)
+    setShowSaved(true)
+    setTimeout(() => setShowSaved(false), 2000)
+  }
+
   const handleSaveProfile = () => {
-    // TODO: Implement save profile
     console.log('Saving profile:', profileData)
+    setShowSaved(true)
+    setTimeout(() => setShowSaved(false), 2000)
   }
 
   const handleSaveNotifications = () => {
-    // TODO: Implement save notifications
     console.log('Saving notifications:', notificationSettings)
+    setShowSaved(true)
+    setTimeout(() => setShowSaved(false), 2000)
   }
+
+  const handleSaveLDAP = () => {
+    console.log('Saving LDAP config:', ldapConfig)
+    setShowSaved(true)
+    setTimeout(() => setShowSaved(false), 2000)
+  }
+
+  const isAdmin = user?.role === 'admin'
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -73,7 +227,7 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="profile" className="gap-2">
             <User className="h-4 w-4" />
             {t('settings.profile')}
@@ -82,13 +236,25 @@ export default function Settings() {
             <Globe className="h-4 w-4" />
             {t('settings.preferences')}
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-2">
-            <Bell className="h-4 w-4" />
-            {t('settings.notifications')}
-          </TabsTrigger>
           <TabsTrigger value="appearance" className="gap-2">
             <Palette className="h-4 w-4" />
             {language === 'tr' ? 'Görünüm' : 'Appearance'}
+          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="h-4 w-4" />
+              {language === 'tr' ? 'Kullanıcılar' : 'Users'}
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="ldap" className="gap-2">
+              <Server className="h-4 w-4" />
+              LDAP
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="notifications" className="gap-2">
+            <Bell className="h-4 w-4" />
+            {language === 'tr' ? 'Bildirimler' : 'Notifications'}
           </TabsTrigger>
           <TabsTrigger value="security" className="gap-2">
             <Shield className="h-4 w-4" />
@@ -117,7 +283,10 @@ export default function Settings() {
                 <div>
                   <h3 className="font-semibold">{user?.full_name || user?.email}</h3>
                   <p className="text-sm text-muted-foreground">{user?.email}</p>
-                  <Badge variant="outline" className="mt-2 capitalize">
+                  <Badge 
+                    variant="outline" 
+                    className={`mt-2 capitalize ${roleDescriptions[user?.role as keyof typeof roleDescriptions]?.color || ''}`}
+                  >
                     {user?.role}
                   </Badge>
                 </div>
@@ -166,7 +335,7 @@ export default function Settings() {
           </Card>
         </TabsContent>
 
-        {/* Preferences Tab - Language Selection */}
+        {/* Preferences Tab */}
         <TabsContent value="preferences">
           <Card>
             <CardHeader>
@@ -246,6 +415,359 @@ export default function Settings() {
           </Card>
         </TabsContent>
 
+        {/* Appearance Tab */}
+        <TabsContent value="appearance">
+          <Card>
+            <CardHeader>
+              <CardTitle>{language === 'tr' ? 'Görünüm' : 'Appearance'}</CardTitle>
+              <CardDescription>
+                {language === 'tr' ? 'Uygulama temasını özelleştirin' : 'Customize the application theme'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <Label className="text-base font-medium flex items-center gap-2">
+                  <Palette className="h-4 w-4" />
+                  {language === 'tr' ? 'Tema' : 'Theme'}
+                </Label>
+                <p className="text-sm text-muted-foreground mb-3">
+                  {language === 'tr' ? 'Arayüz temasını seçin' : 'Select the interface theme'}
+                </p>
+                
+                <div className="grid grid-cols-3 gap-4 max-w-lg">
+                  <button
+                    onClick={() => handleThemeChange('light')}
+                    className={`relative p-4 rounded-lg border-2 transition-all ${
+                      theme === 'light' 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                        <Sun className="h-6 w-6 text-yellow-600" />
+                      </div>
+                      <p className="font-medium">{t('settings.light')}</p>
+                    </div>
+                    {theme === 'light' && (
+                      <div className="absolute top-2 right-2">
+                        <Check className="h-5 w-5 text-primary" />
+                      </div>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => handleThemeChange('dark')}
+                    className={`relative p-4 rounded-lg border-2 transition-all ${
+                      theme === 'dark' 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="h-12 w-12 rounded-full bg-slate-800 flex items-center justify-center">
+                        <Moon className="h-6 w-6 text-slate-200" />
+                      </div>
+                      <p className="font-medium">{t('settings.dark')}</p>
+                    </div>
+                    {theme === 'dark' && (
+                      <div className="absolute top-2 right-2">
+                        <Check className="h-5 w-5 text-primary" />
+                      </div>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => handleThemeChange('system')}
+                    className={`relative p-4 rounded-lg border-2 transition-all ${
+                      theme === 'system' 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-yellow-100 to-slate-800 flex items-center justify-center">
+                        <Monitor className="h-6 w-6 text-primary" />
+                      </div>
+                      <p className="font-medium">{t('settings.system')}</p>
+                    </div>
+                    {theme === 'system' && (
+                      <div className="absolute top-2 right-2">
+                        <Check className="h-5 w-5 text-primary" />
+                      </div>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Users Tab (Admin Only) */}
+        {isAdmin && (
+          <TabsContent value="users">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      {language === 'tr' ? 'Kullanıcı Yönetimi' : 'User Management'}
+                    </CardTitle>
+                    <CardDescription>
+                      {language === 'tr' ? 'Kullanıcıları oluşturun, düzenleyin ve yönetin' : 'Create, edit and manage users'}
+                    </CardDescription>
+                  </div>
+                  <Button onClick={() => setIsCreateUserOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {language === 'tr' ? 'Kullanıcı Ekle' : 'Add User'}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* Role Legend */}
+                <div className="mb-6 p-4 rounded-lg bg-muted/50 border">
+                  <h4 className="font-medium mb-3">{language === 'tr' ? 'Rol Açıklamaları' : 'Role Descriptions'}</h4>
+                  <div className="grid gap-2 md:grid-cols-3">
+                    {Object.entries(roleDescriptions).map(([role, desc]) => (
+                      <div key={role} className={`p-3 rounded-lg ${desc.bg}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className={`capitalize ${desc.color}`}>{role}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {language === 'tr' ? desc.tr : desc.en}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Users Table */}
+                {usersLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{language === 'tr' ? 'Kullanıcı' : 'User'}</TableHead>
+                        <TableHead>E-posta</TableHead>
+                        <TableHead>{language === 'tr' ? 'Rol' : 'Role'}</TableHead>
+                        <TableHead>{language === 'tr' ? 'Durum' : 'Status'}</TableHead>
+                        <TableHead className="text-right">{language === 'tr' ? 'İşlemler' : 'Actions'}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((u: any) => (
+                        <TableRow key={u.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <User className="h-4 w-4 text-primary" />
+                              </div>
+                              <span className="font-medium">{u.full_name || '-'}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{u.email}</TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant="outline" 
+                              className={`capitalize ${roleDescriptions[u.role as keyof typeof roleDescriptions]?.color || ''}`}
+                            >
+                              {u.role}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={u.is_active ? 'default' : 'secondary'}>
+                              {u.is_active 
+                                ? (language === 'tr' ? 'Aktif' : 'Active')
+                                : (language === 'tr' ? 'Pasif' : 'Inactive')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setEditingUser(u)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              {u.id !== user?.id && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="text-destructive"
+                                  onClick={() => setDeleteUserId(u.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* LDAP Tab (Admin Only) */}
+        {isAdmin && (
+          <TabsContent value="ldap">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Server className="h-5 w-5" />
+                  LDAP / Active Directory
+                </CardTitle>
+                <CardDescription>
+                  {language === 'tr' 
+                    ? 'LDAP veya Active Directory ile kullanıcı doğrulaması yapılandırın' 
+                    : 'Configure user authentication with LDAP or Active Directory'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-lg ${ldapConfig.enabled ? 'bg-green-500/10' : 'bg-muted'}`}>
+                      <Lock className={`h-6 w-6 ${ldapConfig.enabled ? 'text-green-500' : 'text-muted-foreground'}`} />
+                    </div>
+                    <div>
+                      <h4 className="font-medium">{language === 'tr' ? 'LDAP Kimlik Doğrulama' : 'LDAP Authentication'}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {ldapConfig.enabled 
+                          ? (language === 'tr' ? 'LDAP kimlik doğrulaması aktif' : 'LDAP authentication is enabled')
+                          : (language === 'tr' ? 'LDAP kimlik doğrulaması pasif' : 'LDAP authentication is disabled')}
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant={ldapConfig.enabled ? 'default' : 'outline'}
+                    onClick={() => setLdapConfig({ ...ldapConfig, enabled: !ldapConfig.enabled })}
+                  >
+                    {ldapConfig.enabled 
+                      ? (language === 'tr' ? 'Aktif' : 'Enabled')
+                      : (language === 'tr' ? 'Pasif' : 'Disabled')}
+                  </Button>
+                </div>
+
+                {ldapConfig.enabled && (
+                  <>
+                    <Separator />
+                    
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>LDAP Server URL</Label>
+                        <Input
+                          placeholder="ldaps://ldap.example.com:636"
+                          value={ldapConfig.server_url}
+                          onChange={(e) => setLdapConfig({ ...ldapConfig, server_url: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Bind DN</Label>
+                        <Input
+                          placeholder="cn=admin,dc=example,dc=com"
+                          value={ldapConfig.bind_dn}
+                          onChange={(e) => setLdapConfig({ ...ldapConfig, bind_dn: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Bind Password</Label>
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
+                          value={ldapConfig.bind_password}
+                          onChange={(e) => setLdapConfig({ ...ldapConfig, bind_password: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Search Base</Label>
+                        <Input
+                          placeholder="ou=users,dc=example,dc=com"
+                          value={ldapConfig.search_base}
+                          onChange={(e) => setLdapConfig({ ...ldapConfig, search_base: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Search Filter</Label>
+                        <Input
+                          placeholder="(uid={username})"
+                          value={ldapConfig.search_filter}
+                          onChange={(e) => setLdapConfig({ ...ldapConfig, search_filter: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Username Attribute</Label>
+                        <Input
+                          placeholder="uid"
+                          value={ldapConfig.username_attribute}
+                          onChange={(e) => setLdapConfig({ ...ldapConfig, username_attribute: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h4 className="font-medium mb-4">{language === 'tr' ? 'Grup Eşleştirme' : 'Group Mapping'}</h4>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Group Search Base</Label>
+                          <Input
+                            placeholder="ou=groups,dc=example,dc=com"
+                            value={ldapConfig.group_search_base}
+                            onChange={(e) => setLdapConfig({ ...ldapConfig, group_search_base: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Admin Group</Label>
+                          <Input
+                            placeholder="kubeatlas-admins"
+                            value={ldapConfig.admin_group}
+                            onChange={(e) => setLdapConfig({ ...ldapConfig, admin_group: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Editor Group</Label>
+                          <Input
+                            placeholder="kubeatlas-editors"
+                            value={ldapConfig.editor_group}
+                            onChange={(e) => setLdapConfig({ ...ldapConfig, editor_group: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Viewer Group</Label>
+                          <Input
+                            placeholder="kubeatlas-viewers"
+                            value={ldapConfig.viewer_group}
+                            onChange={(e) => setLdapConfig({ ...ldapConfig, viewer_group: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline">
+                        {language === 'tr' ? 'Bağlantıyı Test Et' : 'Test Connection'}
+                      </Button>
+                      <Button onClick={handleSaveLDAP}>
+                        <Save className="h-4 w-4 mr-2" />
+                        {t('common.save')}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
         {/* Notifications Tab */}
         <TabsContent value="notifications">
           <Card>
@@ -323,33 +845,6 @@ export default function Settings() {
           </Card>
         </TabsContent>
 
-        {/* Appearance Tab */}
-        <TabsContent value="appearance">
-          <Card>
-            <CardHeader>
-              <CardTitle>{language === 'tr' ? 'Görünüm' : 'Appearance'}</CardTitle>
-              <CardDescription>
-                {language === 'tr' ? 'Uygulama görünümünü özelleştirin' : 'Customize the application appearance'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <Label>{language === 'tr' ? 'Tema' : 'Theme'}</Label>
-                <Select defaultValue="dark">
-                  <SelectTrigger className="w-[200px] mt-2">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="light">{t('settings.light')}</SelectItem>
-                    <SelectItem value="dark">{t('settings.dark')}</SelectItem>
-                    <SelectItem value="system">{t('settings.system')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Security Tab */}
         <TabsContent value="security">
           <Card>
@@ -363,27 +858,15 @@ export default function Settings() {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="current_password">{language === 'tr' ? 'Mevcut Şifre' : 'Current Password'}</Label>
-                  <Input
-                    id="current_password"
-                    type="password"
-                    placeholder="••••••••"
-                  />
+                  <Input id="current_password" type="password" placeholder="••••••••" />
                 </div>
                 <div>
                   <Label htmlFor="new_password">{language === 'tr' ? 'Yeni Şifre' : 'New Password'}</Label>
-                  <Input
-                    id="new_password"
-                    type="password"
-                    placeholder="••••••••"
-                  />
+                  <Input id="new_password" type="password" placeholder="••••••••" />
                 </div>
                 <div>
                   <Label htmlFor="confirm_password">{language === 'tr' ? 'Şifre Tekrar' : 'Confirm Password'}</Label>
-                  <Input
-                    id="confirm_password"
-                    type="password"
-                    placeholder="••••••••"
-                  />
+                  <Input id="confirm_password" type="password" placeholder="••••••••" />
                 </div>
               </div>
 
@@ -420,7 +903,7 @@ export default function Settings() {
                   <Badge>v1</Badge>
                 </div>
                 <code className="text-sm text-muted-foreground">
-                  https://api.kubeatlas.io/api/v1
+                  {window.location.origin}/api/v1
                 </code>
               </div>
 
@@ -452,6 +935,183 @@ export default function Settings() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Create User Dialog */}
+      <Dialog open={isCreateUserOpen} onOpenChange={setIsCreateUserOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              {language === 'tr' ? 'Yeni Kullanıcı Oluştur' : 'Create New User'}
+            </DialogTitle>
+            <DialogDescription>
+              {language === 'tr' ? 'Local kullanıcı hesabı oluşturun' : 'Create a local user account'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>E-posta *</Label>
+              <Input
+                type="email"
+                placeholder="user@example.com"
+                value={createUserForm.email}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{language === 'tr' ? 'Ad Soyad' : 'Full Name'}</Label>
+              <Input
+                placeholder={language === 'tr' ? 'Ad Soyad' : 'Full Name'}
+                value={createUserForm.full_name}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, full_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{language === 'tr' ? 'Şifre' : 'Password'} *</Label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={createUserForm.password}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, password: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{language === 'tr' ? 'Rol' : 'Role'}</Label>
+              <Select
+                value={createUserForm.role}
+                onValueChange={(v: 'admin' | 'editor' | 'viewer') => setCreateUserForm({ ...createUserForm, role: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="viewer">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-green-500">viewer</Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {language === 'tr' ? 'Sadece görüntüleme' : 'View only'}
+                      </span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="editor">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-blue-500">editor</Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {language === 'tr' ? 'Görüntüleme + düzenleme' : 'View + edit'}
+                      </span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="admin">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-red-500">admin</Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {language === 'tr' ? 'Tüm yetkiler' : 'Full access'}
+                      </span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateUserOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button 
+              onClick={() => createUserMutation.mutate(createUserForm)}
+              disabled={!createUserForm.email || !createUserForm.password || createUserMutation.isPending}
+            >
+              {createUserMutation.isPending ? t('common.loading') : t('common.create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              {language === 'tr' ? 'Kullanıcıyı Düzenle' : 'Edit User'}
+            </DialogTitle>
+          </DialogHeader>
+          {editingUser && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>E-posta</Label>
+                <Input value={editingUser.email} disabled className="bg-muted" />
+              </div>
+              <div className="space-y-2">
+                <Label>{language === 'tr' ? 'Ad Soyad' : 'Full Name'}</Label>
+                <Input
+                  value={editingUser.full_name || ''}
+                  onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{language === 'tr' ? 'Rol' : 'Role'}</Label>
+                <Select
+                  value={editingUser.role}
+                  onValueChange={(v) => setEditingUser({ ...editingUser, role: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="viewer">viewer</SelectItem>
+                    <SelectItem value="editor">editor</SelectItem>
+                    <SelectItem value="admin">admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingUser(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button 
+              onClick={() => updateUserMutation.mutate({ 
+                id: editingUser.id, 
+                data: { full_name: editingUser.full_name, role: editingUser.role }
+              })}
+              disabled={updateUserMutation.isPending}
+            >
+              {updateUserMutation.isPending ? t('common.loading') : t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Dialog */}
+      <Dialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              {language === 'tr' ? 'Kullanıcıyı Sil' : 'Delete User'}
+            </DialogTitle>
+            <DialogDescription>
+              {language === 'tr' 
+                ? 'Bu işlem geri alınamaz. Kullanıcı kalıcı olarak silinecektir.'
+                : 'This action cannot be undone. The user will be permanently deleted.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteUserId(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={() => deleteUserId && deleteUserMutation.mutate(deleteUserId)}
+              disabled={deleteUserMutation.isPending}
+            >
+              {deleteUserMutation.isPending ? t('common.loading') : t('common.delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

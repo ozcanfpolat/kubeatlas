@@ -179,6 +179,36 @@ func RequireEditor() gin.HandlerFunc {
 	return RequireRole("admin", "editor")
 }
 
+// RequireViewer allows all authenticated users (admin, editor, viewer)
+func RequireViewer() gin.HandlerFunc {
+	return RequireRole("admin", "editor", "viewer")
+}
+
+// CanDelete checks if user can delete resources (admin only)
+func CanDelete() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userRole, exists := c.Get(ContextUserRole)
+		if !exists {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error":   "unauthorized",
+				"message": "Authentication required",
+			})
+			return
+		}
+
+		role, ok := userRole.(string)
+		if !ok || role != "admin" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error":   "forbidden",
+				"message": "Only administrators can delete resources",
+			})
+			return
+		}
+
+		c.Next()
+	}
+}
+
 // GetUserID extracts user ID from context
 func GetUserID(c *gin.Context) (uuid.UUID, bool) {
 	userID, exists := c.Get(ContextUserID)

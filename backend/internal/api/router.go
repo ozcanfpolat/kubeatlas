@@ -152,7 +152,7 @@ func SetupRouter(cfg *Config) *gin.Engine {
 			teams.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateTeam(cfg.Services))
 			teams.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteTeam(cfg.Services))
 			teams.POST("/:id/members", middleware.RequireRole("admin", "editor"), handlers.AddTeamMember(cfg.Services))
-			teams.DELETE("/:id/members/:userId", middleware.RequireRole("admin", "editor"), handlers.RemoveTeamMember(cfg.Services))
+			teams.DELETE("/:id/members/:userId", middleware.RequireRole("admin"), handlers.RemoveTeamMember(cfg.Services))
 		}
 
 		// Business Units
@@ -171,7 +171,7 @@ func SetupRouter(cfg *Config) *gin.Engine {
 			internalDeps.GET("", handlers.ListInternalDependencies(cfg.Services))
 			internalDeps.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateInternalDependency(cfg.Services))
 			internalDeps.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateInternalDependency(cfg.Services))
-			internalDeps.DELETE("/:id", middleware.RequireRole("admin", "editor"), handlers.DeleteInternalDependency(cfg.Services))
+			internalDeps.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteInternalDependency(cfg.Services))
 		}
 
 		// External Dependencies
@@ -180,7 +180,7 @@ func SetupRouter(cfg *Config) *gin.Engine {
 			externalDeps.GET("", handlers.ListExternalDependencies(cfg.Services))
 			externalDeps.POST("", middleware.RequireRole("admin", "editor"), handlers.CreateExternalDependency(cfg.Services))
 			externalDeps.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateExternalDependency(cfg.Services))
-			externalDeps.DELETE("/:id", middleware.RequireRole("admin", "editor"), handlers.DeleteExternalDependency(cfg.Services))
+			externalDeps.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteExternalDependency(cfg.Services))
 		}
 
 		// Dependency Graph
@@ -195,7 +195,7 @@ func SetupRouter(cfg *Config) *gin.Engine {
 			documents.GET("/:id/download", handlers.DownloadDocument(cfg.Services))
 			documents.POST("", middleware.RequireRole("admin", "editor"), handlers.UploadDocument(cfg.Services))
 			documents.PUT("/:id", middleware.RequireRole("admin", "editor"), handlers.UpdateDocument(cfg.Services))
-			documents.DELETE("/:id", middleware.RequireRole("admin", "editor"), handlers.DeleteDocument(cfg.Services))
+			documents.DELETE("/:id", middleware.RequireRole("admin"), handlers.DeleteDocument(cfg.Services))
 		}
 
 		// Reports

@@ -101,6 +101,7 @@ export default function Dependencies() {
   
   const [searchQuery, setSearchQuery] = useState('')
   const [clusterFilter, setClusterFilter] = useState<string>('all')
+  const [dialogClusterFilter, setDialogClusterFilter] = useState<string>('all')
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [isAddInternalOpen, setIsAddInternalOpen] = useState(false)
   const [isAddExternalOpen, setIsAddExternalOpen] = useState(false)
@@ -149,23 +150,22 @@ export default function Dependencies() {
     queryFn: () => namespacesApi.list({ page: 1, page_size: 500 }),
   })
 
-  const { data: filteredNamespacesData } = useQuery({
-    queryKey: ['filtered-namespaces-deps', clusterFilter],
-    queryFn: () => namespacesApi.list({ 
-      page: 1, 
-      page_size: 500,
-      cluster_id: clusterFilter === 'all' ? undefined : clusterFilter,
-    }),
-  })
-
   const { data: clustersData } = useQuery({
     queryKey: ['clusters-deps'],
     queryFn: () => clustersApi.list({ page_size: 100 }),
   })
 
   const namespaces: Namespace[] = allNamespacesData?.items || []
-  const formNamespaces: Namespace[] = filteredNamespacesData?.items || []
   const clusters: Cluster[] = clustersData?.items || []
+  
+  // Filter namespaces for dialog based on dialogClusterFilter
+  const formNamespaces: Namespace[] = useMemo(() => {
+    const allNs = allNamespacesData?.items || []
+    if (dialogClusterFilter === 'all') {
+      return allNs
+    }
+    return allNs.filter(ns => ns.cluster_id === dialogClusterFilter)
+  }, [allNamespacesData, dialogClusterFilter])
 
   // Mutations
   const createInternalMutation = useMutation({
@@ -916,7 +916,12 @@ export default function Dependencies() {
       </Card>
 
       {/* Add Internal Dependency Dialog */}
-      <Dialog open={isAddInternalOpen} onOpenChange={setIsAddInternalOpen}>
+      <Dialog open={isAddInternalOpen} onOpenChange={(open) => {
+        setIsAddInternalOpen(open)
+        if (!open) {
+          setDialogClusterFilter('all')
+        }
+      }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -928,6 +933,39 @@ export default function Dependencies() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Cluster Filter */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Server className="h-4 w-4" />
+                {language === 'tr' ? 'Cluster Filtresi' : 'Cluster Filter'}
+              </Label>
+              <Select
+                value={dialogClusterFilter}
+                onValueChange={(v) => {
+                  setDialogClusterFilter(v)
+                  // Reset namespace selections when cluster changes
+                  setInternalForm({ ...internalForm, source_namespace_id: '', target_namespace_id: '' })
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t('common.all')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('common.all')} Clusters</SelectItem>
+                  {clusters.map((cluster) => (
+                    <SelectItem key={cluster.id} value={cluster.id}>
+                      {cluster.display_name || cluster.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {language === 'tr' 
+                  ? `${formNamespaces.length} namespace listeleniyor` 
+                  : `Showing ${formNamespaces.length} namespaces`}
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t('dependencies.sourceNamespace')} *</Label>
@@ -1092,8 +1130,13 @@ export default function Dependencies() {
       </Dialog>
 
       {/* Add External Dependency Dialog */}
-      <Dialog open={isAddExternalOpen} onOpenChange={setIsAddExternalOpen}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={isAddExternalOpen} onOpenChange={(open) => {
+        setIsAddExternalOpen(open)
+        if (!open) {
+          setDialogClusterFilter('all')
+        }
+      }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ExternalLink className="h-5 w-5 text-purple-500" />
@@ -1104,6 +1147,38 @@ export default function Dependencies() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Cluster Filter */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Server className="h-4 w-4" />
+                {language === 'tr' ? 'Cluster Filtresi' : 'Cluster Filter'}
+              </Label>
+              <Select
+                value={dialogClusterFilter}
+                onValueChange={(v) => {
+                  setDialogClusterFilter(v)
+                  setExternalForm({ ...externalForm, namespace_id: '' })
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t('common.all')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('common.all')} Clusters</SelectItem>
+                  {clusters.map((cluster) => (
+                    <SelectItem key={cluster.id} value={cluster.id}>
+                      {cluster.display_name || cluster.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {language === 'tr' 
+                  ? `${formNamespaces.length} namespace listeleniyor` 
+                  : `Showing ${formNamespaces.length} namespaces`}
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label>{language === 'tr' ? 'Namespace' : 'Namespace'} *</Label>
               <Select

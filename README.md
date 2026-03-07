@@ -70,149 +70,93 @@ KubeAtlas provides a **central source of truth** for all your Kubernetes resourc
 
 ### Dashboard
 
-The main dashboard provides a comprehensive overview of your Kubernetes inventory:
+The main dashboard provides a comprehensive overview of your Kubernetes inventory with real-time metrics, environment distribution charts, ownership coverage, recent activities, and alerts.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  ☸️ KubeAtlas                                              🌙 Dark   👤 Admin   │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│  Dashboard │ Clusters │ Namespaces │ Dependencies │ Documents │ Teams │ Settings │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                 │
-│  📊 Dashboard                                                                   │
-│  Overview of your Kubernetes inventory                                          │
-│                                                                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
-│  │   Clusters  │  │ Namespaces  │  │   Teams     │  │  Orphaned   │            │
-│  │             │  │             │  │             │  │             │            │
-│  │     12      │  │    156      │  │      8      │  │      4      │            │
-│  │  ✓ 10 active│  │             │  │             │  │  ⚠️ warning │            │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘            │
-│                                                                                 │
-│  ┌────────────────────────────────┐  ┌────────────────────────────────────────┐│
-│  │  📈 Environment Distribution   │  │  📊 Ownership Coverage                 ││
-│  │                                │  │                                        ││
-│  │  Production  ████████████ 45%  │  │  ████████████████████████████░░  85%   ││
-│  │  Staging     ████████     28%  │  │                                        ││
-│  │  Development ██████████   37%  │  │  ✓ With Owner: 132 namespaces          ││
-│  │  Test        █████        19%  │  │  ⚠ Orphaned:    24 namespaces          ││
-│  │                                │  │                                        ││
-│  └────────────────────────────────┘  └────────────────────────────────────────┘│
-│                                                                                 │
-│  ┌────────────────────────────────┐  ┌────────────────────────────────────────┐│
-│  │  🕐 Recent Activities          │  │  ⚠️ Alerts                             ││
-│  │                                │  │                                        ││
-│  │  📝 namespace-api updated  2m  │  │  🔴 prod-payment: No owner assigned    ││
-│  │  🔄 prod-cluster synced   15m  │  │  🟡 staging-db: Missing documentation  ││
-│  │  ➕ New namespace added    1h  │  │  🟡 dev-api: No team assigned          ││
-│  │  👤 User login: john@...   2h  │  │                                        ││
-│  │                                │  │                                        ││
-│  └────────────────────────────────┘  └────────────────────────────────────────┘│
-│                                                                                 │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
+<p align="center">
+  <img src="docs/images/dashboard.svg" alt="KubeAtlas Dashboard" width="100%" />
+</p>
 
-### Cluster Management
+**Key Features:**
+- **Metric Cards**: Total clusters, namespaces, teams, and orphaned resources at a glance
+- **Environment Distribution**: Visual breakdown of namespaces across Production, Staging, Development, and Test
+- **Ownership Coverage**: Donut chart showing percentage of namespaces with assigned owners
+- **Recent Activity**: Live feed of namespace updates, cluster syncs, and user actions
+- **Alerts Panel**: Critical and warning alerts for namespaces needing attention
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  📦 Clusters                                                    [+ Add Cluster] │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                 │
-│  ┌─────────────────────────────────────────────────────────────────────────────┐│
-│  │  🟢 production-cluster                                                      ││
-│  │  ──────────────────────────────────────────────────────────────────────────│││
-│  │  API: https://api.prod.example.com:6443                                     ││
-│  │  Version: v1.28.2        Namespaces: 45        Last Sync: 5 minutes ago     ││
-│  │                                                                             ││
-│  │  [🔄 Sync]  [✏️ Edit]  [🗑️ Delete]                                          ││
-│  └─────────────────────────────────────────────────────────────────────────────┘│
-│                                                                                 │
-│  ┌─────────────────────────────────────────────────────────────────────────────┐│
-│  │  🟢 staging-cluster                                                         ││
-│  │  ──────────────────────────────────────────────────────────────────────────│││
-│  │  API: https://api.staging.example.com:6443                                  ││
-│  │  Version: v1.28.2        Namespaces: 32        Last Sync: 10 minutes ago    ││
-│  │                                                                             ││
-│  │  [🔄 Sync]  [✏️ Edit]  [🗑️ Delete]                                          ││
-│  └─────────────────────────────────────────────────────────────────────────────┘│
-│                                                                                 │
-│  ┌─────────────────────────────────────────────────────────────────────────────┐│
-│  │  🟡 development-cluster                                                     ││
-│  │  ──────────────────────────────────────────────────────────────────────────│││
-│  │  API: https://api.dev.example.com:6443                                      ││
-│  │  Version: v1.27.8        Namespaces: 78        Last Sync: 1 hour ago        ││
-│  │                                                                             ││
-│  │  [🔄 Sync]  [✏️ Edit]  [🗑️ Delete]                                          ││
-│  └─────────────────────────────────────────────────────────────────────────────┘│
-│                                                                                 │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
+### More Screenshots
 
-### Dependency Visualization
+<details>
+<summary>📦 Cluster Management</summary>
+<br/>
+<img src="docs/images/clusters.svg" alt="Cluster Management" width="100%" />
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  🔗 Dependencies                            [Topology View] [+ Add Dependency] │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                 │
-│                         ┌─────────────┐                                         │
-│                         │  frontend   │                                         │
-│                         │  (React)    │                                         │
-│                         └──────┬──────┘                                         │
-│                                │                                                │
-│                    ┌───────────┼───────────┐                                    │
-│                    │           │           │                                    │
-│                    ▼           ▼           ▼                                    │
-│             ┌──────────┐ ┌──────────┐ ┌──────────┐                              │
-│             │ user-api │ │order-api │ │  cdn     │                              │
-│             │  (Go)    │ │ (Java)   │ │(external)│                              │
-│             └────┬─────┘ └────┬─────┘ └──────────┘                              │
-│                  │            │                                                 │
-│                  │            │                                                 │
-│                  ▼            ▼                                                 │
-│             ┌──────────┐ ┌──────────┐                                           │
-│             │ user-db  │ │ order-db │                                           │
-│             │(Postgres)│ │ (MySQL)  │                                           │
-│             └──────────┘ └──────────┘                                           │
-│                                                                                 │
-│  Legend:  ● Internal    ○ External    ─── HTTP    ═══ Database                  │
-│                                                                                 │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
+- View all connected Kubernetes/OpenShift clusters
+- Real-time sync status and namespace counts
+- One-click cluster synchronization
+- Secure credential management
 
-### Settings & User Management
+</details>
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  ⚙️ Settings                                                                    │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                 │
-│  ┌──────────────┬──────────────┬──────────────┬──────────────┬────────────────┐ │
-│  │   Profile    │  Appearance  │    Users     │     LDAP     │  Notifications │ │
-│  └──────────────┴──────────────┴──────────────┴──────────────┴────────────────┘ │
-│                                                                                 │
-│  👥 User Management                                           [+ Add User]      │
-│  ─────────────────────────────────────────────────────────────────────────────  │
-│                                                                                 │
-│  ┌────────────────────────────────────────────────────────────────────────────┐ │
-│  │  User              │  Email                    │  Role    │  Status        │ │
-│  ├────────────────────┼─────────────────────────────┼──────────┼───────────────┤ │
-│  │  👤 John Doe       │  john@example.com         │  Admin   │  🟢 Active    │ │
-│  │  👤 Jane Smith     │  jane@example.com         │  Editor  │  🟢 Active    │ │
-│  │  👤 Bob Wilson     │  bob@example.com          │  Viewer  │  🟢 Active    │ │
-│  │  👤 Alice Brown    │  alice@example.com        │  Editor  │  ⚪ Inactive  │ │
-│  └────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                 │
-│  📋 Role Descriptions                                                           │
-│  ┌──────────────────────────────────────────────────────────────────────────┐   │
-│  │  🔴 Admin   │ Full access - can manage users, delete resources           │   │
-│  │  🟡 Editor  │ Can create and edit resources, cannot delete              │   │
-│  │  🟢 Viewer  │ Read-only access to all resources                         │   │
-│  └──────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                 │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
+<details>
+<summary>📋 Namespace Details</summary>
+<br/>
+<img src="docs/images/namespaces.svg" alt="Namespace Management" width="100%" />
+
+- Complete namespace inventory across all clusters
+- Owner, team, and business unit assignment
+- Environment tagging (Production, Staging, Development, Test)
+- Quick filters and search functionality
+
+</details>
+
+<details>
+<summary>🔗 Dependency Visualization</summary>
+<br/>
+<img src="docs/images/dependencies.svg" alt="Dependencies" width="100%" />
+
+- Interactive D3.js force-directed graph
+- Internal namespace-to-namespace dependencies
+- External service dependencies (APIs, databases, CDNs)
+- Drag-and-drop node positioning
+- Protocol and port information
+
+</details>
+
+<details>
+<summary>📄 Document Management</summary>
+<br/>
+<img src="docs/images/documents.svg" alt="Documents" width="100%" />
+
+- Centralized runbooks, SLAs, and architecture docs
+- Link documents to specific namespaces
+- Upload, view, and download functionality
+- Document categorization
+
+</details>
+
+<details>
+<summary>👥 Team Management</summary>
+<br/>
+<img src="docs/images/teams.svg" alt="Teams" width="100%" />
+
+- Create and manage teams
+- Assign team members
+- Link teams to namespaces
+- View team ownership statistics
+
+</details>
+
+<details>
+<summary>📝 Audit Logs</summary>
+<br/>
+<img src="docs/images/audit-logs.svg" alt="Audit Logs" width="100%" />
+
+- Complete history of all changes
+- Filter by user, action type, and date
+- Export to Excel for compliance reporting
+- Detailed before/after change tracking
+
+</details>
 
 ---
 

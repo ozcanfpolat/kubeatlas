@@ -50,19 +50,13 @@ spec:
           
           ports:
             - name: http
-              containerPort: 80
+              containerPort: 8080
               protocol: TCP
           
           # Environment variables
           env:
-            - name: NGINX_WORKER_PROCESSES
-              value: {{ .Values.ui.env.NGINX_WORKER_PROCESSES | quote }}
-            - name: NGINX_WORKER_CONNECTIONS
-              value: {{ .Values.ui.env.NGINX_WORKER_CONNECTIONS | quote }}
-            - name: API_URL
-              value: "http://{{ include "kubeatlas.fullname" . }}-api:{{ .Values.api.service.port }}"
-            - name: API_BASE_URL
-              value: "/api"
+            - name: BACKEND_HOST
+              value: "{{ include "kubeatlas.fullname" . }}-api"
             
             # Extra environment variables
             {{- with .Values.ui.extraEnv }}
@@ -70,27 +64,23 @@ spec:
             {{- end }}
           
           # Health checks
-          {{- if .Values.ui.livenessProbe.enabled }}
           livenessProbe:
             httpGet:
-              path: {{ .Values.ui.livenessProbe.httpGet.path }}
-              port: {{ .Values.ui.livenessProbe.httpGet.port }}
-            initialDelaySeconds: {{ .Values.ui.livenessProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.ui.livenessProbe.periodSeconds }}
-            timeoutSeconds: {{ .Values.ui.livenessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.ui.livenessProbe.failureThreshold }}
-          {{- end }}
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           
-          {{- if .Values.ui.readinessProbe.enabled }}
           readinessProbe:
             httpGet:
-              path: {{ .Values.ui.readinessProbe.httpGet.path }}
-              port: {{ .Values.ui.readinessProbe.httpGet.port }}
-            initialDelaySeconds: {{ .Values.ui.readinessProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.ui.readinessProbe.periodSeconds }}
-            timeoutSeconds: {{ .Values.ui.readinessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.ui.readinessProbe.failureThreshold }}
-          {{- end }}
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
           
           # Resource limits
           resources:

@@ -1,13 +1,39 @@
 # ============================================
-# KubeAtlas OpenShift Manuel Kurulum
+# KubeAtlas OpenShift Manual Installation
 # ============================================
-# Bu dosyayı bölüm bölüm uygulayın:
-# oc apply -f manual-install.yaml
+#
+# Prerequisites:
+#   1. OpenShift cluster access
+#   2. PostgreSQL database (install separately or use Bitnami Helm chart)
+#   3. GitHub Container Registry secret
+#
+# Installation Steps:
+#   1. Create namespace:
+#      oc new-project kubeatlas
+#
+#   2. Create GitHub registry secret:
+#      oc create secret docker-registry ghcr-secret \
+#        --docker-server=ghcr.io \
+#        --docker-username=YOUR_GITHUB_USERNAME \
+#        --docker-password=YOUR_GITHUB_TOKEN
+#
+#   3. Create secrets:
+#      oc create secret generic kubeatlas-secrets \
+#        --from-literal=DB_PASSWORD='your_db_password' \
+#        --from-literal=JWT_SECRET=$(openssl rand -base64 32) \
+#        --from-literal=ENCRYPTION_KEY=$(openssl rand -hex 32)
+#
+#   4. Deploy:
+#      oc apply -f manual-install.yaml
+#
+#   5. Get route URL:
+#      oc get route kubeatlas -o jsonpath='{.spec.host}'
+#
 # ============================================
 
 ---
 # ============================================
-# 0. PERSISTENT VOLUME CLAIM (Döküman Depolama)
+# 1. PERSISTENT VOLUME CLAIM (Document Storage)
 # ============================================
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -15,6 +41,7 @@ metadata:
   name: kubeatlas-uploads
   labels:
     app: kubeatlas
+    component: storage
 spec:
   accessModes:
     - ReadWriteOnce
@@ -24,7 +51,7 @@ spec:
 
 ---
 # ============================================
-# 1. API DEPLOYMENT
+# 2. API DEPLOYMENT
 # ============================================
 apiVersion: apps/v1
 kind: Deployment
@@ -54,13 +81,15 @@ spec:
           ports:
             - containerPort: 8080
               protocol: TCP
+              name: http
           env:
             - name: GIN_MODE
               value: "release"
             - name: SERVER_PORT
               value: "8080"
+            # Database
             - name: DB_HOST
-              value: "kubeatlas-db-postgresql"
+              value: "kubeatlas-db-postgresql"  # Adjust to your PostgreSQL service name
             - name: DB_PORT
               value: "5432"
             - name: DB_USER
@@ -69,8 +98,12 @@ spec:
               value: "kubeatlas"
             - name: DB_SSLMODE
               value: "disable"
+            # Storage
+            - name: STORAGE_TYPE
+              value: "local"
             - name: STORAGE_LOCAL_PATH
               value: "/app/data/uploads"
+            # Secrets from Secret resource
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -102,12 +135,16 @@ spec:
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /ready
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
       volumes:
         - name: uploads
           persistentVolumeClaim:
@@ -115,7 +152,7 @@ spec:
 
 ---
 # ============================================
-# 2. API SERVICE
+# 3. API SERVICE
 # ============================================
 apiVersion: v1
 kind: Service
@@ -137,7 +174,7 @@ spec:
 
 ---
 # ============================================
-# 3. UI DEPLOYMENT
+# 4. UI DEPLOYMENT
 # ============================================
 apiVersion: apps/v1
 kind: Deployment
@@ -167,6 +204,11 @@ spec:
           ports:
             - containerPort: 8080
               protocol: TCP
+              name: http
+          env:
+            # Backend service name for nginx proxy
+            - name: BACKEND_HOST
+              value: "kubeatlas-api"
           resources:
             requests:
               memory: "64Mi"
@@ -180,16 +222,26 @@ spec:
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
 
 ---
 # ============================================
-# 4. UI SERVICE
+# 5. UI SERVICE
 # ============================================
 apiVersion: v1
 kind: Service
@@ -211,7 +263,7 @@ spec:
 
 ---
 # ============================================
-# 5. ROUTE (OpenShift)
+# 6. ROUTE (OpenShift)
 # ============================================
 apiVersion: route.openshift.io/v1
 kind: Route
@@ -220,6 +272,8 @@ metadata:
   labels:
     app: kubeatlas
 spec:
+  # Uncomment and set your custom hostname:
+  # host: kubeatlas.apps.your-cluster.example.com
   to:
     kind: Service
     name: kubeatlas-ui
@@ -231,5 +285,18 @@ spec:
     insecureEdgeTerminationPolicy: Redirect
   wildcardPolicy: None
 
-# Note: API route removed - all traffic goes through UI nginx proxy
-# Frontend calls /api/* which nginx proxies to kubeatlas-api service
+# ============================================
+# Notes:
+# ============================================
+# - All traffic goes through kubeatlas-ui nginx
+# - Nginx proxies /api/* to kubeatlas-api:8080/api/v1/*
+# - PostgreSQL should be installed separately:
+#
+#   helm install kubeatlas-db bitnami/postgresql \
+#     --set auth.username=kubeatlas \
+#     --set auth.password=YOUR_PASSWORD \
+#     --set auth.database=kubeatlas \
+#     --set primary.persistence.size=10Gi
+#
+# - Default login: admin@kubeatlas.local / admin123
+# ============================================

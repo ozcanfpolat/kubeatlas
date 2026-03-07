@@ -1,12 +1,11 @@
 # ============================================
 # KubeAtlas Frontend Dockerfile
-# Multi-stage build with nginx
+# Multi-stage build with nginx (OpenShift compatible)
 # ============================================
 
 # Stage 1: Build
 FROM node:20-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
 # Copy package files
@@ -23,40 +22,50 @@ RUN \
 # Copy source code
 COPY . .
 
-# Build arguments for environment
-ARG VITE_API_URL=/api/v1
+# Build the application
+# API URL is /api - nginx will proxy to backend
+ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
 
-# Build the application
 RUN npm run build
 
-# Stage 2: Production
-FROM nginx:alpine
+# Stage 2: Production with unprivileged nginx
+FROM nginxinc/nginx-unprivileged:alpine
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
+# Switch to root temporarily to set up files
+USER root
+
+# Install envsubst (part of gettext)
+RUN apk add --no-cache gettext
+
+# Copy nginx config template
+COPY nginx.conf.template /etc/nginx/nginx.conf.template
+
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Copy built files from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Create non-root user
-RUN addgroup -g 1000 -S kubeatlas && \
-    adduser -u 1000 -S kubeatlas -G kubeatlas && \
-    chown -R kubeatlas:kubeatlas /usr/share/nginx/html && \
-    chown -R kubeatlas:kubeatlas /var/cache/nginx && \
-    chown -R kubeatlas:kubeatlas /var/log/nginx && \
-    touch /var/run/nginx.pid && \
-    chown -R kubeatlas:kubeatlas /var/run/nginx.pid
+# Create required directories with proper permissions
+RUN mkdir -p /tmp/client_body /tmp/proxy /tmp/fastcgi /tmp/uwsgi /tmp/scgi && \
+    chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /tmp && \
+    chown -R nginx:nginx /etc/nginx
 
 # Switch to non-root user
-USER kubeatlas
+USER nginx
 
-# Expose port (nginx default)
-EXPOSE 80
+# Expose port 8080 (non-privileged)
+EXPOSE 8080
+
+# Environment variables
+ENV BACKEND_HOST=kubeatlas-api
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start nginx via entrypoint
+ENTRYPOINT ["/docker-entrypoint.sh"]

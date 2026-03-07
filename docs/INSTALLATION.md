@@ -715,6 +715,82 @@ echo "API URL: $API_URL"
 4. 📝 Dependency'leri tanımlayın
 5. 📝 Dokümanları yükleyin
 6. 📝 Diğer cluster'ları ekleyin
+7. 🤖 (Opsiyonel) AI Assistant'ı kurun — aşağıya bakın
+
+---
+
+## 🤖 AI Assistant Kurulumu (Opsiyonel)
+
+KubeAtlas AI Assistant, kendi local LLM'inizi kullanarak doğal dilde soru sormanızı sağlayan opsiyonel bir eklentidir. Cluster'larınız, namespace'leriniz, takımlarınız ve dependency'leriniz hakkında Türkçe veya İngilizce sorular sorabilirsiniz.
+
+> **Not:** Bu addon mevcut KubeAtlas kurulumunu etkilemez. Ayrı bir pod olarak çalışır ve istediğiniz zaman eklenip kaldırılabilir.
+
+### Gereksinimler
+
+- Çalışan bir KubeAtlas kurulumu (yukarıdaki adımlar)
+- OpenAI-uyumlu bir LLM endpoint'i (tool/function calling desteğiyle):
+  - [LiteLLM](https://github.com/BerriAI/litellm) (önerilen)
+  - [vLLM](https://github.com/vllm-project/vllm)
+  - [Ollama](https://ollama.com)
+- Tool calling destekleyen bir model: Qwen 2.5 (7B+), Llama 3.1 (8B+), Mistral (7B+)
+
+### Adım 1: Secret Değerlerini Güncelleyin
+
+`deploy/openshift/ai-assistant.yaml` dosyasındaki Secret bölümünü düzenleyin:
+
+```bash
+# Dosyayı düzenlemek yerine doğrudan secret oluşturabilirsiniz:
+oc create secret generic kubeatlas-ai-secret \
+  --from-literal=LITELLM_BASE_URL="https://LITELLM_ROUTE_ADRESINIZ/v1" \
+  --from-literal=LITELLM_API_KEY="API_KEYINIZ" \
+  --from-literal=LITELLM_MODEL="model-adiniz" \
+  --from-literal=KUBEATLAS_API_EMAIL="admin@kubeatlas.local" \
+  --from-literal=KUBEATLAS_API_PASSWORD="admin-sifreniz" \
+  -n kubeatlas \
+  --dry-run=client -o yaml | oc apply -f -
+```
+
+| Değer | Açıklama | Örnek |
+|-------|----------|-------|
+| `LITELLM_BASE_URL` | LLM endpoint URL'iniz + `/v1` | `https://litellm.apps.cluster2.com/v1` |
+| `LITELLM_API_KEY` | LLM endpoint API anahtarı | `sk-...` |
+| `LITELLM_MODEL` | LLM config'inizdeki model adı | `qwen2.5-72b` |
+| `KUBEATLAS_API_PASSWORD` | KubeAtlas admin şifresi | (şifreniz) |
+
+### Adım 2: Deploy Edin
+
+```bash
+# AI Assistant'ı kurun (KubeAtlas'ın yanına)
+oc apply -f deploy/openshift/ai-assistant.yaml -n kubeatlas
+
+# Pod'un ayağa kalkmasını bekleyin
+oc rollout status deployment/kubeatlas-ai -n kubeatlas
+
+# Route URL'ini alın
+echo "https://$(oc get route kubeatlas-ai -n kubeatlas -o jsonpath='{.spec.host}')"
+```
+
+### Adım 3: Kullanın
+
+Tarayıcınızda route URL'ini açın. Chat ekranında hazır butonlar ve metin girişi göreceksiniz. Örnek sorular:
+
+- "Dashboard istatistiklerini göster"
+- "Production cluster'larını listele"
+- "Sahipsiz namespace var mı?"
+- "Son audit log'larını özetle"
+- "Dependency matrisini göster"
+
+Dil değiştirmek için sağ üstteki 🌐 butonunu kullanın.
+
+### AI Assistant'ı Kaldırma
+
+```bash
+oc delete -f deploy/openshift/ai-assistant.yaml -n kubeatlas
+```
+
+Bu sadece AI Assistant'ı kaldırır. KubeAtlas kurulumunuz etkilenmez.
+
+> Daha fazla bilgi için: [AI Assistant Documentation](AI_ASSISTANT.md)
 
 ---
 

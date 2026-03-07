@@ -182,6 +182,62 @@ oc delete pod -l app=kubeatlas,component=ui
 oc wait --for=condition=ready pod -l app=kubeatlas --timeout=180s
 ```
 
+## AI Assistant (Optional Addon)
+
+Deploy an AI-powered chat interface that uses your local LLM to query KubeAtlas data in natural language. Supports English and Turkish.
+
+### Prerequisites
+
+- KubeAtlas running in the `kubeatlas` namespace (steps above)
+- An OpenAI-compatible LLM endpoint with tool/function calling support (LiteLLM, vLLM, or Ollama)
+- A model that supports tool calling: Qwen 2.5 (7B+), Llama 3.1 (8B+), Mistral (7B+)
+
+### Step 1: Create the Secret
+
+```bash
+oc create secret generic kubeatlas-ai-secret \
+  --from-literal=LITELLM_BASE_URL="https://YOUR_LLM_ENDPOINT/v1" \
+  --from-literal=LITELLM_API_KEY="YOUR_API_KEY" \
+  --from-literal=LITELLM_MODEL="your-model-name" \
+  --from-literal=KUBEATLAS_API_EMAIL="admin@kubeatlas.local" \
+  --from-literal=KUBEATLAS_API_PASSWORD="YOUR_ADMIN_PASSWORD" \
+  -n kubeatlas \
+  --dry-run=client -o yaml | oc apply -f -
+```
+
+### Step 2: Deploy
+
+```bash
+oc apply -f deploy/openshift/ai-assistant.yaml -n kubeatlas
+oc rollout status deployment/kubeatlas-ai -n kubeatlas
+```
+
+### Step 3: Access
+
+```bash
+# Get the route URL
+echo "https://$(oc get route kubeatlas-ai -n kubeatlas -o jsonpath='{.spec.host}')"
+```
+
+Open the URL in your browser. Ask questions like:
+- "Show dashboard statistics"
+- "List production clusters"
+- "Are there any orphaned namespaces?"
+
+Toggle language (EN/TR) with the 🌐 button in the top right.
+
+### Remove AI Assistant
+
+```bash
+oc delete -f deploy/openshift/ai-assistant.yaml -n kubeatlas
+```
+
+This only removes the AI Assistant. Your core KubeAtlas installation is not affected.
+
+For more details, see [docs/AI_ASSISTANT.md](../../docs/AI_ASSISTANT.md).
+
+---
+
 ## Uninstallation
 
 ```bash

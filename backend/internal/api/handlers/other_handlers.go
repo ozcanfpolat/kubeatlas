@@ -1281,21 +1281,47 @@ func TestLDAPConnection(svc *services.Services) gin.HandlerFunc {
 			return
 		}
 
-		// TODO: Implement actual LDAP connection test
-		// For now, just validate the configuration
 		if req.BindDN == "" {
 			respondErrorStr(c, http.StatusBadRequest, "Bind DN is required")
 			return
 		}
+
 		if req.SearchBase == "" {
 			respondErrorStr(c, http.StatusBadRequest, "Search Base is required")
 			return
 		}
 
-		// Return success (placeholder)
+		// Convert to services.LDAPConfig
+		ldapConfig := &services.LDAPConfig{
+			Enabled:           req.Enabled,
+			ServerURL:         req.ServerURL,
+			BindDN:            req.BindDN,
+			BindPassword:      req.BindPassword,
+			SearchBase:        req.SearchBase,
+			SearchFilter:      req.SearchFilter,
+			UsernameAttribute: req.UsernameAttribute,
+			EmailAttribute:    req.EmailAttribute,
+			FullnameAttribute: req.FullnameAttribute,
+			GroupSearchBase:   req.GroupSearchBase,
+			AdminGroup:        req.AdminGroup,
+			EditorGroup:       req.EditorGroup,
+			ViewerGroup:       req.ViewerGroup,
+		}
+
+		// Test connection using LDAP service
+		err := svc.LDAP.TestConnection(ldapConfig)
+		if err != nil {
+			log.Printf("LDAP connection test failed: %v", err)
+			respondSuccess(c, map[string]interface{}{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
+
 		respondSuccess(c, map[string]interface{}{
 			"success": true,
-			"message": "LDAP configuration is valid. Connection test not yet implemented.",
+			"message": "LDAP connection successful",
 		})
 	}
 }

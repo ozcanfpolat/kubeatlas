@@ -21,14 +21,16 @@ var (
 
 type AuthService struct {
 	userRepo        *repositories.UserRepository
+	ldapService     *LDAPService
 	logger          *zap.SugaredLogger
 	jwtSecret       string
 	expirationHours int
 }
 
-func NewAuthService(userRepo *repositories.UserRepository, logger *zap.SugaredLogger, jwtSecret string, expirationHours int) *AuthService {
+func NewAuthService(userRepo *repositories.UserRepository, ldapService *LDAPService, logger *zap.SugaredLogger, jwtSecret string, expirationHours int) *AuthService {
 	return &AuthService{
 		userRepo:        userRepo,
+		ldapService:     ldapService,
 		logger:          logger,
 		jwtSecret:       jwtSecret,
 		expirationHours: expirationHours,
@@ -56,7 +58,59 @@ type LoginRequest struct {
 }
 
 func (s *AuthService) Login(ctx context.Context, orgID uuid.UUID, req LoginRequest) (*TokenPair, *models.User, error) {
-	user, err := s.userRepo.GetByEmail(ctx, orgID, req.Email)
+	var user *models.User
+	var err error
+
+	// Try LDAP authentication first if enabled
+	if s.ldapService != nil {
+		ldapConfig, configErr := s.ldapService.GetConfig(ctx, orgID)
+		if configErr == nil && ldapConfig.Enabled {
+			s.logger.Infow("Attempting LDAP authentication", "email", req.Email)
+			
+			// Extract username from email (part before @)
+			username := req.Email
+			if atIndex := len(username) - len(username); atIndex > 0 {
+				username = req.Email[:atIndex]
+			}
+			// Actually extract username properly
+			for i, c := range req.Email {
+				if c == '@' {
+					username = req.Email[:i]
+					break
+				}
+			}
+
+			ldapResult, ldapErr := s.ldapService.Authenticate(ctx, orgID, username, req.Password)
+			if ldapErr == nil && ldapResult.Success {
+				// LDAP authentication successful
+				s.logger.Infow("LDAP authentication successful", "email", ldapResult.Email, "role", ldapResult.Role)
+				
+				// Sync user to local database
+				user, err = s.ldapService.SyncLDAPUser(ctx, orgID, ldapResult)
+				if err != nil {
+					s.logger.Errorw("Failed to sync LDAP user", "error", err, "email", ldapResult.Email)
+					return nil, nil, err
+				}
+
+				// Generate tokens
+				tokens, err := s.GenerateTokens(user, s.jwtSecret, s.expirationHours)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				s.userRepo.UpdateLastLogin(ctx, user.ID)
+				s.logger.Infow("User logged in via LDAP", "user_id", user.ID, "email", user.Email)
+				return tokens, user, nil
+			} else {
+				s.logger.Warnw("LDAP authentication failed, falling back to local auth", 
+					"email", req.Email, 
+					"error", ldapResult.ErrorMsg)
+			}
+		}
+	}
+
+	// Fall back to local authentication
+	user, err = s.userRepo.GetByEmail(ctx, orgID, req.Email)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -77,7 +131,7 @@ func (s *AuthService) Login(ctx context.Context, orgID uuid.UUID, req LoginReque
 		return nil, nil, err
 	}
 
-	s.logger.Infow("User logged in", "user_id", user.ID, "email", user.Email)
+	s.logger.Infow("User logged in via local auth", "user_id", user.ID, "email", user.Email)
 	return tokens, user, nil
 }
 

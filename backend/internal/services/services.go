@@ -11,6 +11,7 @@ import (
 // Services contains all application services
 type Services struct {
 	Auth         *AuthService
+	LDAP         *LDAPService
 	Cluster      *ClusterService
 	Namespace    *NamespaceService
 	Dependency   *DependencyService
@@ -52,11 +53,13 @@ func New(pool *pgxpool.Pool, k8sManager *k8s.Manager, encryptor *crypto.Encrypto
 	}
 
 	auditSvc := NewAuditService(repos.Audit, logger)
+	ldapSvc := NewLDAPService(repos.User, logger)
 
 	return &Services{
 		Repos:        repos,
 		Audit:        auditSvc,
-		Auth:         NewAuthService(repos.User, logger, jwtSecret, jwtExpirationHours),
+		LDAP:         ldapSvc,
+		Auth:         NewAuthService(repos.User, ldapSvc, logger, jwtSecret, jwtExpirationHours),
 		Team:         NewTeamService(repos.Team, auditSvc, logger),
 		User:         NewUserService(repos.User, auditSvc, logger),
 		BusinessUnit: NewBusinessUnitService(repos.BusinessUnit, auditSvc, logger),

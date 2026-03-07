@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import * as XLSX from 'xlsx'
 import { 
   BarChart3, 
   Users, 
@@ -7,12 +8,13 @@ import {
   FileText,
   Download,
   TrendingUp,
-  ExternalLink
+  ExternalLink,
+  Server
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { dashboardApi } from '@/api'
+import { dashboardApi, clustersApi } from '@/api'
 import { 
   PieChart as RechartsPie, 
   Pie, 
@@ -39,49 +41,91 @@ export default function Reports() {
     queryFn: () => dashboardApi.getMissingInfo(100),
   })
 
-  // Generate and download CSV report
+  const { data: clustersData } = useQuery({
+    queryKey: ['clusters-report'],
+    queryFn: () => clustersApi.list({ page_size: 100 }),
+  })
+
+  const clusters = clustersData?.items || []
+
+  // Helper to get cluster name
+  const getClusterName = (item: any) => {
+    if (item.cluster?.name) return item.cluster.name
+    if (item.cluster?.display_name) return item.cluster.display_name
+    if (item.cluster_id) {
+      const cluster = clusters.find((c: any) => c.id === item.cluster_id)
+      return cluster?.display_name || cluster?.name || '-'
+    }
+    return '-'
+  }
+
+  // Generate and download Excel report
   const downloadReport = () => {
     if (!stats) return
     
-    const reportData = [
-      ['KubeAtlas Raporu', new Date().toLocaleDateString('tr-TR')],
+    // Create workbook
+    const wb = XLSX.utils.book_new()
+    
+    // ===== Summary Sheet =====
+    const summaryData = [
+      ['KubeAtlas Envanter Raporu'],
       [''],
-      ['Genel İstatistikler'],
-      ['Toplam Namespace', stats.total_namespaces || 0],
-      ['Sahipli Namespace', stats.namespaces_with_owner || 0],
-      ['Dokümanlı Namespace', stats.namespaces_documented || 0],
-      ['Bağımlılık Tanımlı', stats.namespaces_with_dependencies || 0],
+      ['Oluşturulma Tarihi:', new Date().toLocaleDateString('tr-TR', { 
+        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+      })],
       [''],
-      ['Eksiklikler'],
+      ['GENEL İSTATİSTİKLER'],
+      ['Metrik', 'Değer', 'Yüzde'],
+      ['Toplam Namespace', stats.total_namespaces || 0, '100%'],
+      ['Sahipli Namespace', stats.namespaces_with_owner || 0, 
+        stats.total_namespaces ? `${Math.round((stats.namespaces_with_owner / stats.total_namespaces) * 100)}%` : '0%'],
+      ['Dokümanlı Namespace', stats.namespaces_documented || 0,
+        stats.total_namespaces ? `${Math.round((stats.namespaces_documented / stats.total_namespaces) * 100)}%` : '0%'],
+      ['Bağımlılık Tanımlı', stats.namespaces_with_dependencies || 0,
+        stats.total_namespaces ? `${Math.round((stats.namespaces_with_dependencies / stats.total_namespaces) * 100)}%` : '0%'],
+      [''],
+      ['EKSİKLİK ANALİZİ'],
+      ['Durum', 'Sayı'],
       ['Sahipsiz Namespace', (stats.total_namespaces || 0) - (stats.namespaces_with_owner || 0)],
       ['Dokümansız Namespace', (stats.total_namespaces || 0) - (stats.namespaces_documented || 0)],
-      [''],
-      ['Sahipsiz Namespace Listesi'],
     ]
     
-    if (missingInfo?.orphaned) {
-      missingInfo.orphaned.forEach((item: any) => {
-        reportData.push([item.name, item.cluster?.name || '-'])
-      })
-    }
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData)
     
-    reportData.push([''])
-    reportData.push(['Dokümansız Namespace Listesi'])
+    // Set column widths
+    summarySheet['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 12 }]
     
-    if (missingInfo?.undocumented) {
-      missingInfo.undocumented.forEach((item: any) => {
-        reportData.push([item.name, item.cluster?.name || '-'])
-      })
-    }
+    XLSX.utils.book_append_sheet(wb, summarySheet, 'Özet')
     
-    const csvContent = reportData.map(row => row.join(',')).join('\n')
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `kubeatlas-rapor-${new Date().toISOString().split('T')[0]}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
+    // ===== Orphaned Namespaces Sheet =====
+    const orphanedHeader = [['SAHİPSİZ NAMESPACE LİSTESİ'], [''], ['Namespace Adı', 'Cluster', 'Durum']]
+    const orphanedRows = (missingInfo?.orphaned || []).map((item: any) => [
+      item.name,
+      getClusterName(item),
+      'Sahip Atanmamış'
+    ])
+    
+    const orphanedData = [...orphanedHeader, ...orphanedRows]
+    const orphanedSheet = XLSX.utils.aoa_to_sheet(orphanedData)
+    orphanedSheet['!cols'] = [{ wch: 40 }, { wch: 25 }, { wch: 20 }]
+    XLSX.utils.book_append_sheet(wb, orphanedSheet, 'Sahipsiz Namespace')
+    
+    // ===== Undocumented Namespaces Sheet =====
+    const undocHeader = [['DOKÜMANSIZ NAMESPACE LİSTESİ'], [''], ['Namespace Adı', 'Cluster', 'Durum']]
+    const undocRows = (missingInfo?.undocumented || []).map((item: any) => [
+      item.name,
+      getClusterName(item),
+      'Doküman Yok'
+    ])
+    
+    const undocData = [...undocHeader, ...undocRows]
+    const undocSheet = XLSX.utils.aoa_to_sheet(undocData)
+    undocSheet['!cols'] = [{ wch: 40 }, { wch: 25 }, { wch: 20 }]
+    XLSX.utils.book_append_sheet(wb, undocSheet, 'Dokümansız Namespace')
+    
+    // Download
+    const fileName = `kubeatlas-rapor-${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
   }
 
   if (statsLoading) {
@@ -271,13 +315,18 @@ export default function Reports() {
                 </thead>
                 <tbody>
                   {missingInfo.orphaned.slice(0, 10).map((item) => (
-                    <tr key={item.id} className="border-b border-border">
+                    <tr key={item.id} className="border-b border-border hover:bg-muted/50">
                       <td className="p-3 font-mono text-sm">
                         <Link to={`/namespaces/${item.id}`} className="hover:text-primary">
                           {item.name}
                         </Link>
                       </td>
-                      <td className="p-3">{item.cluster?.name || '-'}</td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <Server className="h-4 w-4 text-muted-foreground" />
+                          {getClusterName(item)}
+                        </div>
+                      </td>
                       <td className="p-3">
                         <Badge variant="outline" className="text-yellow-500 border-yellow-500/30">
                           Sahip Atanmamış
@@ -327,13 +376,18 @@ export default function Reports() {
                 </thead>
                 <tbody>
                   {missingInfo.undocumented.slice(0, 10).map((item) => (
-                    <tr key={item.id} className="border-b border-border">
+                    <tr key={item.id} className="border-b border-border hover:bg-muted/50">
                       <td className="p-3 font-mono text-sm">
                         <Link to={`/namespaces/${item.id}`} className="hover:text-primary">
                           {item.name}
                         </Link>
                       </td>
-                      <td className="p-3">{item.cluster?.name || '-'}</td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <Server className="h-4 w-4 text-muted-foreground" />
+                          {getClusterName(item)}
+                        </div>
+                      </td>
                       <td className="p-3">
                         <Badge variant="outline" className="text-blue-500 border-blue-500/30">
                           Doküman Yok

@@ -195,6 +195,19 @@ func (s *DashboardService) GetStats(ctx context.Context, orgID uuid.UUID) (map[s
 func (s *DashboardService) GetMissingInfo(ctx context.Context, orgID uuid.UUID) (map[string]interface{}, error) {
 	result := make(map[string]interface{})
 	
+	// Get all clusters for lookup
+	clustersResult, _ := s.repos.Cluster.List(ctx, orgID, repositories.Pagination{Page: 1, PageSize: 200}, nil)
+	clusterMap := make(map[uuid.UUID]map[string]interface{})
+	if clustersResult != nil {
+		for _, c := range clustersResult.Items {
+			clusterMap[c.ID] = map[string]interface{}{
+				"id":           c.ID,
+				"name":         c.Name,
+				"display_name": c.DisplayName,
+			}
+		}
+	}
+	
 	// Get orphaned namespaces (no owner)
 	orphanedResult, err := s.repos.Namespace.List(ctx, orgID, repositories.Pagination{Page: 1, PageSize: 50}, map[string]interface{}{"orphaned": true})
 	if err != nil {
@@ -204,11 +217,15 @@ func (s *DashboardService) GetMissingInfo(ctx context.Context, orgID uuid.UUID) 
 		s.logger.Infof("GetMissingInfo: found %d orphaned namespaces", len(orphanedResult.Items))
 		orphanedList := make([]map[string]interface{}, len(orphanedResult.Items))
 		for i, ns := range orphanedResult.Items {
-			orphanedList[i] = map[string]interface{}{
+			item := map[string]interface{}{
 				"id":         ns.ID,
 				"name":       ns.Name,
 				"cluster_id": ns.ClusterID,
 			}
+			if cluster, ok := clusterMap[ns.ClusterID]; ok {
+				item["cluster"] = cluster
+			}
+			orphanedList[i] = item
 		}
 		result["orphaned"] = orphanedList
 	} else {
@@ -224,11 +241,15 @@ func (s *DashboardService) GetMissingInfo(ctx context.Context, orgID uuid.UUID) 
 		s.logger.Infof("GetMissingInfo: found %d undocumented namespaces", len(undocResult.Items))
 		undocList := make([]map[string]interface{}, len(undocResult.Items))
 		for i, ns := range undocResult.Items {
-			undocList[i] = map[string]interface{}{
+			item := map[string]interface{}{
 				"id":         ns.ID,
 				"name":       ns.Name,
 				"cluster_id": ns.ClusterID,
 			}
+			if cluster, ok := clusterMap[ns.ClusterID]; ok {
+				item["cluster"] = cluster
+			}
+			undocList[i] = item
 		}
 		result["undocumented"] = undocList
 	} else {

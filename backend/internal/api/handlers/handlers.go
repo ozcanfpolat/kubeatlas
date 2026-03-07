@@ -255,12 +255,26 @@ func CreateUser(svc *services.Services) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req services.CreateUserRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
+			log.Printf("ERROR CreateUser - bind error: %v", err)
 			respondError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		// Validate password for local users
+		if req.Password == "" {
+			respondErrorStr(c, http.StatusBadRequest, "Password is required for local users")
+			return
+		}
+
+		// Validate role
+		if req.Role != "" && req.Role != "admin" && req.Role != "editor" && req.Role != "viewer" {
+			respondErrorStr(c, http.StatusBadRequest, "Invalid role. Must be 'admin', 'editor', or 'viewer'")
 			return
 		}
 
 		user, err := svc.User.Create(c.Request.Context(), getAuditContext(c), req)
 		if err != nil {
+			log.Printf("ERROR CreateUser: %v", err)
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}

@@ -219,6 +219,9 @@ func SetupRouter(cfg *Config) *gin.Engine {
 		{
 			settings.GET("", handlers.GetSettings(cfg.Services))
 			settings.PUT("", middleware.RequireRole("admin"), handlers.UpdateSettings(cfg.Services))
+			settings.GET("/ldap", middleware.RequireRole("admin"), handlers.GetLDAPConfig(cfg.Services))
+			settings.PUT("/ldap", middleware.RequireRole("admin"), handlers.UpdateLDAPConfig(cfg.Services))
+			settings.POST("/ldap/test", middleware.RequireRole("admin"), handlers.TestLDAPConnection(cfg.Services))
 		}
 	}
 

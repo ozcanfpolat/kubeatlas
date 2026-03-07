@@ -1101,3 +1101,201 @@ func UpdateUserPreferences(svc *services.Services) gin.HandlerFunc {
 		respondSuccess(c, preferences)
 	}
 }
+
+// ============================================
+// LDAP Configuration Handlers
+// ============================================
+
+// LDAPConfig represents LDAP configuration
+type LDAPConfig struct {
+	Enabled           bool   `json:"enabled"`
+	ServerURL         string `json:"server_url"`
+	BindDN            string `json:"bind_dn"`
+	BindPassword      string `json:"bind_password,omitempty"`
+	SearchBase        string `json:"search_base"`
+	SearchFilter      string `json:"search_filter"`
+	UsernameAttribute string `json:"username_attribute"`
+	EmailAttribute    string `json:"email_attribute"`
+	FullnameAttribute string `json:"fullname_attribute"`
+	GroupSearchBase   string `json:"group_search_base"`
+	AdminGroup        string `json:"admin_group"`
+	EditorGroup       string `json:"editor_group"`
+	ViewerGroup       string `json:"viewer_group"`
+}
+
+// GetLDAPConfig returns the current LDAP configuration
+func GetLDAPConfig(svc *services.Services) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		orgID, ok := middleware.GetOrganizationID(c)
+		if !ok {
+			respondErrorStr(c, http.StatusUnauthorized, "Organization ID not found")
+			return
+		}
+
+		settings, err := svc.User.GetOrganizationSettings(c.Request.Context(), orgID)
+		if err != nil {
+			respondErrorStr(c, http.StatusInternalServerError, "Failed to get settings")
+			return
+		}
+
+		// Extract LDAP config from settings
+		ldapConfig := LDAPConfig{
+			Enabled:           false,
+			SearchFilter:      "(uid={username})",
+			UsernameAttribute: "uid",
+			EmailAttribute:    "mail",
+			FullnameAttribute: "cn",
+			AdminGroup:        "kubeatlas-admins",
+			EditorGroup:       "kubeatlas-editors",
+			ViewerGroup:       "kubeatlas-viewers",
+		}
+
+		if ldapSettings, ok := settings["ldap"].(map[string]interface{}); ok {
+			if v, ok := ldapSettings["enabled"].(bool); ok {
+				ldapConfig.Enabled = v
+			}
+			if v, ok := ldapSettings["server_url"].(string); ok {
+				ldapConfig.ServerURL = v
+			}
+			if v, ok := ldapSettings["bind_dn"].(string); ok {
+				ldapConfig.BindDN = v
+			}
+			if v, ok := ldapSettings["search_base"].(string); ok {
+				ldapConfig.SearchBase = v
+			}
+			if v, ok := ldapSettings["search_filter"].(string); ok {
+				ldapConfig.SearchFilter = v
+			}
+			if v, ok := ldapSettings["username_attribute"].(string); ok {
+				ldapConfig.UsernameAttribute = v
+			}
+			if v, ok := ldapSettings["email_attribute"].(string); ok {
+				ldapConfig.EmailAttribute = v
+			}
+			if v, ok := ldapSettings["fullname_attribute"].(string); ok {
+				ldapConfig.FullnameAttribute = v
+			}
+			if v, ok := ldapSettings["group_search_base"].(string); ok {
+				ldapConfig.GroupSearchBase = v
+			}
+			if v, ok := ldapSettings["admin_group"].(string); ok {
+				ldapConfig.AdminGroup = v
+			}
+			if v, ok := ldapSettings["editor_group"].(string); ok {
+				ldapConfig.EditorGroup = v
+			}
+			if v, ok := ldapSettings["viewer_group"].(string); ok {
+				ldapConfig.ViewerGroup = v
+			}
+		}
+
+		// Never return bind password
+		ldapConfig.BindPassword = ""
+
+		respondSuccess(c, ldapConfig)
+	}
+}
+
+// UpdateLDAPConfig updates the LDAP configuration
+func UpdateLDAPConfig(svc *services.Services) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		orgID, ok := middleware.GetOrganizationID(c)
+		if !ok {
+			respondErrorStr(c, http.StatusUnauthorized, "Organization ID not found")
+			return
+		}
+
+		var req LDAPConfig
+		if err := c.ShouldBindJSON(&req); err != nil {
+			respondErrorStr(c, http.StatusBadRequest, "Invalid request body")
+			return
+		}
+
+		// Get current settings
+		settings, err := svc.User.GetOrganizationSettings(c.Request.Context(), orgID)
+		if err != nil {
+			settings = make(map[string]interface{})
+		}
+
+		// Get existing LDAP config to preserve password if not provided
+		existingPassword := ""
+		if ldapSettings, ok := settings["ldap"].(map[string]interface{}); ok {
+			if v, ok := ldapSettings["bind_password"].(string); ok {
+				existingPassword = v
+			}
+		}
+
+		// Build LDAP config
+		ldapSettings := map[string]interface{}{
+			"enabled":            req.Enabled,
+			"server_url":         req.ServerURL,
+			"bind_dn":            req.BindDN,
+			"search_base":        req.SearchBase,
+			"search_filter":      req.SearchFilter,
+			"username_attribute": req.UsernameAttribute,
+			"email_attribute":    req.EmailAttribute,
+			"fullname_attribute": req.FullnameAttribute,
+			"group_search_base":  req.GroupSearchBase,
+			"admin_group":        req.AdminGroup,
+			"editor_group":       req.EditorGroup,
+			"viewer_group":       req.ViewerGroup,
+		}
+
+		// Only update password if provided
+		if req.BindPassword != "" {
+			ldapSettings["bind_password"] = req.BindPassword
+		} else {
+			ldapSettings["bind_password"] = existingPassword
+		}
+
+		settings["ldap"] = ldapSettings
+
+		// Save settings
+		actx := getAuditContext(c)
+		_, err = svc.User.UpdateOrganizationSettings(c.Request.Context(), orgID, services.UpdateSettingsRequest{
+			Settings: settings,
+		}, actx)
+		if err != nil {
+			log.Printf("ERROR UpdateLDAPConfig: %v", err)
+			respondErrorStr(c, http.StatusInternalServerError, "Failed to update LDAP configuration")
+			return
+		}
+
+		// Return config without password
+		req.BindPassword = ""
+		respondSuccess(c, req)
+	}
+}
+
+// TestLDAPConnection tests the LDAP connection
+func TestLDAPConnection(svc *services.Services) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req LDAPConfig
+		if err := c.ShouldBindJSON(&req); err != nil {
+			respondErrorStr(c, http.StatusBadRequest, "Invalid request body")
+			return
+		}
+
+		if req.ServerURL == "" {
+			respondErrorStr(c, http.StatusBadRequest, "Server URL is required")
+			return
+		}
+
+		// TODO: Implement actual LDAP connection test
+		// For now, just validate the configuration
+		if req.BindDN == "" {
+			respondErrorStr(c, http.StatusBadRequest, "Bind DN is required")
+			return
+		}
+		if req.SearchBase == "" {
+			respondErrorStr(c, http.StatusBadRequest, "Search Base is required")
+			return
+		}
+
+		// Return success (placeholder)
+		respondSuccess(c, map[string]interface{}{
+			"success": true,
+			"message": "LDAP configuration is valid. Connection test not yet implemented.",
+		})
+	}
+}

@@ -472,3 +472,40 @@ export const auditApi = {
     return response.data.data
   },
 }
+
+// ============================================
+// Settings API
+// ============================================
+
+export interface LDAPConfig {
+  enabled: boolean
+  server_url: string
+  bind_dn: string
+  bind_password?: string
+  search_base: string
+  search_filter: string
+  username_attribute: string
+  email_attribute: string
+  fullname_attribute: string
+  group_search_base: string
+  admin_group: string
+  editor_group: string
+  viewer_group: string
+}
+
+export const settingsApi = {
+  getLDAPConfig: async (): Promise<LDAPConfig> => {
+    const response = await apiClient.get<ApiResponse<LDAPConfig>>('/settings/ldap')
+    return response.data.data
+  },
+  
+  updateLDAPConfig: async (config: LDAPConfig): Promise<LDAPConfig> => {
+    const response = await apiClient.put<ApiResponse<LDAPConfig>>('/settings/ldap', config)
+    return response.data.data
+  },
+  
+  testLDAPConnection: async (config: LDAPConfig): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.post<ApiResponse<{ success: boolean; message: string }>>('/settings/ldap/test', config)
+    return response.data.data
+  },
+}

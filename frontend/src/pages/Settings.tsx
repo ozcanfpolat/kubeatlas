@@ -52,29 +52,13 @@ import {
 import { useAuthStore } from '@/store/authStore'
 import { useI18n } from '@/i18n'
 import { useTheme } from '@/lib/ThemeProvider'
-import { usersApi } from '@/api'
+import { usersApi, settingsApi, type LDAPConfig } from '@/api'
 
 interface CreateUserForm {
   email: string
   password: string
   full_name: string
   role: 'admin' | 'editor' | 'viewer'
-}
-
-interface LDAPConfig {
-  enabled: boolean
-  server_url: string
-  bind_dn: string
-  bind_password: string
-  search_base: string
-  search_filter: string
-  username_attribute: string
-  email_attribute: string
-  fullname_attribute: string
-  group_search_base: string
-  admin_group: string
-  editor_group: string
-  viewer_group: string
 }
 
 const roleDescriptions = {
@@ -182,6 +166,38 @@ export default function Settings() {
     },
   })
 
+  // Fetch LDAP config
+  const { data: ldapData } = useQuery({
+    queryKey: ['ldap-config'],
+    queryFn: () => settingsApi.getLDAPConfig(),
+    enabled: user?.role === 'admin',
+  })
+
+  // Update ldapConfig state when data is fetched
+  useState(() => {
+    if (ldapData) {
+      setLdapConfig({
+        ...ldapData,
+        bind_password: '', // Never show password
+      })
+    }
+  })
+
+  // Save LDAP config mutation
+  const saveLDAPMutation = useMutation({
+    mutationFn: (config: LDAPConfig) => settingsApi.updateLDAPConfig(config),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ldap-config'] })
+      setShowSaved(true)
+      setTimeout(() => setShowSaved(false), 2000)
+    },
+  })
+
+  // Test LDAP connection mutation
+  const testLDAPMutation = useMutation({
+    mutationFn: (config: LDAPConfig) => settingsApi.testLDAPConnection(config),
+  })
+
   const handleLanguageChange = async (lang: 'tr' | 'en') => {
     setIsSaving(true)
     await setLanguage(lang)
@@ -209,9 +225,11 @@ export default function Settings() {
   }
 
   const handleSaveLDAP = () => {
-    console.log('Saving LDAP config:', ldapConfig)
-    setShowSaved(true)
-    setTimeout(() => setShowSaved(false), 2000)
+    saveLDAPMutation.mutate(ldapConfig)
+  }
+
+  const handleTestLDAP = () => {
+    testLDAPMutation.mutate(ldapConfig)
   }
 
   const isAdmin = user?.role === 'admin'
@@ -753,14 +771,36 @@ export default function Settings() {
                     </div>
 
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline">
-                        {language === 'tr' ? 'Bağlantıyı Test Et' : 'Test Connection'}
+                      <Button 
+                        variant="outline" 
+                        onClick={handleTestLDAP}
+                        disabled={testLDAPMutation.isPending}
+                      >
+                        {testLDAPMutation.isPending 
+                          ? (language === 'tr' ? 'Test ediliyor...' : 'Testing...')
+                          : (language === 'tr' ? 'Bağlantıyı Test Et' : 'Test Connection')}
                       </Button>
-                      <Button onClick={handleSaveLDAP}>
+                      <Button 
+                        onClick={handleSaveLDAP}
+                        disabled={saveLDAPMutation.isPending}
+                      >
                         <Save className="h-4 w-4 mr-2" />
-                        {t('common.save')}
+                        {saveLDAPMutation.isPending ? t('common.loading') : t('common.save')}
                       </Button>
                     </div>
+
+                    {testLDAPMutation.isSuccess && (
+                      <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-500">
+                        <Check className="h-4 w-4 inline mr-2" />
+                        {testLDAPMutation.data?.message}
+                      </div>
+                    )}
+
+                    {testLDAPMutation.isError && (
+                      <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500">
+                        {language === 'tr' ? 'Bağlantı testi başarısız' : 'Connection test failed'}
+                      </div>
+                    )}
                   </>
                 )}
               </CardContent>

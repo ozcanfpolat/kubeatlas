@@ -283,33 +283,48 @@ type UpdateSettingsRequest struct {
 
 // GetOrganizationSettings returns organization settings for the given org ID
 func (s *UserService) GetOrganizationSettings(ctx context.Context, orgID uuid.UUID) (map[string]interface{}, error) {
-	// Since UserRepository doesn't have organization methods, we'll return default settings
-	// This is a placeholder implementation that should be replaced when Organization repository is added
-	settings := map[string]interface{}{
-		"organization_id": orgID.String(),
-		"default_role":    "viewer",
-		"features": map[string]bool{
-			"audit_logging": true,
-			"sso":           false,
-		},
+	settings, err := s.repo.GetOrganizationSettings(ctx, orgID)
+	if err != nil {
+		return nil, err
 	}
-	return settings, nil
+	
+	// Convert JSONMap to map[string]interface{}
+	result := make(map[string]interface{})
+	for k, v := range settings {
+		result[k] = v
+	}
+	return result, nil
 }
 
 // UpdateOrganizationSettings updates organization settings
 func (s *UserService) UpdateOrganizationSettings(ctx context.Context, orgID uuid.UUID, req UpdateSettingsRequest, ac AuditContext) (map[string]interface{}, error) {
-	// This is a placeholder implementation
-	// In a real implementation, this would update organization settings in the database
-	settings := map[string]interface{}{
-		"organization_id": orgID.String(),
-		"name":            req.Name,
-		"description":     req.Description,
-		"logo_url":        req.LogoURL,
-		"settings":        req.Settings,
+	// Get current settings
+	currentSettings, err := s.repo.GetOrganizationSettings(ctx, orgID)
+	if err != nil {
+		currentSettings = make(models.JSONMap)
 	}
-
-	s.auditSvc.LogUpdate(ctx, ac, "organization_settings", orgID, "settings", nil, settings)
-	return settings, nil
+	
+	// Merge new settings
+	if req.Settings != nil {
+		for k, v := range req.Settings {
+			currentSettings[k] = v
+		}
+	}
+	
+	// Update in database
+	err = s.repo.UpdateOrganizationSettings(ctx, orgID, currentSettings)
+	if err != nil {
+		return nil, err
+	}
+	
+	s.auditSvc.LogUpdate(ctx, ac, "organization_settings", orgID, "settings", nil, currentSettings)
+	
+	// Convert to map[string]interface{}
+	result := make(map[string]interface{})
+	for k, v := range currentSettings {
+		result[k] = v
+	}
+	return result, nil
 }
 
 // ============================================

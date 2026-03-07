@@ -441,6 +441,31 @@ func (r *UserRepository) VerifyPassword(user *models.User, password string) bool
 	return err == nil
 }
 
+// GetOrganizationSettings retrieves organization settings
+func (r *UserRepository) GetOrganizationSettings(ctx context.Context, orgID uuid.UUID) (models.JSONMap, error) {
+	query := `SELECT settings FROM organizations WHERE id = $1`
+	
+	var settings models.JSONMap
+	err := r.pool.QueryRow(ctx, query, orgID).Scan(&settings)
+	if err == pgx.ErrNoRows {
+		return make(models.JSONMap), nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if settings == nil {
+		return make(models.JSONMap), nil
+	}
+	return settings, nil
+}
+
+// UpdateOrganizationSettings updates organization settings
+func (r *UserRepository) UpdateOrganizationSettings(ctx context.Context, orgID uuid.UUID, settings models.JSONMap) error {
+	query := `UPDATE organizations SET settings = $2, updated_at = NOW() WHERE id = $1`
+	_, err := r.pool.Exec(ctx, query, orgID, settings)
+	return err
+}
+
 // ============================================
 // Business Unit Repository
 // ============================================

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import * as d3 from 'd3'
 import {
   GitBranch,
   Plus,
@@ -13,6 +14,7 @@ import {
   Filter,
   Trash2,
   ArrowRight,
+  Globe,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,6 +39,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { dependenciesApi, namespacesApi, clustersApi } from '@/api'
+import { useTranslation } from '@/i18n'
 import type { InternalDependency, ExternalDependency, Cluster, Namespace } from '@/types'
 
 const dependencyTypeColors: Record<string, { bg: string; text: string; stroke: string }> = {
@@ -49,23 +52,60 @@ const dependencyTypeColors: Record<string, { bg: string; text: string; stroke: s
   'payment-gateway': { bg: 'bg-red-500/10', text: 'text-red-500', stroke: '#ef4444' },
 }
 
-interface NodePosition {
+const protocols = [
+  { value: 'http', label: 'HTTP', port: 80 },
+  { value: 'https', label: 'HTTPS', port: 443 },
+  { value: 'grpc', label: 'gRPC', port: 9090 },
+  { value: 'tcp', label: 'TCP', port: null },
+  { value: 'udp', label: 'UDP', port: null },
+  { value: 'websocket', label: 'WebSocket', port: 443 },
+  { value: 'kafka', label: 'Kafka', port: 9092 },
+  { value: 'rabbitmq', label: 'RabbitMQ', port: 5672 },
+  { value: 'redis', label: 'Redis', port: 6379 },
+  { value: 'postgresql', label: 'PostgreSQL', port: 5432 },
+  { value: 'mysql', label: 'MySQL', port: 3306 },
+  { value: 'mongodb', label: 'MongoDB', port: 27017 },
+]
+
+const networkAccessTypes = [
+  { value: 'direct', label: 'Direct Pod-to-Pod' },
+  { value: 'service', label: 'ClusterIP Service' },
+  { value: 'ingress', label: 'Ingress' },
+  { value: 'service_mesh', label: 'Service Mesh (Istio)' },
+  { value: 'nodeport', label: 'NodePort' },
+  { value: 'loadbalancer', label: 'LoadBalancer' },
+]
+
+interface GraphNode extends d3.SimulationNodeDatum {
   id: string
-  x: number
-  y: number
   name: string
   type: 'namespace' | 'external'
   cluster?: string
 }
 
+interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
+  id: string
+  type: string
+  isCritical: boolean
+  isExternal: boolean
+  protocol?: string
+  port?: number
+  networkAccess?: string
+}
+
 export default function Dependencies() {
+  const { t, language } = useTranslation()
   const queryClient = useQueryClient()
+  const svgRef = useRef<SVGSVGElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  
   const [searchQuery, setSearchQuery] = useState('')
   const [clusterFilter, setClusterFilter] = useState<string>('all')
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [isAddInternalOpen, setIsAddInternalOpen] = useState(false)
   const [isAddExternalOpen, setIsAddExternalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
 
   // Form states
   const [internalForm, setInternalForm] = useState({
@@ -74,6 +114,10 @@ export default function Dependencies() {
     dependency_type: 'api',
     description: '',
     is_critical: false,
+    protocol: 'http',
+    port: '',
+    same_cluster: true,
+    network_access: 'service',
   })
 
   const [externalForm, setExternalForm] = useState({
@@ -83,6 +127,8 @@ export default function Dependencies() {
     description: '',
     endpoint: '',
     is_critical: false,
+    protocol: 'https',
+    port: '',
   })
 
   // Queries
@@ -123,7 +169,19 @@ export default function Dependencies() {
 
   // Mutations
   const createInternalMutation = useMutation({
-    mutationFn: (data: typeof internalForm) => dependenciesApi.createInternal(data),
+    mutationFn: (data: any) => {
+      // Include metadata for protocol, port, network access
+      const payload = {
+        ...data,
+        metadata: {
+          protocol: data.protocol,
+          port: data.port ? parseInt(data.port) : null,
+          same_cluster: data.same_cluster,
+          network_access: data.network_access,
+        }
+      }
+      return dependenciesApi.createInternal(payload)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['internal-dependencies'] })
       setIsAddInternalOpen(false)
@@ -133,6 +191,10 @@ export default function Dependencies() {
         dependency_type: 'api',
         description: '',
         is_critical: false,
+        protocol: 'http',
+        port: '',
+        same_cluster: true,
+        network_access: 'service',
       })
       setError(null)
     },
@@ -142,7 +204,16 @@ export default function Dependencies() {
   })
 
   const createExternalMutation = useMutation({
-    mutationFn: (data: typeof externalForm) => dependenciesApi.createExternal(data),
+    mutationFn: (data: any) => {
+      const payload = {
+        ...data,
+        metadata: {
+          protocol: data.protocol,
+          port: data.port ? parseInt(data.port) : null,
+        }
+      }
+      return dependenciesApi.createExternal(payload)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['external-dependencies'] })
       setIsAddExternalOpen(false)
@@ -153,6 +224,8 @@ export default function Dependencies() {
         description: '',
         endpoint: '',
         is_critical: false,
+        protocol: 'https',
+        port: '',
       })
       setError(null)
     },
@@ -177,125 +250,341 @@ export default function Dependencies() {
 
   const isLoading = loadingInternal || loadingExternal
 
-  // Build topology data
-  const topologyData = useMemo(() => {
+  // Build graph data
+  const graphData = useMemo(() => {
     const internalList: InternalDependency[] = internalDeps?.items || []
     const externalList: ExternalDependency[] = Array.isArray(externalDeps) ? externalDeps : []
     
-    const nodeMap = new Map<string, NodePosition>()
-    const links: { source: string; target: string; type: string; isCritical: boolean; id: string; isExternal: boolean }[] = []
+    const nodes: GraphNode[] = []
+    const links: GraphLink[] = []
+    const nodeMap = new Map<string, GraphNode>()
 
-    // Collect all unique namespaces from dependencies
+    // Add namespace nodes from internal dependencies
     internalList.forEach(dep => {
       if (!nodeMap.has(dep.source_namespace_id)) {
         const ns = namespaces.find(n => n.id === dep.source_namespace_id)
         if (ns) {
           const cluster = clusters.find(c => c.id === ns.cluster_id)
-          nodeMap.set(ns.id, {
+          const node: GraphNode = {
             id: ns.id,
-            x: 0,
-            y: 0,
             name: ns.name,
             type: 'namespace',
             cluster: cluster?.display_name || cluster?.name,
-          })
+          }
+          nodeMap.set(ns.id, node)
+          nodes.push(node)
         }
       }
+      
       if (!nodeMap.has(dep.target_namespace_id)) {
         const ns = namespaces.find(n => n.id === dep.target_namespace_id)
         if (ns) {
           const cluster = clusters.find(c => c.id === ns.cluster_id)
-          nodeMap.set(ns.id, {
+          const node: GraphNode = {
             id: ns.id,
-            x: 0,
-            y: 0,
             name: ns.name,
             type: 'namespace',
             cluster: cluster?.display_name || cluster?.name,
-          })
+          }
+          nodeMap.set(ns.id, node)
+          nodes.push(node)
         }
       }
+
+      const metadata = (dep as any).metadata || {}
       links.push({
         source: dep.source_namespace_id,
         target: dep.target_namespace_id,
         type: dep.dependency_type,
         isCritical: dep.is_critical,
-        id: dep.id,
         isExternal: false,
+        id: dep.id,
+        protocol: metadata.protocol,
+        port: metadata.port,
+        networkAccess: metadata.network_access,
       })
     })
 
+    // Add external dependencies
     externalList.forEach(dep => {
       if (!nodeMap.has(dep.namespace_id)) {
         const ns = namespaces.find(n => n.id === dep.namespace_id)
         if (ns) {
           const cluster = clusters.find(c => c.id === ns.cluster_id)
-          nodeMap.set(ns.id, {
+          const node: GraphNode = {
             id: ns.id,
-            x: 0,
-            y: 0,
             name: ns.name,
             type: 'namespace',
             cluster: cluster?.display_name || cluster?.name,
-          })
+          }
+          nodeMap.set(ns.id, node)
+          nodes.push(node)
         }
       }
+
       const extId = `ext_${dep.id}`
       if (!nodeMap.has(extId)) {
-        nodeMap.set(extId, {
+        const node: GraphNode = {
           id: extId,
-          x: 0,
-          y: 0,
           name: dep.name,
           type: 'external',
-        })
+        }
+        nodeMap.set(extId, node)
+        nodes.push(node)
       }
+
+      const metadata = (dep as any).metadata || {}
       links.push({
         source: dep.namespace_id,
         target: extId,
         type: dep.system_type || 'external',
         isCritical: dep.is_critical,
-        id: dep.id,
         isExternal: true,
+        id: dep.id,
+        protocol: metadata.protocol,
+        port: metadata.port,
       })
     })
 
-    // Calculate positions in a circular layout
-    const nodes = Array.from(nodeMap.values())
-    const centerX = 400
-    const centerY = 300
-    const radius = Math.min(250, nodes.length * 30)
-
-    nodes.forEach((node, i) => {
-      const angle = (2 * Math.PI * i) / nodes.length - Math.PI / 2
-      node.x = centerX + radius * Math.cos(angle)
-      node.y = centerY + radius * Math.sin(angle)
-    })
-
-    return { nodes, links, nodeMap }
-  }, [internalDeps, externalDeps, namespaces, clusters])
-
-  // Filter nodes
-  const filteredNodes = useMemo(() => {
-    let nodes = topologyData.nodes
-
+    // Filter by cluster
+    let filteredNodes = nodes
     if (clusterFilter !== 'all') {
       const clusterName = clusters.find(c => c.id === clusterFilter)?.name || 
                           clusters.find(c => c.id === clusterFilter)?.display_name
-      nodes = nodes.filter(n => n.type === 'external' || n.cluster === clusterName)
+      filteredNodes = nodes.filter(n => n.type === 'external' || n.cluster === clusterName)
     }
 
+    // Filter by search
     if (searchQuery) {
-      nodes = nodes.filter(n => n.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      filteredNodes = filteredNodes.filter(n => 
+        n.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     }
 
-    return nodes
-  }, [topologyData.nodes, clusterFilter, searchQuery, clusters])
+    const filteredNodeIds = new Set(filteredNodes.map(n => n.id))
+    const filteredLinks = links.filter(l => {
+      const sourceId = typeof l.source === 'string' ? l.source : (l.source as GraphNode).id
+      const targetId = typeof l.target === 'string' ? l.target : (l.target as GraphNode).id
+      return filteredNodeIds.has(sourceId) && filteredNodeIds.has(targetId)
+    })
 
-  const filteredNodeIds = new Set(filteredNodes.map(n => n.id))
-  const filteredLinks = topologyData.links.filter(l => 
-    filteredNodeIds.has(l.source) && filteredNodeIds.has(l.target)
-  )
+    return { nodes: filteredNodes, links: filteredLinks, nodeMap }
+  }, [internalDeps, externalDeps, namespaces, clusters, clusterFilter, searchQuery])
+
+  // Update dimensions
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
+        setDimensions({ width: rect.width || 800, height: 550 })
+      }
+    }
+    updateDimensions()
+    window.addEventListener('resize', updateDimensions)
+    return () => window.removeEventListener('resize', updateDimensions)
+  }, [])
+
+  // D3 Force Simulation
+  useEffect(() => {
+    if (!svgRef.current || graphData.nodes.length === 0) return
+
+    const svg = d3.select(svgRef.current)
+    svg.selectAll('*').remove()
+
+    const width = dimensions.width
+    const height = dimensions.height
+
+    // Create zoom container
+    const g = svg.append('g')
+
+    // Arrow markers
+    const defs = svg.append('defs')
+    
+    Object.entries(dependencyTypeColors).forEach(([type, colors]) => {
+      defs.append('marker')
+        .attr('id', `arrow-${type}`)
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 28)
+        .attr('refY', 0)
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('fill', colors.stroke)
+        .attr('d', 'M0,-5L10,0L0,5')
+    })
+
+    defs.append('marker')
+      .attr('id', 'arrow-default')
+      .attr('viewBox', '0 -5 10 10')
+      .attr('refX', 28)
+      .attr('refY', 0)
+      .attr('markerWidth', 6)
+      .attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('fill', '#94a3b8')
+      .attr('d', 'M0,-5L10,0L0,5')
+
+    // Deep copy nodes and links for simulation
+    const simNodes = graphData.nodes.map(d => ({ ...d }))
+    const simLinks = graphData.links.map(d => ({ ...d }))
+
+    // Create simulation
+    const simulation = d3.forceSimulation(simNodes)
+      .force('link', d3.forceLink<GraphNode, GraphLink>(simLinks)
+        .id(d => d.id)
+        .distance(180)
+      )
+      .force('charge', d3.forceManyBody().strength(-500))
+      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('collision', d3.forceCollide().radius(60))
+
+    // Draw links
+    const link = g.append('g')
+      .attr('class', 'links')
+      .selectAll('g')
+      .data(simLinks)
+      .enter()
+      .append('g')
+
+    // Link path
+    const linkPath = link.append('path')
+      .attr('fill', 'none')
+      .attr('stroke', d => dependencyTypeColors[d.type]?.stroke || '#94a3b8')
+      .attr('stroke-width', d => d.isCritical ? 3 : 2)
+      .attr('stroke-dasharray', d => d.isExternal ? '8,4' : 'none')
+      .attr('marker-end', d => `url(#arrow-${d.type})`)
+      .attr('opacity', 0.7)
+
+    // Link labels (protocol:port)
+    const linkLabel = link.append('text')
+      .attr('class', 'link-label')
+      .attr('text-anchor', 'middle')
+      .attr('dy', -5)
+      .attr('fill', '#94a3b8')
+      .attr('font-size', '10px')
+      .text(d => {
+        const parts = []
+        if (d.protocol) parts.push(d.protocol.toUpperCase())
+        if (d.port) parts.push(`:${d.port}`)
+        return parts.join('')
+      })
+
+    // Draw nodes
+    const node = g.append('g')
+      .attr('class', 'nodes')
+      .selectAll('g')
+      .data(simNodes)
+      .enter()
+      .append('g')
+      .attr('cursor', 'grab')
+      .call(d3.drag<SVGGElement, GraphNode>()
+        .on('start', (event, d) => {
+          if (!event.active) simulation.alphaTarget(0.3).restart()
+          d.fx = d.x
+          d.fy = d.y
+        })
+        .on('drag', (event, d) => {
+          d.fx = event.x
+          d.fy = event.y
+        })
+        .on('end', (event, d) => {
+          if (!event.active) simulation.alphaTarget(0)
+          d.fx = null
+          d.fy = null
+        })
+      )
+      .on('click', (_event, d) => {
+        setSelectedNode(selectedNode === d.id ? null : d.id)
+      })
+
+    // Node circles with gradient
+    node.append('circle')
+      .attr('r', 24)
+      .attr('fill', d => d.type === 'external' ? '#ec4899' : '#3b82f6')
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 2)
+      .style('filter', 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))')
+
+    // Node icons
+    node.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'central')
+      .attr('fill', 'white')
+      .attr('font-size', '14px')
+      .text(d => d.type === 'external' ? '☁' : '⬡')
+
+    // Node labels
+    node.append('text')
+      .attr('dy', 40)
+      .attr('text-anchor', 'middle')
+      .attr('fill', 'currentColor')
+      .attr('font-size', '11px')
+      .attr('font-weight', '500')
+      .text(d => d.name.length > 18 ? d.name.slice(0, 16) + '...' : d.name)
+
+    // Cluster labels
+    node.filter(d => d.type === 'namespace' && !!d.cluster)
+      .append('text')
+      .attr('dy', 52)
+      .attr('text-anchor', 'middle')
+      .attr('fill', '#94a3b8')
+      .attr('font-size', '9px')
+      .text(d => d.cluster || '')
+
+    // Update positions
+    simulation.on('tick', () => {
+      linkPath.attr('d', (d: any) => {
+        const dx = d.target.x - d.source.x
+        const dy = d.target.y - d.source.y
+        const dr = Math.sqrt(dx * dx + dy * dy) * 1.5
+        return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`
+      })
+
+      linkLabel.attr('transform', (d: any) => {
+        const midX = (d.source.x + d.target.x) / 2
+        const midY = (d.source.y + d.target.y) / 2
+        return `translate(${midX}, ${midY})`
+      })
+
+      node.attr('transform', (d: any) => `translate(${d.x},${d.y})`)
+    })
+
+    // Zoom behavior
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.3, 3])
+      .on('zoom', (event) => {
+        g.attr('transform', event.transform)
+      })
+
+    svg.call(zoom)
+
+    // Initial zoom to fit
+    const initialScale = Math.min(width / 900, height / 700, 1)
+    svg.call(zoom.transform, d3.zoomIdentity
+      .translate(width / 2, height / 2)
+      .scale(initialScale)
+      .translate(-width / 2, -height / 2)
+    )
+
+    return () => {
+      simulation.stop()
+    }
+  }, [graphData, dimensions, selectedNode])
+
+  // Get selected node details
+  const selectedNodeData = selectedNode ? graphData.nodeMap.get(selectedNode) : null
+  const selectedNodeLinks = selectedNode ? {
+    incoming: graphData.links.filter(l => {
+      const targetId = typeof l.target === 'string' ? l.target : (l.target as GraphNode).id
+      return targetId === selectedNode
+    }),
+    outgoing: graphData.links.filter(l => {
+      const sourceId = typeof l.source === 'string' ? l.source : (l.source as GraphNode).id
+      return sourceId === selectedNode
+    }),
+  } : null
 
   // Stats
   const internalList: InternalDependency[] = internalDeps?.items || []
@@ -304,30 +593,22 @@ export default function Dependencies() {
   const totalExternal = externalList.length
   const criticalCount = [...internalList, ...externalList].filter(d => d.is_critical).length
 
-  // Get node details for selected
-  const selectedNodeData = selectedNode ? topologyData.nodeMap.get(selectedNode) : null
-  const selectedNodeLinks = selectedNode ? {
-    incoming: filteredLinks.filter(l => l.target === selectedNode),
-    outgoing: filteredLinks.filter(l => l.source === selectedNode),
-  } : null
-
   if (isError) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Dependencies</h1>
-            <p className="text-muted-foreground">Manage internal and external service dependencies</p>
+            <h1 className="text-3xl font-bold">{t('dependencies.title')}</h1>
+            <p className="text-muted-foreground">{t('dependencies.subtitle')}</p>
           </div>
         </div>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
             <h3 className="text-lg font-medium">Failed to load dependencies</h3>
-            <p className="text-muted-foreground mb-4">There was an error loading the data.</p>
-            <Button onClick={() => refetch()}>
+            <Button onClick={() => refetch()} className="mt-4">
               <RefreshCw className="mr-2 h-4 w-4" />
-              Try Again
+              {t('common.refresh')}
             </Button>
           </CardContent>
         </Card>
@@ -341,22 +622,22 @@ export default function Dependencies() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Dependency Topology
+            {t('dependencies.title')}
           </h1>
-          <p className="text-muted-foreground">Servis bağımlılıklarını görsel harita üzerinde görüntüleyin</p>
+          <p className="text-muted-foreground">{t('dependencies.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => refetch()}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            Yenile
+            {t('common.refresh')}
           </Button>
           <Button onClick={() => setIsAddInternalOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Internal
+            {t('dependencies.addInternal')}
           </Button>
           <Button onClick={() => setIsAddExternalOpen(true)} variant="secondary">
             <Plus className="mr-2 h-4 w-4" />
-            External
+            {t('dependencies.addExternal')}
           </Button>
         </div>
       </div>
@@ -366,7 +647,7 @@ export default function Dependencies() {
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-destructive flex items-center justify-between">
           <span>{error}</span>
           <Button variant="ghost" size="sm" onClick={() => setError(null)}>
-            Dismiss
+            {t('common.close')}
           </Button>
         </div>
       )}
@@ -381,7 +662,7 @@ export default function Dependencies() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-blue-500">{totalInternal}</p>
-                <p className="text-sm text-muted-foreground">Internal</p>
+                <p className="text-sm text-muted-foreground">{t('dependencies.internal')}</p>
               </div>
             </div>
           </CardContent>
@@ -394,7 +675,7 @@ export default function Dependencies() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-purple-500">{totalExternal}</p>
-                <p className="text-sm text-muted-foreground">External</p>
+                <p className="text-sm text-muted-foreground">{t('dependencies.external')}</p>
               </div>
             </div>
           </CardContent>
@@ -407,7 +688,7 @@ export default function Dependencies() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-orange-500">{criticalCount}</p>
-                <p className="text-sm text-muted-foreground">Kritik</p>
+                <p className="text-sm text-muted-foreground">{t('dependencies.critical')}</p>
               </div>
             </div>
           </CardContent>
@@ -419,8 +700,8 @@ export default function Dependencies() {
                 <Network className="h-6 w-6 text-green-500" />
               </div>
               <div>
-                <p className="text-3xl font-bold text-green-500">{filteredNodes.length}</p>
-                <p className="text-sm text-muted-foreground">Node</p>
+                <p className="text-3xl font-bold text-green-500">{graphData.nodes.length}</p>
+                <p className="text-sm text-muted-foreground">{t('dependencies.nodes')}</p>
               </div>
             </div>
           </CardContent>
@@ -433,7 +714,7 @@ export default function Dependencies() {
         <div className="relative max-w-xs">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Namespace ara..."
+            placeholder={t('common.search') + '...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 w-48"
@@ -441,10 +722,10 @@ export default function Dependencies() {
         </div>
         <Select value={clusterFilter} onValueChange={setClusterFilter}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="Tüm Clusterlar" />
+            <SelectValue placeholder={t('common.all')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tüm Clusterlar</SelectItem>
+            <SelectItem value="all">{t('common.all')} Clusters</SelectItem>
             {clusters.map((cluster) => (
               <SelectItem key={cluster.id} value={cluster.id}>
                 {cluster.display_name || cluster.name}
@@ -463,148 +744,32 @@ export default function Dependencies() {
               Topology Map
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0" ref={containerRef}>
             {isLoading ? (
-              <div className="flex items-center justify-center h-[500px]">
+              <div className="flex items-center justify-center h-[550px]">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               </div>
-            ) : filteredNodes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[500px] bg-muted/30">
-                <div className="p-4 rounded-full bg-muted mb-4">
-                  <Network className="h-12 w-12 text-muted-foreground" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Henüz bağımlılık yok</h3>
+            ) : graphData.nodes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-[550px] bg-muted/30">
+                <Network className="h-16 w-16 text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">{t('dependencies.noDeps')}</h3>
                 <p className="text-muted-foreground text-center max-w-md mb-6">
-                  Namespace'leriniz arasında bağımlılık tanımlayarak topology haritasını oluşturun.
+                  {t('dependencies.createDeps')}
                 </p>
                 <div className="flex gap-3">
                   <Button onClick={() => setIsAddInternalOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" />
-                    Internal Ekle
-                  </Button>
-                  <Button onClick={() => setIsAddExternalOpen(true)} variant="outline">
-                    <Plus className="mr-2 h-4 w-4" />
-                    External Ekle
+                    {t('dependencies.addInternal')}
                   </Button>
                 </div>
               </div>
             ) : (
               <svg
-                viewBox="0 0 800 600"
-                className="w-full h-[500px] bg-gradient-to-br from-background to-muted/30"
-              >
-                {/* Arrow markers */}
-                <defs>
-                  {Object.entries(dependencyTypeColors).map(([type, colors]) => (
-                    <marker
-                      key={type}
-                      id={`arrow-${type}`}
-                      viewBox="0 0 10 10"
-                      refX="9"
-                      refY="5"
-                      markerWidth="6"
-                      markerHeight="6"
-                      orient="auto-start-reverse"
-                    >
-                      <path d="M 0 0 L 10 5 L 0 10 z" fill={colors.stroke} />
-                    </marker>
-                  ))}
-                  <marker
-                    id="arrow-default"
-                    viewBox="0 0 10 10"
-                    refX="9"
-                    refY="5"
-                    markerWidth="6"
-                    markerHeight="6"
-                    orient="auto-start-reverse"
-                  >
-                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
-                  </marker>
-                </defs>
-
-                {/* Links */}
-                {filteredLinks.map((link) => {
-                  const source = topologyData.nodeMap.get(link.source)
-                  const target = topologyData.nodeMap.get(link.target)
-                  if (!source || !target) return null
-
-                  const colors = dependencyTypeColors[link.type] || { stroke: '#94a3b8' }
-                  
-                  // Calculate curved path
-                  const dx = target.x - source.x
-                  const dy = target.y - source.y
-                  const dr = Math.sqrt(dx * dx + dy * dy) * 0.8
-
-                  return (
-                    <g key={link.id}>
-                      <path
-                        d={`M ${source.x} ${source.y} A ${dr} ${dr} 0 0 1 ${target.x} ${target.y}`}
-                        fill="none"
-                        stroke={colors.stroke}
-                        strokeWidth={link.isCritical ? 3 : 2}
-                        strokeDasharray={link.isExternal ? '5,5' : 'none'}
-                        markerEnd={`url(#arrow-${link.type})`}
-                        opacity={selectedNode ? (link.source === selectedNode || link.target === selectedNode ? 1 : 0.2) : 0.7}
-                        className="transition-opacity duration-200"
-                      />
-                    </g>
-                  )
-                })}
-
-                {/* Nodes */}
-                {filteredNodes.map((node) => (
-                  <g
-                    key={node.id}
-                    transform={`translate(${node.x}, ${node.y})`}
-                    onClick={() => setSelectedNode(selectedNode === node.id ? null : node.id)}
-                    className="cursor-pointer"
-                    opacity={selectedNode ? (selectedNode === node.id || 
-                      filteredLinks.some(l => l.source === selectedNode && l.target === node.id) ||
-                      filteredLinks.some(l => l.target === selectedNode && l.source === node.id) ? 1 : 0.3) : 1}
-                  >
-                    {/* Node circle */}
-                    <circle
-                      r={selectedNode === node.id ? 28 : 24}
-                      fill={node.type === 'external' ? '#ec4899' : '#3b82f6'}
-                      stroke={selectedNode === node.id ? '#fff' : 'transparent'}
-                      strokeWidth={3}
-                      className="transition-all duration-200"
-                    />
-                    {/* Node icon */}
-                    <text
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fill="white"
-                      fontSize="16"
-                    >
-                      {node.type === 'external' ? '☁' : '⬡'}
-                    </text>
-                    {/* Node label */}
-                    <text
-                      y={38}
-                      textAnchor="middle"
-                      fill="currentColor"
-                      fontSize="11"
-                      fontWeight="500"
-                      className="pointer-events-none"
-                    >
-                      {node.name.length > 18 ? node.name.slice(0, 16) + '...' : node.name}
-                    </text>
-                    {/* Cluster label */}
-                    {node.cluster && (
-                      <text
-                        y={50}
-                        textAnchor="middle"
-                        fill="#94a3b8"
-                        fontSize="9"
-                        className="pointer-events-none"
-                      >
-                        {node.cluster}
-                      </text>
-                    )}
-                  </g>
-                ))}
-              </svg>
+                ref={svgRef}
+                width={dimensions.width}
+                height={550}
+                className="bg-gradient-to-br from-background to-muted/30"
+              />
             )}
           </CardContent>
         </Card>
@@ -613,14 +778,14 @@ export default function Dependencies() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">
-              {selectedNodeData ? selectedNodeData.name : 'Detaylar'}
+              {selectedNodeData ? selectedNodeData.name : t('common.details')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {selectedNodeData ? (
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Tür</p>
+                  <p className="text-sm text-muted-foreground">{t('common.type')}</p>
                   <div className="flex items-center gap-2">
                     {selectedNodeData.type === 'external' ? (
                       <Cloud className="h-5 w-5 text-pink-500" />
@@ -639,21 +804,27 @@ export default function Dependencies() {
                 )}
 
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Giden Bağlantılar ({selectedNodeLinks?.outgoing.length || 0})</p>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                  <p className="text-sm text-muted-foreground">{t('dependencies.outgoing')} ({selectedNodeLinks?.outgoing.length || 0})</p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
                     {selectedNodeLinks?.outgoing.map((link) => {
-                      const target = topologyData.nodeMap.get(link.target)
+                      const targetId = typeof link.target === 'string' ? link.target : (link.target as GraphNode).id
+                      const target = graphData.nodeMap.get(targetId)
                       const colors = dependencyTypeColors[link.type]
                       return (
                         <div key={link.id} className="flex items-center gap-2 text-sm p-2 rounded bg-muted/50">
                           <ArrowRight className="h-3 w-3 text-muted-foreground" />
                           <Badge variant="outline" className={colors?.text}>{link.type}</Badge>
-                          <span className="truncate">{target?.name}</span>
-                          {link.isCritical && <Badge variant="destructive" className="text-xs">Kritik</Badge>}
+                          <span className="truncate flex-1">{target?.name}</span>
+                          {link.protocol && (
+                            <span className="text-xs text-muted-foreground">
+                              {link.protocol.toUpperCase()}{link.port ? `:${link.port}` : ''}
+                            </span>
+                          )}
+                          {link.isCritical && <Badge variant="destructive" className="text-xs">{t('dependencies.critical')}</Badge>}
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 ml-auto"
+                            className="h-6 w-6"
                             onClick={(e) => {
                               e.stopPropagation()
                               if (link.isExternal) {
@@ -669,28 +840,34 @@ export default function Dependencies() {
                       )
                     })}
                     {selectedNodeLinks?.outgoing.length === 0 && (
-                      <p className="text-sm text-muted-foreground">Yok</p>
+                      <p className="text-sm text-muted-foreground">{t('common.none')}</p>
                     )}
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Gelen Bağlantılar ({selectedNodeLinks?.incoming.length || 0})</p>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                  <p className="text-sm text-muted-foreground">{t('dependencies.incoming')} ({selectedNodeLinks?.incoming.length || 0})</p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
                     {selectedNodeLinks?.incoming.map((link) => {
-                      const source = topologyData.nodeMap.get(link.source)
+                      const sourceId = typeof link.source === 'string' ? link.source : (link.source as GraphNode).id
+                      const source = graphData.nodeMap.get(sourceId)
                       const colors = dependencyTypeColors[link.type]
                       return (
                         <div key={link.id} className="flex items-center gap-2 text-sm p-2 rounded bg-muted/50">
                           <ArrowRight className="h-3 w-3 text-muted-foreground rotate-180" />
                           <Badge variant="outline" className={colors?.text}>{link.type}</Badge>
-                          <span className="truncate">{source?.name}</span>
-                          {link.isCritical && <Badge variant="destructive" className="text-xs">Kritik</Badge>}
+                          <span className="truncate flex-1">{source?.name}</span>
+                          {link.protocol && (
+                            <span className="text-xs text-muted-foreground">
+                              {link.protocol.toUpperCase()}{link.port ? `:${link.port}` : ''}
+                            </span>
+                          )}
+                          {link.isCritical && <Badge variant="destructive" className="text-xs">{t('dependencies.critical')}</Badge>}
                         </div>
                       )
                     })}
                     {selectedNodeLinks?.incoming.length === 0 && (
-                      <p className="text-sm text-muted-foreground">Yok</p>
+                      <p className="text-sm text-muted-foreground">{t('common.none')}</p>
                     )}
                   </div>
                 </div>
@@ -698,7 +875,7 @@ export default function Dependencies() {
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <Network className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>Detay görüntülemek için bir node seçin</p>
+                <p>{t('dependencies.selectNode')}</p>
               </div>
             )}
           </CardContent>
@@ -708,12 +885,11 @@ export default function Dependencies() {
       {/* Legend */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Gösterim Bilgileri</CardTitle>
+          <CardTitle className="text-sm font-medium text-muted-foreground">{t('dependencies.nodeTypes')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-6">
             <div className="flex items-center gap-4">
-              <span className="text-sm font-medium">Node Türleri:</span>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full bg-blue-500" />
                 <span className="text-sm">Namespace</span>
@@ -724,7 +900,7 @@ export default function Dependencies() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm font-medium">Bağlantı Türleri:</span>
+              <span className="text-sm font-medium">{t('dependencies.linkTypes')}:</span>
               {Object.entries(dependencyTypeColors).slice(0, 5).map(([type, colors]) => (
                 <div key={type} className="flex items-center gap-2">
                   <div className="w-6 h-0.5" style={{ backgroundColor: colors.stroke }} />
@@ -734,33 +910,33 @@ export default function Dependencies() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-3">
-            💡 Node'lara tıklayarak detayları görebilir ve bağımlılıkları silebilirsiniz.
+            💡 {t('dependencies.tip')}
           </p>
         </CardContent>
       </Card>
 
       {/* Add Internal Dependency Dialog */}
       <Dialog open={isAddInternalOpen} onOpenChange={setIsAddInternalOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <GitBranch className="h-5 w-5 text-blue-500" />
-              Internal Bağımlılık Ekle
+              {t('dependencies.addInternal')}
             </DialogTitle>
             <DialogDescription>
-              Namespace'ler arasında internal bağımlılık tanımlayın
+              {language === 'tr' ? 'Namespace\'ler arasında internal bağımlılık tanımlayın' : 'Define internal dependency between namespaces'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Kaynak Namespace *</Label>
+                <Label>{t('dependencies.sourceNamespace')} *</Label>
                 <Select
                   value={internalForm.source_namespace_id}
                   onValueChange={(v) => setInternalForm({ ...internalForm, source_namespace_id: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seçin" />
+                    <SelectValue placeholder={t('common.select')} />
                   </SelectTrigger>
                   <SelectContent>
                     {formNamespaces.map((ns) => (
@@ -772,13 +948,13 @@ export default function Dependencies() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Hedef Namespace *</Label>
+                <Label>{t('dependencies.targetNamespace')} *</Label>
                 <Select
                   value={internalForm.target_namespace_id}
                   onValueChange={(v) => setInternalForm({ ...internalForm, target_namespace_id: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seçin" />
+                    <SelectValue placeholder={t('common.select')} />
                   </SelectTrigger>
                   <SelectContent>
                     {formNamespaces.map((ns) => (
@@ -790,52 +966,126 @@ export default function Dependencies() {
                 </Select>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Bağımlılık Türü</Label>
-              <Select
-                value={internalForm.dependency_type}
-                onValueChange={(v) => setInternalForm({ ...internalForm, dependency_type: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="api">API</SelectItem>
-                  <SelectItem value="database">Database</SelectItem>
-                  <SelectItem value="queue">Queue</SelectItem>
-                  <SelectItem value="cache">Cache</SelectItem>
-                  <SelectItem value="storage">Storage</SelectItem>
-                </SelectContent>
-              </Select>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t('dependencies.dependencyType')}</Label>
+                <Select
+                  value={internalForm.dependency_type}
+                  onValueChange={(v) => setInternalForm({ ...internalForm, dependency_type: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="api">API</SelectItem>
+                    <SelectItem value="database">Database</SelectItem>
+                    <SelectItem value="queue">Queue</SelectItem>
+                    <SelectItem value="cache">Cache</SelectItem>
+                    <SelectItem value="storage">Storage</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('dependencies.protocol')}</Label>
+                <Select
+                  value={internalForm.protocol}
+                  onValueChange={(v) => {
+                    const proto = protocols.find(p => p.value === v)
+                    setInternalForm({ 
+                      ...internalForm, 
+                      protocol: v,
+                      port: proto?.port?.toString() || internalForm.port
+                    })
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {protocols.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label} {p.port ? `(${p.port})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t('dependencies.port')} ({t('common.optional')})</Label>
+                <Input
+                  type="number"
+                  placeholder="8080"
+                  value={internalForm.port}
+                  onChange={(e) => setInternalForm({ ...internalForm, port: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('dependencies.networkAccess')}</Label>
+                <Select
+                  value={internalForm.network_access}
+                  onValueChange={(v) => setInternalForm({ ...internalForm, network_access: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {networkAccessTypes.map((n) => (
+                      <SelectItem key={n.value} value={n.value}>
+                        {n.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label>Açıklama</Label>
+              <Label>{t('common.description')}</Label>
               <Textarea
-                placeholder="Bağımlılık hakkında not..."
+                placeholder={language === 'tr' ? 'Bağımlılık hakkında not...' : 'Notes about this dependency...'}
                 value={internalForm.description}
                 onChange={(e) => setInternalForm({ ...internalForm, description: e.target.value })}
               />
             </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="internal-critical"
-                checked={internalForm.is_critical}
-                onCheckedChange={(checked) => setInternalForm({ ...internalForm, is_critical: !!checked })}
-              />
-              <Label htmlFor="internal-critical" className="text-sm">
-                Kritik bağımlılık olarak işaretle
-              </Label>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="same-cluster"
+                  checked={internalForm.same_cluster}
+                  onCheckedChange={(checked) => setInternalForm({ ...internalForm, same_cluster: !!checked })}
+                />
+                <Label htmlFor="same-cluster" className="text-sm flex items-center gap-2">
+                  <Globe className="h-4 w-4" />
+                  {t('dependencies.sameCluster')}
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="internal-critical"
+                  checked={internalForm.is_critical}
+                  onCheckedChange={(checked) => setInternalForm({ ...internalForm, is_critical: !!checked })}
+                />
+                <Label htmlFor="internal-critical" className="text-sm flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                  {t('dependencies.markCritical')}
+                </Label>
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddInternalOpen(false)}>
-              İptal
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={() => createInternalMutation.mutate(internalForm)}
               disabled={!internalForm.source_namespace_id || !internalForm.target_namespace_id || createInternalMutation.isPending}
             >
-              {createInternalMutation.isPending ? 'Ekleniyor...' : 'Ekle'}
+              {createInternalMutation.isPending ? t('common.loading') : t('common.add')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -847,21 +1097,21 @@ export default function Dependencies() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ExternalLink className="h-5 w-5 text-purple-500" />
-              External Bağımlılık Ekle
+              {t('dependencies.addExternal')}
             </DialogTitle>
             <DialogDescription>
-              Dış sistemlere olan bağımlılıkları tanımlayın
+              {language === 'tr' ? 'Dış sistemlere olan bağımlılıkları tanımlayın' : 'Define dependencies to external systems'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Namespace *</Label>
+              <Label>{language === 'tr' ? 'Namespace' : 'Namespace'} *</Label>
               <Select
                 value={externalForm.namespace_id}
                 onValueChange={(v) => setExternalForm({ ...externalForm, namespace_id: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Namespace seçin" />
+                  <SelectValue placeholder={t('common.select')} />
                 </SelectTrigger>
                 <SelectContent>
                   {formNamespaces.map((ns) => (
@@ -872,9 +1122,10 @@ export default function Dependencies() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Servis Adı *</Label>
+                <Label>{t('dependencies.serviceName')} *</Label>
                 <Input
                   placeholder="örn: Stripe, AWS S3"
                   value={externalForm.name}
@@ -882,7 +1133,7 @@ export default function Dependencies() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Sistem Türü</Label>
+                <Label>{t('dependencies.systemType')}</Label>
                 <Select
                   value={externalForm.system_type}
                   onValueChange={(v) => setExternalForm({ ...externalForm, system_type: v })}
@@ -900,22 +1151,62 @@ export default function Dependencies() {
                 </Select>
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t('dependencies.protocol')}</Label>
+                <Select
+                  value={externalForm.protocol}
+                  onValueChange={(v) => {
+                    const proto = protocols.find(p => p.value === v)
+                    setExternalForm({ 
+                      ...externalForm, 
+                      protocol: v,
+                      port: proto?.port?.toString() || externalForm.port
+                    })
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {protocols.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('dependencies.port')} ({t('common.optional')})</Label>
+                <Input
+                  type="number"
+                  placeholder="443"
+                  value={externalForm.port}
+                  onChange={(e) => setExternalForm({ ...externalForm, port: e.target.value })}
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label>Endpoint URL</Label>
+              <Label>{t('dependencies.endpoint')}</Label>
               <Input
                 placeholder="https://api.example.com"
                 value={externalForm.endpoint}
                 onChange={(e) => setExternalForm({ ...externalForm, endpoint: e.target.value })}
               />
             </div>
+
             <div className="space-y-2">
-              <Label>Açıklama</Label>
+              <Label>{t('common.description')}</Label>
               <Textarea
-                placeholder="Bu bağımlılık hakkında not..."
+                placeholder={language === 'tr' ? 'Bu bağımlılık hakkında not...' : 'Notes about this dependency...'}
                 value={externalForm.description}
                 onChange={(e) => setExternalForm({ ...externalForm, description: e.target.value })}
               />
             </div>
+
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="external-critical"
@@ -923,19 +1214,19 @@ export default function Dependencies() {
                 onCheckedChange={(checked) => setExternalForm({ ...externalForm, is_critical: !!checked })}
               />
               <Label htmlFor="external-critical" className="text-sm">
-                Kritik bağımlılık olarak işaretle
+                {t('dependencies.markCritical')}
               </Label>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddExternalOpen(false)}>
-              İptal
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={() => createExternalMutation.mutate(externalForm)}
               disabled={!externalForm.namespace_id || !externalForm.name || createExternalMutation.isPending}
             >
-              {createExternalMutation.isPending ? 'Ekleniyor...' : 'Ekle'}
+              {createExternalMutation.isPending ? t('common.loading') : t('common.add')}
             </Button>
           </DialogFooter>
         </DialogContent>

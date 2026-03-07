@@ -1004,3 +1004,100 @@ func UpdateSettings(svc *services.Services) gin.HandlerFunc {
 		respondSuccess(c, settings)
 	}
 }
+
+// ============================================
+// User Preferences Handlers
+// ============================================
+
+// GetUserPreferences returns the current user's preferences
+func GetUserPreferences(svc *services.Services) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, ok := middleware.GetUserID(c)
+		if !ok {
+			respondErrorStr(c, http.StatusUnauthorized, "User ID not found")
+			return
+		}
+
+		user, err := svc.User.GetByID(c.Request.Context(), userID)
+		if err != nil {
+			respondErrorStr(c, http.StatusNotFound, "User not found")
+			return
+		}
+
+		// Extract preferences from user settings
+		preferences := map[string]interface{}{
+			"language": "tr", // default
+			"theme":    "dark",
+		}
+
+		if user.Settings != nil {
+			if lang, ok := user.Settings["language"].(string); ok {
+				preferences["language"] = lang
+			}
+			if theme, ok := user.Settings["theme"].(string); ok {
+				preferences["theme"] = theme
+			}
+		}
+
+		respondSuccess(c, preferences)
+	}
+}
+
+// UpdateUserPreferences updates the current user's preferences
+func UpdateUserPreferences(svc *services.Services) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, ok := middleware.GetUserID(c)
+		if !ok {
+			respondErrorStr(c, http.StatusUnauthorized, "User ID not found")
+			return
+		}
+
+		var req struct {
+			Language string `json:"language"`
+			Theme    string `json:"theme"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			respondErrorStr(c, http.StatusBadRequest, "Invalid request body")
+			return
+		}
+
+		// Validate language
+		if req.Language != "" && req.Language != "tr" && req.Language != "en" {
+			respondErrorStr(c, http.StatusBadRequest, "Invalid language. Must be 'tr' or 'en'")
+			return
+		}
+
+		// Get current user
+		user, err := svc.User.GetByID(c.Request.Context(), userID)
+		if err != nil {
+			respondErrorStr(c, http.StatusNotFound, "User not found")
+			return
+		}
+
+		// Update settings
+		if user.Settings == nil {
+			user.Settings = make(models.JSONMap)
+		}
+		if req.Language != "" {
+			user.Settings["language"] = req.Language
+		}
+		if req.Theme != "" {
+			user.Settings["theme"] = req.Theme
+		}
+
+		// Save user
+		err = svc.User.UpdateSettings(c.Request.Context(), userID, user.Settings)
+		if err != nil {
+			log.Printf("ERROR UpdateUserPreferences: %v", err)
+			respondErrorStr(c, http.StatusInternalServerError, "Failed to update preferences")
+			return
+		}
+
+		preferences := map[string]interface{}{
+			"language": user.Settings["language"],
+			"theme":    user.Settings["theme"],
+		}
+
+		respondSuccess(c, preferences)
+	}
+}

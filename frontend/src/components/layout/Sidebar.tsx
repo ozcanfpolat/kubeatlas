@@ -13,24 +13,27 @@ import {
   HelpCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Clusters', href: '/clusters', icon: Server },
-  { name: 'Namespaces', href: '/namespaces', icon: Boxes },
-  { name: 'Teams', href: '/teams', icon: Users },
-  { name: 'Business Units', href: '/business-units', icon: Building2 },
-  { name: 'Dependencies', href: '/dependencies', icon: GitBranch },
-  { name: 'Documents', href: '/documents', icon: FileText },
-  { name: 'Reports', href: '/reports', icon: BarChart3 },
-  { name: 'Audit Logs', href: '/audit', icon: History },
-]
-
-const secondaryNavigation = [
-  { name: 'Settings', href: '/settings', icon: Settings },
-]
+import { useTranslation } from '@/i18n'
 
 export default function Sidebar() {
+  const { t } = useTranslation()
+
+  const navigation = [
+    { name: t('nav.dashboard'), href: '/', icon: LayoutDashboard },
+    { name: t('nav.clusters'), href: '/clusters', icon: Server },
+    { name: t('nav.namespaces'), href: '/namespaces', icon: Boxes },
+    { name: t('nav.teams'), href: '/teams', icon: Users },
+    { name: t('nav.businessUnits'), href: '/business-units', icon: Building2 },
+    { name: t('nav.dependencies'), href: '/dependencies', icon: GitBranch },
+    { name: t('nav.documents'), href: '/documents', icon: FileText },
+    { name: t('nav.reports'), href: '/reports', icon: BarChart3 },
+    { name: t('nav.auditLogs'), href: '/audit', icon: History },
+  ]
+
+  const secondaryNavigation = [
+    { name: t('nav.settings'), href: '/settings', icon: Settings },
+  ]
+
   return (
     <div className="flex h-full w-64 flex-col border-r bg-card">
       {/* Logo */}
@@ -45,7 +48,7 @@ export default function Sidebar() {
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => (
           <NavLink
-            key={item.name}
+            key={item.href}
             to={item.href}
             className={({ isActive }) =>
               cn(
@@ -66,7 +69,7 @@ export default function Sidebar() {
       <div className="border-t px-3 py-4">
         {secondaryNavigation.map((item) => (
           <NavLink
-            key={item.name}
+            key={item.href}
             to={item.href}
             className={({ isActive }) =>
               cn(

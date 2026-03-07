@@ -5,7 +5,9 @@ import {
   Shield, 
   Palette,
   Key,
-  Save
+  Save,
+  Globe,
+  Check
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,9 +24,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useAuthStore } from '@/store/authStore'
+import { useI18n } from '@/i18n'
 
 export default function Settings() {
   const { user } = useAuthStore()
+  const { language, setLanguage, t } = useI18n()
+  const [isSaving, setIsSaving] = useState(false)
+  const [showSaved, setShowSaved] = useState(false)
+  
   const [profileData, setProfileData] = useState({
     full_name: user?.full_name || '',
     email: user?.email || '',
@@ -36,6 +43,14 @@ export default function Settings() {
     slack_enabled: false,
     slack_webhook: '',
   })
+
+  const handleLanguageChange = async (lang: 'tr' | 'en') => {
+    setIsSaving(true)
+    await setLanguage(lang)
+    setIsSaving(false)
+    setShowSaved(true)
+    setTimeout(() => setShowSaved(false), 2000)
+  }
 
   const handleSaveProfile = () => {
     // TODO: Implement save profile
@@ -51,9 +66,9 @@ export default function Settings() {
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Ayarlar</h1>
+        <h1 className="text-3xl font-bold">{t('settings.title')}</h1>
         <p className="text-muted-foreground mt-1">
-          Hesap ve uygulama ayarlarını yönetin
+          {t('settings.subtitle')}
         </p>
       </div>
 
@@ -61,19 +76,23 @@ export default function Settings() {
         <TabsList>
           <TabsTrigger value="profile" className="gap-2">
             <User className="h-4 w-4" />
-            Profil
+            {t('settings.profile')}
+          </TabsTrigger>
+          <TabsTrigger value="preferences" className="gap-2">
+            <Globe className="h-4 w-4" />
+            {t('settings.preferences')}
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-2">
             <Bell className="h-4 w-4" />
-            Bildirimler
+            {t('settings.notifications')}
           </TabsTrigger>
           <TabsTrigger value="appearance" className="gap-2">
             <Palette className="h-4 w-4" />
-            Görünüm
+            {language === 'tr' ? 'Görünüm' : 'Appearance'}
           </TabsTrigger>
           <TabsTrigger value="security" className="gap-2">
             <Shield className="h-4 w-4" />
-            Güvenlik
+            {language === 'tr' ? 'Güvenlik' : 'Security'}
           </TabsTrigger>
           <TabsTrigger value="api" className="gap-2">
             <Key className="h-4 w-4" />
@@ -85,9 +104,9 @@ export default function Settings() {
         <TabsContent value="profile">
           <Card>
             <CardHeader>
-              <CardTitle>Profil Bilgileri</CardTitle>
+              <CardTitle>{language === 'tr' ? 'Profil Bilgileri' : 'Profile Information'}</CardTitle>
               <CardDescription>
-                Kişisel bilgilerinizi güncelleyin
+                {language === 'tr' ? 'Kişisel bilgilerinizi güncelleyin' : 'Update your personal information'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -108,16 +127,16 @@ export default function Settings() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <Label htmlFor="full_name">Ad Soyad</Label>
+                  <Label htmlFor="full_name">{language === 'tr' ? 'Ad Soyad' : 'Full Name'}</Label>
                   <Input
                     id="full_name"
                     value={profileData.full_name}
                     onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
-                    placeholder="Ad Soyad"
+                    placeholder={language === 'tr' ? 'Ad Soyad' : 'Full Name'}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="email">E-posta</Label>
+                  <Label htmlFor="email">{language === 'tr' ? 'E-posta' : 'Email'}</Label>
                   <Input
                     id="email"
                     type="email"
@@ -127,7 +146,7 @@ export default function Settings() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="phone">Telefon</Label>
+                  <Label htmlFor="phone">{language === 'tr' ? 'Telefon' : 'Phone'}</Label>
                   <Input
                     id="phone"
                     value={profileData.phone}
@@ -140,8 +159,88 @@ export default function Settings() {
               <div className="flex justify-end">
                 <Button onClick={handleSaveProfile}>
                   <Save className="h-4 w-4 mr-2" />
-                  Kaydet
+                  {t('common.save')}
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Preferences Tab - Language Selection */}
+        <TabsContent value="preferences">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('settings.preferences')}</CardTitle>
+              <CardDescription>
+                {t('settings.languageDesc')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-medium flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    {t('settings.language')}
+                  </Label>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {t('settings.languageDesc')}
+                  </p>
+                  
+                  <div className="grid grid-cols-2 gap-4 max-w-md">
+                    <button
+                      onClick={() => handleLanguageChange('tr')}
+                      disabled={isSaving}
+                      className={`relative p-4 rounded-lg border-2 transition-all text-left ${
+                        language === 'tr' 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">🇹🇷</span>
+                        <div>
+                          <p className="font-medium">Türkçe</p>
+                          <p className="text-sm text-muted-foreground">Turkish</p>
+                        </div>
+                      </div>
+                      {language === 'tr' && (
+                        <div className="absolute top-2 right-2">
+                          <Check className="h-5 w-5 text-primary" />
+                        </div>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => handleLanguageChange('en')}
+                      disabled={isSaving}
+                      className={`relative p-4 rounded-lg border-2 transition-all text-left ${
+                        language === 'en' 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">🇬🇧</span>
+                        <div>
+                          <p className="font-medium">English</p>
+                          <p className="text-sm text-muted-foreground">İngilizce</p>
+                        </div>
+                      </div>
+                      {language === 'en' && (
+                        <div className="absolute top-2 right-2">
+                          <Check className="h-5 w-5 text-primary" />
+                        </div>
+                      )}
+                    </button>
+                  </div>
+
+                  {showSaved && (
+                    <div className="mt-4 flex items-center gap-2 text-green-500">
+                      <Check className="h-4 w-4" />
+                      <span className="text-sm">{t('settings.saved')}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -151,18 +250,18 @@ export default function Settings() {
         <TabsContent value="notifications">
           <Card>
             <CardHeader>
-              <CardTitle>Bildirim Ayarları</CardTitle>
+              <CardTitle>{language === 'tr' ? 'Bildirim Ayarları' : 'Notification Settings'}</CardTitle>
               <CardDescription>
-                Bildirim tercihlerinizi yapılandırın
+                {language === 'tr' ? 'Bildirim tercihlerinizi yapılandırın' : 'Configure your notification preferences'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 rounded-lg border border-border">
                   <div>
-                    <h4 className="font-medium">E-posta Bildirimleri</h4>
+                    <h4 className="font-medium">{language === 'tr' ? 'E-posta Bildirimleri' : 'Email Notifications'}</h4>
                     <p className="text-sm text-muted-foreground">
-                      Önemli güncellemeler için e-posta alın
+                      {language === 'tr' ? 'Önemli güncellemeler için e-posta alın' : 'Receive emails for important updates'}
                     </p>
                   </div>
                   <Button 
@@ -172,15 +271,17 @@ export default function Settings() {
                       email_enabled: !notificationSettings.email_enabled 
                     })}
                   >
-                    {notificationSettings.email_enabled ? 'Aktif' : 'Pasif'}
+                    {notificationSettings.email_enabled 
+                      ? (language === 'tr' ? 'Aktif' : 'Active') 
+                      : (language === 'tr' ? 'Pasif' : 'Inactive')}
                   </Button>
                 </div>
 
                 <div className="flex items-center justify-between p-4 rounded-lg border border-border">
                   <div>
-                    <h4 className="font-medium">Slack Bildirimleri</h4>
+                    <h4 className="font-medium">{language === 'tr' ? 'Slack Bildirimleri' : 'Slack Notifications'}</h4>
                     <p className="text-sm text-muted-foreground">
-                      Slack kanalına bildirim gönderin
+                      {language === 'tr' ? 'Slack kanalına bildirim gönderin' : 'Send notifications to Slack channel'}
                     </p>
                   </div>
                   <Button 
@@ -190,7 +291,9 @@ export default function Settings() {
                       slack_enabled: !notificationSettings.slack_enabled 
                     })}
                   >
-                    {notificationSettings.slack_enabled ? 'Aktif' : 'Pasif'}
+                    {notificationSettings.slack_enabled 
+                      ? (language === 'tr' ? 'Aktif' : 'Active') 
+                      : (language === 'tr' ? 'Pasif' : 'Inactive')}
                   </Button>
                 </div>
 
@@ -213,7 +316,7 @@ export default function Settings() {
               <div className="flex justify-end">
                 <Button onClick={handleSaveNotifications}>
                   <Save className="h-4 w-4 mr-2" />
-                  Kaydet
+                  {t('common.save')}
                 </Button>
               </div>
             </CardContent>
@@ -224,35 +327,22 @@ export default function Settings() {
         <TabsContent value="appearance">
           <Card>
             <CardHeader>
-              <CardTitle>Görünüm</CardTitle>
+              <CardTitle>{language === 'tr' ? 'Görünüm' : 'Appearance'}</CardTitle>
               <CardDescription>
-                Uygulama görünümünü özelleştirin
+                {language === 'tr' ? 'Uygulama görünümünü özelleştirin' : 'Customize the application appearance'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <Label>Tema</Label>
+                <Label>{language === 'tr' ? 'Tema' : 'Theme'}</Label>
                 <Select defaultValue="dark">
                   <SelectTrigger className="w-[200px] mt-2">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="light">Açık</SelectItem>
-                    <SelectItem value="dark">Koyu</SelectItem>
-                    <SelectItem value="system">Sistem</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Dil</Label>
-                <Select defaultValue="tr">
-                  <SelectTrigger className="w-[200px] mt-2">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="tr">Türkçe</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="light">{t('settings.light')}</SelectItem>
+                    <SelectItem value="dark">{t('settings.dark')}</SelectItem>
+                    <SelectItem value="system">{t('settings.system')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -264,15 +354,15 @@ export default function Settings() {
         <TabsContent value="security">
           <Card>
             <CardHeader>
-              <CardTitle>Güvenlik</CardTitle>
+              <CardTitle>{language === 'tr' ? 'Güvenlik' : 'Security'}</CardTitle>
               <CardDescription>
-                Hesap güvenlik ayarlarınızı yönetin
+                {language === 'tr' ? 'Hesap güvenlik ayarlarınızı yönetin' : 'Manage your account security settings'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="current_password">Mevcut Şifre</Label>
+                  <Label htmlFor="current_password">{language === 'tr' ? 'Mevcut Şifre' : 'Current Password'}</Label>
                   <Input
                     id="current_password"
                     type="password"
@@ -280,7 +370,7 @@ export default function Settings() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="new_password">Yeni Şifre</Label>
+                  <Label htmlFor="new_password">{language === 'tr' ? 'Yeni Şifre' : 'New Password'}</Label>
                   <Input
                     id="new_password"
                     type="password"
@@ -288,7 +378,7 @@ export default function Settings() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="confirm_password">Şifre Tekrar</Label>
+                  <Label htmlFor="confirm_password">{language === 'tr' ? 'Şifre Tekrar' : 'Confirm Password'}</Label>
                   <Input
                     id="confirm_password"
                     type="password"
@@ -298,17 +388,17 @@ export default function Settings() {
               </div>
 
               <div className="flex justify-end">
-                <Button>Şifreyi Değiştir</Button>
+                <Button>{language === 'tr' ? 'Şifreyi Değiştir' : 'Change Password'}</Button>
               </div>
 
               <Separator />
 
               <div>
-                <h4 className="font-medium mb-2">İki Faktörlü Doğrulama</h4>
+                <h4 className="font-medium mb-2">{language === 'tr' ? 'İki Faktörlü Doğrulama' : 'Two-Factor Authentication'}</h4>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Hesabınıza ekstra güvenlik katmanı ekleyin
+                  {language === 'tr' ? 'Hesabınıza ekstra güvenlik katmanı ekleyin' : 'Add an extra layer of security to your account'}
                 </p>
-                <Button variant="outline">2FA'yı Etkinleştir</Button>
+                <Button variant="outline">{language === 'tr' ? '2FA\'yı Etkinleştir' : 'Enable 2FA'}</Button>
               </div>
             </CardContent>
           </Card>
@@ -318,9 +408,9 @@ export default function Settings() {
         <TabsContent value="api">
           <Card>
             <CardHeader>
-              <CardTitle>API Erişimi</CardTitle>
+              <CardTitle>{language === 'tr' ? 'API Erişimi' : 'API Access'}</CardTitle>
               <CardDescription>
-                API anahtarlarınızı yönetin
+                {language === 'tr' ? 'API anahtarlarınızı yönetin' : 'Manage your API keys'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -335,19 +425,19 @@ export default function Settings() {
               </div>
 
               <div>
-                <h4 className="font-medium mb-4">API Anahtarları</h4>
+                <h4 className="font-medium mb-4">{language === 'tr' ? 'API Anahtarları' : 'API Keys'}</h4>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 rounded-lg border border-border">
                     <div>
                       <p className="font-medium">Production Key</p>
                       <p className="text-sm text-muted-foreground">
-                        Oluşturulma: 15 Ocak 2024
+                        {language === 'tr' ? 'Oluşturulma: 15 Ocak 2024' : 'Created: Jan 15, 2024'}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">Göster</Button>
+                      <Button variant="outline" size="sm">{language === 'tr' ? 'Göster' : 'Show'}</Button>
                       <Button variant="outline" size="sm" className="text-red-500">
-                        İptal Et
+                        {language === 'tr' ? 'İptal Et' : 'Revoke'}
                       </Button>
                     </div>
                   </div>
@@ -356,7 +446,7 @@ export default function Settings() {
 
               <Button>
                 <Key className="h-4 w-4 mr-2" />
-                Yeni API Anahtarı
+                {language === 'tr' ? 'Yeni API Anahtarı' : 'New API Key'}
               </Button>
             </CardContent>
           </Card>

@@ -259,6 +259,20 @@ func (s *UserService) Delete(ctx context.Context, ac AuditContext, id uuid.UUID)
 	return nil
 }
 
+// UpdateSettings updates user's settings (preferences like language, theme)
+func (s *UserService) UpdateSettings(ctx context.Context, userID uuid.UUID, settings models.JSONMap) error {
+	user, err := s.repo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return ErrUserNotFound
+	}
+	
+	user.Settings = settings
+	return s.repo.Update(ctx, user)
+}
+
 // UpdateSettingsRequest represents a request to update organization settings
 type UpdateSettingsRequest struct {
 	Name        string                 `json:"name"`

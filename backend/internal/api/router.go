@@ -101,6 +101,8 @@ func SetupRouter(cfg *Config) *gin.Engine {
 		users := protected.Group("/users")
 		{
 			users.GET("/me", handlers.GetCurrentUser(cfg.Services))
+			users.GET("/me/preferences", handlers.GetUserPreferences(cfg.Services))
+			users.PUT("/me/preferences", handlers.UpdateUserPreferences(cfg.Services))
 			users.GET("", handlers.ListUsers(cfg.Services))
 			users.GET("/:id", handlers.GetUser(cfg.Services))
 			users.POST("", middleware.RequireRole("admin"), handlers.CreateUser(cfg.Services))

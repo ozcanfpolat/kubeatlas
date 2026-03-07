@@ -1,30 +1,19 @@
 <div align="center">
 
-<h1>☸️ KubeAtlas</h1>
+<img src="docs/images/logo.svg" alt="KubeAtlas Logo" width="120" />
 
-<p><strong>Kubernetes Inventory & Governance Platform</strong></p>
+# KubeAtlas
 
-<p>
-  <a href="https://github.com/ozcanfpolat/kubeatlas/actions/workflows/ci.yml">
-    <img src="https://github.com/ozcanfpolat/kubeatlas/actions/workflows/ci.yml/badge.svg" alt="CI/CD">
-  </a>
-  <a href="https://github.com/ozcanfpolat/kubeatlas/releases">
-    <img src="https://img.shields.io/github/v/release/ozcanfpolat/kubeatlas" alt="Release">
-  </a>
-  <a href="https://github.com/ozcanfpolat/kubeatlas/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">
-  </a>
-  <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white" alt="Go">
-  <img src="https://img.shields.io/badge/React-18+-61DAFB?logo=react&logoColor=white" alt="React">
-</p>
+**Kubernetes Inventory & Governance Platform**
 
-<p>
-  <a href="#-features">Features</a> •
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#-installation">Installation</a> •
-  <a href="#-documentation">Docs</a> •
-  <a href="#-screenshots">Screenshots</a>
-</p>
+[![CI/CD](https://github.com/ozcanfpolat/kubeatlas/actions/workflows/ci.yml/badge.svg)](https://github.com/ozcanfpolat/kubeatlas/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ozcanfpolat/kubeatlas)](https://github.com/ozcanfpolat/kubeatlas/releases)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
+[![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-1.26+-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+
+[Features](#-features) • [Screenshots](#-screenshots) • [Quick Start](#-quick-start) • [Installation](#-installation) • [Documentation](#-documentation)
 
 </div>
 
@@ -40,21 +29,14 @@ Managing multiple Kubernetes clusters across different teams and environments of
 
 | Challenge | Impact |
 |-----------|--------|
-| 🔍 Unknown ownership | "Who owns this namespace?" |
-| 📋 Missing documentation | "Where are the runbooks?" |
-| 🔗 Hidden dependencies | "What breaks if this changes?" |
-| 📊 No governance visibility | "Are we compliant?" |
+| 🔍 **Unknown ownership** | "Who owns this namespace?" |
+| 📋 **Missing documentation** | "Where are the runbooks?" |
+| 🔗 **Hidden dependencies** | "What breaks if this changes?" |
+| 📊 **No governance visibility** | "Are we compliant?" |
 
 ### The Solution
 
-KubeAtlas provides a **central source of truth** for all your Kubernetes resources with:
-
-- **Ownership tracking** at namespace, team, and business unit levels
-- **Dependency mapping** for internal and external services
-- **Document management** for runbooks, SLAs, and architecture docs
-- **Complete audit trail** of all changes
-- **Multi-cluster support** with auto-discovery
-- **LDAP/SSO integration** for enterprise authentication
+KubeAtlas provides a **central source of truth** for all your Kubernetes resources with ownership tracking, dependency mapping, document management, and complete audit trails.
 
 ---
 
@@ -64,23 +46,227 @@ KubeAtlas provides a **central source of truth** for all your Kubernetes resourc
 
 | Feature | Description |
 |---------|-------------|
-| **📊 Dashboard** | Real-time overview of clusters, namespaces, ownership coverage |
-| **🔐 Ownership Management** | Track owners, teams, and business units |
-| **📦 Cluster Inventory** | Multi-cluster support with auto-discovery |
-| **🔗 Dependency Mapping** | Visualize internal & external dependencies |
-| **📄 Document Management** | Centralize runbooks, SLAs, architecture docs |
-| **📝 Audit Trail** | Complete history of all changes |
-| **🌍 Multi-language** | English and Turkish UI support |
-| **🎨 Theme Support** | Light, dark, and system themes |
+| 📊 **Dashboard** | Real-time overview with metrics, charts, and alerts |
+| 🔐 **Ownership Management** | Track owners, teams, and business units |
+| 📦 **Cluster Inventory** | Multi-cluster support with auto-discovery |
+| 🔗 **Dependency Mapping** | Interactive D3.js visualization of dependencies |
+| 📄 **Document Management** | Centralize runbooks, SLAs, architecture docs |
+| 📝 **Audit Trail** | Complete history of all changes with export |
+| 🌍 **Multi-language** | English and Turkish UI support |
+| 🎨 **Theme Support** | Light, dark, and system themes |
 
 ### Enterprise Features
 
 | Feature | Description |
 |---------|-------------|
-| **🔒 LDAP/Active Directory** | Enterprise SSO with group-based roles |
-| **👥 Role-Based Access** | Admin, Editor, Viewer roles |
-| **📊 Reports & Export** | Excel export for compliance reporting |
-| **🔐 Encryption** | AES-256-GCM for sensitive data |
+| 🔒 **LDAP/Active Directory** | Enterprise SSO with group-based roles |
+| 👥 **Role-Based Access** | Admin, Editor, Viewer roles |
+| 📊 **Reports & Export** | Excel export for compliance reporting |
+| 🔐 **Encryption** | AES-256-GCM for sensitive data |
+
+---
+
+## 📸 Screenshots
+
+### Dashboard
+
+The main dashboard provides a comprehensive overview of your Kubernetes inventory:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  ☸️ KubeAtlas                                              🌙 Dark   👤 Admin   │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  Dashboard │ Clusters │ Namespaces │ Dependencies │ Documents │ Teams │ Settings │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  📊 Dashboard                                                                   │
+│  Overview of your Kubernetes inventory                                          │
+│                                                                                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
+│  │   Clusters  │  │ Namespaces  │  │   Teams     │  │  Orphaned   │            │
+│  │             │  │             │  │             │  │             │            │
+│  │     12      │  │    156      │  │      8      │  │      4      │            │
+│  │  ✓ 10 active│  │             │  │             │  │  ⚠️ warning │            │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘            │
+│                                                                                 │
+│  ┌────────────────────────────────┐  ┌────────────────────────────────────────┐│
+│  │  📈 Environment Distribution   │  │  📊 Ownership Coverage                 ││
+│  │                                │  │                                        ││
+│  │  Production  ████████████ 45%  │  │  ████████████████████████████░░  85%   ││
+│  │  Staging     ████████     28%  │  │                                        ││
+│  │  Development ██████████   37%  │  │  ✓ With Owner: 132 namespaces          ││
+│  │  Test        █████        19%  │  │  ⚠ Orphaned:    24 namespaces          ││
+│  │                                │  │                                        ││
+│  └────────────────────────────────┘  └────────────────────────────────────────┘│
+│                                                                                 │
+│  ┌────────────────────────────────┐  ┌────────────────────────────────────────┐│
+│  │  🕐 Recent Activities          │  │  ⚠️ Alerts                             ││
+│  │                                │  │                                        ││
+│  │  📝 namespace-api updated  2m  │  │  🔴 prod-payment: No owner assigned    ││
+│  │  🔄 prod-cluster synced   15m  │  │  🟡 staging-db: Missing documentation  ││
+│  │  ➕ New namespace added    1h  │  │  🟡 dev-api: No team assigned          ││
+│  │  👤 User login: john@...   2h  │  │                                        ││
+│  │                                │  │                                        ││
+│  └────────────────────────────────┘  └────────────────────────────────────────┘│
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Cluster Management
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  📦 Clusters                                                    [+ Add Cluster] │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐│
+│  │  🟢 production-cluster                                                      ││
+│  │  ──────────────────────────────────────────────────────────────────────────│││
+│  │  API: https://api.prod.example.com:6443                                     ││
+│  │  Version: v1.28.2        Namespaces: 45        Last Sync: 5 minutes ago     ││
+│  │                                                                             ││
+│  │  [🔄 Sync]  [✏️ Edit]  [🗑️ Delete]                                          ││
+│  └─────────────────────────────────────────────────────────────────────────────┘│
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐│
+│  │  🟢 staging-cluster                                                         ││
+│  │  ──────────────────────────────────────────────────────────────────────────│││
+│  │  API: https://api.staging.example.com:6443                                  ││
+│  │  Version: v1.28.2        Namespaces: 32        Last Sync: 10 minutes ago    ││
+│  │                                                                             ││
+│  │  [🔄 Sync]  [✏️ Edit]  [🗑️ Delete]                                          ││
+│  └─────────────────────────────────────────────────────────────────────────────┘│
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐│
+│  │  🟡 development-cluster                                                     ││
+│  │  ──────────────────────────────────────────────────────────────────────────│││
+│  │  API: https://api.dev.example.com:6443                                      ││
+│  │  Version: v1.27.8        Namespaces: 78        Last Sync: 1 hour ago        ││
+│  │                                                                             ││
+│  │  [🔄 Sync]  [✏️ Edit]  [🗑️ Delete]                                          ││
+│  └─────────────────────────────────────────────────────────────────────────────┘│
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Dependency Visualization
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  🔗 Dependencies                            [Topology View] [+ Add Dependency] │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│                         ┌─────────────┐                                         │
+│                         │  frontend   │                                         │
+│                         │  (React)    │                                         │
+│                         └──────┬──────┘                                         │
+│                                │                                                │
+│                    ┌───────────┼───────────┐                                    │
+│                    │           │           │                                    │
+│                    ▼           ▼           ▼                                    │
+│             ┌──────────┐ ┌──────────┐ ┌──────────┐                              │
+│             │ user-api │ │order-api │ │  cdn     │                              │
+│             │  (Go)    │ │ (Java)   │ │(external)│                              │
+│             └────┬─────┘ └────┬─────┘ └──────────┘                              │
+│                  │            │                                                 │
+│                  │            │                                                 │
+│                  ▼            ▼                                                 │
+│             ┌──────────┐ ┌──────────┐                                           │
+│             │ user-db  │ │ order-db │                                           │
+│             │(Postgres)│ │ (MySQL)  │                                           │
+│             └──────────┘ └──────────┘                                           │
+│                                                                                 │
+│  Legend:  ● Internal    ○ External    ─── HTTP    ═══ Database                  │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Settings & User Management
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  ⚙️ Settings                                                                    │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  ┌──────────────┬──────────────┬──────────────┬──────────────┬────────────────┐ │
+│  │   Profile    │  Appearance  │    Users     │     LDAP     │  Notifications │ │
+│  └──────────────┴──────────────┴──────────────┴──────────────┴────────────────┘ │
+│                                                                                 │
+│  👥 User Management                                           [+ Add User]      │
+│  ─────────────────────────────────────────────────────────────────────────────  │
+│                                                                                 │
+│  ┌────────────────────────────────────────────────────────────────────────────┐ │
+│  │  User              │  Email                    │  Role    │  Status        │ │
+│  ├────────────────────┼─────────────────────────────┼──────────┼───────────────┤ │
+│  │  👤 John Doe       │  john@example.com         │  Admin   │  🟢 Active    │ │
+│  │  👤 Jane Smith     │  jane@example.com         │  Editor  │  🟢 Active    │ │
+│  │  👤 Bob Wilson     │  bob@example.com          │  Viewer  │  🟢 Active    │ │
+│  │  👤 Alice Brown    │  alice@example.com        │  Editor  │  ⚪ Inactive  │ │
+│  └────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                 │
+│  📋 Role Descriptions                                                           │
+│  ┌──────────────────────────────────────────────────────────────────────────┐   │
+│  │  🔴 Admin   │ Full access - can manage users, delete resources           │   │
+│  │  🟡 Editor  │ Can create and edit resources, cannot delete              │   │
+│  │  🟢 Viewer  │ Read-only access to all resources                         │   │
+│  └──────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+graph TB
+    subgraph "Client"
+        Browser[Web Browser]
+    end
+    
+    subgraph "Frontend"
+        UI[React + TypeScript]
+        Nginx[Nginx Proxy]
+    end
+    
+    subgraph "Backend"
+        API[Go API Server]
+        Auth[JWT Auth]
+        LDAP[LDAP Service]
+    end
+    
+    subgraph "Data"
+        DB[(PostgreSQL)]
+        Storage[File Storage]
+    end
+    
+    subgraph "Kubernetes Clusters"
+        K8s1[Production Cluster]
+        K8s2[Staging Cluster]
+        K8s3[Dev Cluster]
+    end
+    
+    Browser --> Nginx
+    Nginx --> UI
+    Nginx -->|/api/*| API
+    API --> Auth
+    Auth --> LDAP
+    API --> DB
+    API --> Storage
+    API --> K8s1
+    API --> K8s2
+    API --> K8s3
+```
+
+### Tech Stack
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Frontend** | React 18, TypeScript, Tailwind CSS, shadcn/ui | Modern UI with type safety |
+| **Backend** | Go 1.21, Gin Framework | High-performance REST API |
+| **Database** | PostgreSQL 15+ | Persistent data storage |
+| **Auth** | JWT + LDAP/Active Directory | Secure authentication |
+| **Deployment** | Docker, Kubernetes, Helm, OpenShift | Container orchestration |
 
 ---
 
@@ -88,7 +274,7 @@ KubeAtlas provides a **central source of truth** for all your Kubernetes resourc
 
 ### Prerequisites
 
-- Docker & Docker Compose
+- Docker & Docker Compose v2.0+
 - Git
 
 ### One-Command Start
@@ -98,10 +284,8 @@ KubeAtlas provides a **central source of truth** for all your Kubernetes resourc
 git clone https://github.com/ozcanfpolat/kubeatlas.git
 cd kubeatlas
 
-# Create environment file
+# Create environment file with secure secrets
 cp .env.example .env
-
-# Generate secure secrets
 sed -i "s/CHANGE_ME_secure_password_here/$(openssl rand -base64 16)/g" .env
 sed -i "s/CHANGE_ME_generate_with_openssl_rand_base64_32/$(openssl rand -base64 32)/g" .env
 sed -i "s/CHANGE_ME_generate_with_openssl_rand_hex_32/$(openssl rand -hex 32)/g" .env
@@ -109,24 +293,30 @@ sed -i "s/CHANGE_ME_generate_with_openssl_rand_hex_32/$(openssl rand -hex 32)/g"
 # Start with database
 docker-compose --profile with-db up -d
 
-# Wait for services to be ready
+# Wait for services (about 30 seconds)
+echo "Waiting for services to start..."
 sleep 30
 
 # Access the application
-echo "Open: http://localhost"
-echo "Login: admin@kubeatlas.local / admin123"
+echo "✅ KubeAtlas is ready!"
+echo "🌐 Open: http://localhost"
+echo "👤 Login: admin@kubeatlas.local / admin123"
 ```
 
 ---
 
 ## 📦 Installation
 
-### Option 1: Kubernetes (Helm) - Recommended
+### Option 1: Kubernetes (Helm) — Recommended
 
 ```bash
-# Add Helm repository
+# Add Helm repository (if published)
 helm repo add kubeatlas https://ozcanfpolat.github.io/kubeatlas
 helm repo update
+
+# Or install from local chart
+git clone https://github.com/ozcanfpolat/kubeatlas.git
+cd kubeatlas
 
 # Create namespace
 kubectl create namespace kubeatlas
@@ -134,23 +324,27 @@ kubectl create namespace kubeatlas
 # Create secrets
 kubectl create secret generic kubeatlas-secrets \
   --namespace kubeatlas \
-  --from-literal=DB_PASSWORD='your-secure-password' \
-  --from-literal=JWT_SECRET=$(openssl rand -base64 32) \
-  --from-literal=ENCRYPTION_KEY=$(openssl rand -hex 32)
+  --from-literal=DB_PASSWORD="$(openssl rand -base64 16)" \
+  --from-literal=JWT_SECRET="$(openssl rand -base64 32)" \
+  --from-literal=ENCRYPTION_KEY="$(openssl rand -hex 32)"
 
 # Install with PostgreSQL
-helm install kubeatlas kubeatlas/kubeatlas \
+helm install kubeatlas ./helm/kubeatlas \
   --namespace kubeatlas \
   --set postgresql.enabled=true \
+  --set postgresql.auth.password="your-db-password" \
   --set ingress.enabled=true \
   --set ingress.hosts[0].host=kubeatlas.example.com
+
+# Wait for pods
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=kubeatlas -n kubeatlas --timeout=300s
 
 # Get the URL
 kubectl get ingress -n kubeatlas
 ```
 
 <details>
-<summary>📋 Custom values.yaml example</summary>
+<summary>📋 Example values.yaml</summary>
 
 ```yaml
 # values.yaml
@@ -169,10 +363,13 @@ postgresql:
   auth:
     database: kubeatlas
     username: kubeatlas
+    password: "secure-password"
 
 ingress:
   enabled: true
   className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
   hosts:
     - host: kubeatlas.example.com
       paths:
@@ -182,15 +379,6 @@ ingress:
     - secretName: kubeatlas-tls
       hosts:
         - kubeatlas.example.com
-
-resources:
-  api:
-    requests:
-      memory: "256Mi"
-      cpu: "100m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
 ```
 
 </details>
@@ -204,13 +392,16 @@ cd kubeatlas
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your settings
+vim .env  # Edit with your settings
 
-# Start services
+# Start services with database
 docker-compose --profile with-db up -d
 
 # View logs
 docker-compose logs -f
+
+# Stop services
+docker-compose down
 ```
 
 ### Option 3: OpenShift
@@ -227,15 +418,17 @@ oc create secret docker-registry ghcr-secret \
 
 # Create application secrets
 oc create secret generic kubeatlas-secrets \
-  --from-literal=DB_PASSWORD='your-password' \
-  --from-literal=JWT_SECRET=$(openssl rand -base64 32) \
-  --from-literal=ENCRYPTION_KEY=$(openssl rand -hex 32)
+  --from-literal=DB_PASSWORD="$(openssl rand -base64 16)" \
+  --from-literal=JWT_SECRET="$(openssl rand -base64 32)" \
+  --from-literal=ENCRYPTION_KEY="$(openssl rand -hex 32)"
 
-# Install PostgreSQL (Bitnami Helm chart)
+# Install PostgreSQL
 helm install kubeatlas-db bitnami/postgresql \
   --set auth.username=kubeatlas \
-  --set auth.password=YOUR_PASSWORD \
-  --set auth.database=kubeatlas
+  --set auth.password=YOUR_DB_PASSWORD \
+  --set auth.database=kubeatlas \
+  --set primary.podSecurityContext.enabled=false \
+  --set primary.containerSecurityContext.enabled=false
 
 # Deploy KubeAtlas
 oc apply -f deploy/openshift/manual-install.yaml
@@ -244,13 +437,13 @@ oc apply -f deploy/openshift/manual-install.yaml
 oc get route kubeatlas -o jsonpath='{.spec.host}'
 ```
 
+See [deploy/openshift/MANUAL_INSTALL.md](deploy/openshift/MANUAL_INSTALL.md) for detailed instructions.
+
 ---
 
 ## 🔐 Authentication
 
 ### Default Credentials
-
-After installation, login with:
 
 | Field | Value |
 |-------|-------|
@@ -261,7 +454,7 @@ After installation, login with:
 
 ### LDAP / Active Directory Integration
 
-KubeAtlas supports enterprise LDAP authentication with automatic role mapping:
+KubeAtlas supports enterprise LDAP authentication with automatic user provisioning:
 
 1. Navigate to **Settings → LDAP**
 2. Configure your LDAP server:
@@ -270,37 +463,49 @@ KubeAtlas supports enterprise LDAP authentication with automatic role mapping:
 |---------|---------|
 | Server URL | `ldaps://ldap.example.com:636` |
 | Bind DN | `cn=service,ou=services,dc=example,dc=com` |
+| Bind Password | `••••••••` |
 | Search Base | `ou=users,dc=example,dc=com` |
 | Search Filter | `(uid={username})` |
 
 3. Configure group-to-role mapping:
 
-| LDAP Group | KubeAtlas Role |
-|------------|----------------|
-| `kubeatlas-admins` | Admin |
-| `kubeatlas-editors` | Editor |
-| `kubeatlas-viewers` | Viewer |
+| LDAP Group | KubeAtlas Role | Permissions |
+|------------|----------------|-------------|
+| `kubeatlas-admins` | Admin | Full access |
+| `kubeatlas-editors` | Editor | Create/Edit |
+| `kubeatlas-viewers` | Viewer | Read only |
 
-4. Click **Test Connection** then **Save**
+4. Click **Test Connection** to verify, then **Save**
 
-Users authenticating via LDAP are automatically synced to the local database with roles determined by group membership.
+**How it works:**
+- User logs in with LDAP credentials
+- KubeAtlas authenticates against LDAP server
+- User is auto-created in local database
+- Role is determined by LDAP group membership
+- Role updates on each login if groups change
 
-### Role Permissions
+### Role Permissions Matrix
 
-| Role | Read | Create/Update | Delete | Admin |
-|------|------|---------------|--------|-------|
-| **Viewer** | ✅ | ❌ | ❌ | ❌ |
-| **Editor** | ✅ | ✅ | ❌ | ❌ |
-| **Admin** | ✅ | ✅ | ✅ | ✅ |
+| Permission | Viewer | Editor | Admin |
+|------------|:------:|:------:|:-----:|
+| View all resources | ✅ | ✅ | ✅ |
+| Create resources | ❌ | ✅ | ✅ |
+| Edit resources | ❌ | ✅ | ✅ |
+| Delete resources | ❌ | ❌ | ✅ |
+| Manage users | ❌ | ❌ | ✅ |
+| Configure LDAP | ❌ | ❌ | ✅ |
+| View audit logs | ✅ | ✅ | ✅ |
+| Export reports | ✅ | ✅ | ✅ |
 
 ---
 
 ## 🔗 Adding Kubernetes Clusters
 
-### Step 1: Create Service Account in Target Cluster
+### Step 1: Create Service Account
+
+Run this in your **target cluster**:
 
 ```bash
-# Create namespace and service account
 kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Namespace
@@ -355,27 +560,59 @@ EOF
 # Get token
 TOKEN=$(kubectl get secret kubeatlas-agent-token -n kubeatlas-agent \
   -o jsonpath='{.data.token}' | base64 -d)
-echo "Token: $TOKEN"
 
 # Get API server URL
 API_URL=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
-echo "API URL: $API_URL"
 
-# Get CA certificate (for self-signed)
+# Get CA certificate (for self-signed clusters)
 kubectl get secret kubeatlas-agent-token -n kubeatlas-agent \
   -o jsonpath='{.data.ca\.crt}' | base64 -d > cluster-ca.crt
+
+echo "API URL: $API_URL"
+echo "Token: $TOKEN"
 ```
 
-### Step 3: Add Cluster in KubeAtlas
+### Step 3: Add in KubeAtlas UI
 
-1. Navigate to **Clusters → Add Cluster**
-2. Fill in the form:
+1. Go to **Clusters → Add Cluster**
+2. Enter cluster details:
    - **Name:** `production-cluster`
-   - **API Server URL:** The URL from step 2
-   - **Auth Method:** Service Account Token
-   - **Token:** The token from step 2
-3. Upload CA certificate or enable "Skip TLS Verification" (dev only)
+   - **API Server URL:** (from Step 2)
+   - **Token:** (from Step 2)
+3. Upload CA certificate or enable "Skip TLS Verification" (dev only!)
 4. Click **Create** then **Sync**
+
+---
+
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|:--------:|
+| `DB_HOST` | PostgreSQL host | `localhost` | ✅ |
+| `DB_PORT` | PostgreSQL port | `5432` | |
+| `DB_USER` | Database user | `kubeatlas` | |
+| `DB_PASSWORD` | Database password | - | ✅ |
+| `DB_NAME` | Database name | `kubeatlas` | |
+| `DB_SSLMODE` | SSL mode | `disable` | |
+| `JWT_SECRET` | JWT signing secret (32+ chars) | - | ✅ |
+| `JWT_EXPIRATION_HOURS` | Token expiration | `24` | |
+| `ENCRYPTION_KEY` | AES-256 key (64 hex chars) | - | ✅ |
+| `STORAGE_LOCAL_PATH` | Upload storage path | `/app/data/uploads` | |
+
+### Generating Secrets
+
+```bash
+# JWT Secret (base64, 32+ characters)
+openssl rand -base64 32
+
+# Encryption Key (hex, 64 characters for AES-256)
+openssl rand -hex 32
+
+# Database Password
+openssl rand -base64 16
+```
 
 ---
 
@@ -387,122 +624,51 @@ kubeatlas/
 │   ├── cmd/server/            # Application entrypoint
 │   └── internal/
 │       ├── api/               # HTTP handlers & middleware
+│       │   ├── handlers/      # Request handlers
+│       │   └── middleware/    # Auth, CORS, logging
 │       ├── config/            # Configuration
-│       ├── database/          # Database repositories
+│       ├── database/          # Repositories
 │       ├── models/            # Data models
 │       ├── services/          # Business logic
+│       │   ├── auth_service.go
+│       │   ├── ldap_service.go
+│       │   └── ...
 │       └── k8s/               # Kubernetes client
 ├── frontend/                   # React TypeScript UI
 │   ├── src/
 │   │   ├── api/              # API client
-│   │   ├── components/       # React components
+│   │   ├── components/       # Reusable components
 │   │   ├── pages/            # Page components
-│   │   ├── i18n/             # Internationalization
+│   │   ├── i18n/             # Translations (EN/TR)
 │   │   └── store/            # State management
 │   ├── nginx.conf.template   # Nginx configuration
 │   └── Dockerfile
-├── database/                   # SQL schemas
+├── database/
 │   ├── schema.sql            # Database schema
 │   └── seed.sql              # Initial data
 ├── deploy/
 │   └── openshift/            # OpenShift manifests
 ├── helm/kubeatlas/           # Helm chart
-├── docker-compose.yml        # Docker Compose config
+├── docker-compose.yml        # Docker Compose
 └── docs/                     # Documentation
 ```
 
 ---
 
-## 🔧 Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DB_HOST` | PostgreSQL host | `localhost` |
-| `DB_PORT` | PostgreSQL port | `5432` |
-| `DB_USER` | Database user | `kubeatlas` |
-| `DB_PASSWORD` | Database password | **required** |
-| `DB_NAME` | Database name | `kubeatlas` |
-| `JWT_SECRET` | JWT signing secret | **required** |
-| `JWT_EXPIRATION_HOURS` | Token expiration | `24` |
-| `ENCRYPTION_KEY` | AES-256 key (hex) | **required** |
-| `STORAGE_LOCAL_PATH` | Upload storage path | `/app/data/uploads` |
-
-### Generating Secrets
-
-```bash
-# JWT Secret (base64, 32+ chars)
-openssl rand -base64 32
-
-# Encryption Key (hex, 64 chars)
-openssl rand -hex 32
-
-# Database Password
-openssl rand -base64 16
-```
-
----
-
-## 📸 Screenshots
-
-<details>
-<summary>📊 Dashboard</summary>
-
-The main dashboard provides a comprehensive overview:
-- Cluster and namespace counts
-- Ownership coverage metrics
-- Environment distribution chart
-- Recent activity feed
-- Alerts and warnings
-
-</details>
-
-<details>
-<summary>📦 Cluster Management</summary>
-
-- View all connected clusters
-- Sync namespaces automatically
-- Monitor cluster health
-- Manage cluster credentials
-
-</details>
-
-<details>
-<summary>🔗 Dependency Visualization</summary>
-
-- Interactive D3.js force-directed graph
-- Internal namespace-to-namespace dependencies
-- External service dependencies
-- Drag-and-drop node positioning
-
-</details>
-
-<details>
-<summary>⚙️ Settings</summary>
-
-- User management (create, edit, delete)
-- LDAP/Active Directory configuration
-- Theme selection (light/dark/system)
-- Language preferences (EN/TR)
-
-</details>
-
----
-
 ## 🔒 Security
 
-### Encryption
+### Data Encryption
 
-- All sensitive data (tokens, kubeconfig, passwords) encrypted with **AES-256-GCM**
-- Encryption key must be provided via `ENCRYPTION_KEY` environment variable
+- All sensitive data encrypted with **AES-256-GCM**
+- Includes: cluster tokens, kubeconfig, CA certificates
+- Encryption key must be 32+ characters
 
-### Authentication
+### Authentication Security
 
-- JWT-based authentication with configurable expiration
-- RBAC with three roles: Admin, Editor, Viewer
-- Optional LDAP/Active Directory integration
-- Rate limiting on login endpoints
+- JWT tokens with configurable expiration
+- Secure password hashing with bcrypt
+- Rate limiting on login endpoints (5 attempts/15 min)
+- LDAP bind password never logged or returned
 
 ### Best Practices
 
@@ -511,6 +677,7 @@ The main dashboard provides a comprehensive overview:
 3. **Rotate secrets** regularly
 4. **Minimal permissions** for Kubernetes service accounts
 5. **Enable LDAP** for enterprise deployments
+6. **Regular backups** of PostgreSQL database
 
 ---
 
@@ -523,7 +690,9 @@ The main dashboard provides a comprehensive overview:
 | `401 Unauthorized` | Invalid/expired token | Regenerate service account token |
 | `x509: certificate signed by unknown authority` | Self-signed cert | Upload CA cert or enable skip_tls_verify |
 | `connection refused` | Network/firewall | Check network policies |
-| Login fails | Password hash issue | Reset password in database |
+| Login fails | Wrong credentials | Check email/password, reset if needed |
+| LDAP test fails | Wrong config | Verify bind DN, password, search base |
+| Users not appearing | Cache issue | Click "Refresh" button |
 
 ### Checking Logs
 
@@ -541,15 +710,28 @@ oc logs -f deployment/kubeatlas-api
 oc logs -f deployment/kubeatlas-ui
 ```
 
-### Database Connection Test
+### Health Checks
 
 ```bash
-# Docker Compose
-docker exec kubeatlas-api nc -zv postgres 5432
+# API health
+curl http://localhost:8080/health
+curl http://localhost:8080/ready
 
-# Kubernetes
-kubectl exec -it deployment/kubeatlas-api -n kubeatlas -- nc -zv $DB_HOST 5432
+# UI health
+curl http://localhost/health
 ```
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Installation Guide](docs/INSTALLATION.md) | Detailed installation instructions |
+| [Deployment Guide](docs/DEPLOYMENT.md) | Production deployment guide |
+| [Adding Clusters](docs/ADDING_CLUSTERS.md) | How to connect Kubernetes clusters |
+| [API Reference](docs/api/) | REST API documentation |
+| [OpenShift Guide](deploy/openshift/MANUAL_INSTALL.md) | OpenShift-specific instructions |
 
 ---
 
@@ -564,15 +746,25 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 git clone https://github.com/ozcanfpolat/kubeatlas.git
 cd kubeatlas
 
-# Backend
+# Backend (terminal 1)
 cd backend
 go mod download
 go run cmd/server/main.go
 
-# Frontend (separate terminal)
+# Frontend (terminal 2)
 cd frontend
 npm install
 npm run dev
+```
+
+### Running Tests
+
+```bash
+# Backend tests
+cd backend && go test ./...
+
+# Frontend tests
+cd frontend && npm test
 ```
 
 ---
@@ -587,10 +779,13 @@ This project is licensed under the **Apache License 2.0** - see the [LICENSE](LI
 
 - 🐛 **Issues:** [GitHub Issues](https://github.com/ozcanfpolat/kubeatlas/issues)
 - 💬 **Discussions:** [GitHub Discussions](https://github.com/ozcanfpolat/kubeatlas/discussions)
-- 📧 **Email:** support@kubeatlas.io
 
 ---
 
-<p align="center">
-  Built with ❤️ for the Kubernetes community
-</p>
+<div align="center">
+
+**Built with ❤️ for the Kubernetes community**
+
+[⬆ Back to Top](#kubeatlas)
+
+</div>

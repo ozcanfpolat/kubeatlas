@@ -60,23 +60,17 @@ func (s *NamespaceService) GetByID(ctx context.Context, id uuid.UUID) (*models.N
 		}
 	}
 	
-	if ns.InfrastructureOwnerTeamID.Valid {
-		teamID, err := uuid.Parse(ns.InfrastructureOwnerTeamID.String)
-		if err == nil {
-			team, err := s.teamRepo.GetByID(ctx, teamID)
-			if err == nil && team != nil {
-				ns.InfrastructureOwnerTeam = team
-			}
+	if ns.InfrastructureOwnerTeamID != nil {
+		team, err := s.teamRepo.GetByID(ctx, *ns.InfrastructureOwnerTeamID)
+		if err == nil && team != nil {
+			ns.InfrastructureOwnerTeam = team
 		}
 	}
 	
-	if ns.BusinessUnitID.Valid {
-		buID, err := uuid.Parse(ns.BusinessUnitID.String)
-		if err == nil {
-			bu, err := s.businessUnitRepo.GetByID(ctx, buID)
-			if err == nil && bu != nil {
-				ns.BusinessUnit = bu
-			}
+	if ns.BusinessUnitID != nil {
+		bu, err := s.businessUnitRepo.GetByID(ctx, *ns.BusinessUnitID)
+		if err == nil && bu != nil {
+			ns.BusinessUnit = bu
 		}
 	}
 	

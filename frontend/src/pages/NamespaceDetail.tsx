@@ -12,6 +12,8 @@ import {
   Building,
   Edit,
   Server,
+  Download,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -35,7 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { namespacesApi, teamsApi, businessUnitsApi } from '@/api'
+import { namespacesApi, teamsApi, businessUnitsApi, documentsApi } from '@/api'
 import { getEnvironmentColor, getCriticalityColor, formatDateTime, formatRelativeTime } from '@/lib/utils'
 import type { Namespace } from '@/types'
 
@@ -474,21 +476,50 @@ export default function NamespaceDetail() {
             </CardHeader>
             <CardContent>
               {documents && documents.length > 0 ? (
-                <ul className="space-y-2">
+                <div className="space-y-3">
                   {documents.map((doc: any) => (
-                    <li key={doc.id} className="flex items-center justify-between p-2 bg-muted rounded">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        <span>{doc.name}</span>
+                    <div key={doc.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border hover:border-primary/30 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <FileText className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{doc.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {doc.file_type?.toUpperCase() || 'Document'} • {formatRelativeTime(doc.created_at)}
+                          </p>
+                        </div>
                       </div>
-                      <span className="text-sm text-muted-foreground">
-                        {formatRelativeTime(doc.created_at)}
-                      </span>
-                    </li>
+                      <div className="flex items-center gap-2">
+                        {doc.file_path && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => documentsApi.download(doc.id, doc.name)}
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            İndir
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => window.open(documentsApi.getDownloadUrl(doc.id), '_blank')}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   ))}
-                </ul>
+                </div>
               ) : (
-                <p className="text-muted-foreground">No documents attached</p>
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
+                  <p className="text-muted-foreground">Henüz döküman eklenmemiş</p>
+                  <p className="text-sm text-muted-foreground/60 mt-1">
+                    Documents sayfasından bu namespace için döküman yükleyebilirsiniz
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>

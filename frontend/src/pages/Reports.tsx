@@ -39,6 +39,51 @@ export default function Reports() {
     queryFn: () => dashboardApi.getMissingInfo(100),
   })
 
+  // Generate and download CSV report
+  const downloadReport = () => {
+    if (!stats) return
+    
+    const reportData = [
+      ['KubeAtlas Raporu', new Date().toLocaleDateString('tr-TR')],
+      [''],
+      ['Genel İstatistikler'],
+      ['Toplam Namespace', stats.total_namespaces || 0],
+      ['Sahipli Namespace', stats.namespaces_with_owner || 0],
+      ['Dokümanlı Namespace', stats.namespaces_documented || 0],
+      ['Bağımlılık Tanımlı', stats.namespaces_with_dependencies || 0],
+      [''],
+      ['Eksiklikler'],
+      ['Sahipsiz Namespace', (stats.total_namespaces || 0) - (stats.namespaces_with_owner || 0)],
+      ['Dokümansız Namespace', (stats.total_namespaces || 0) - (stats.namespaces_documented || 0)],
+      [''],
+      ['Sahipsiz Namespace Listesi'],
+    ]
+    
+    if (missingInfo?.orphaned) {
+      missingInfo.orphaned.forEach((item: any) => {
+        reportData.push([item.name, item.cluster?.name || '-'])
+      })
+    }
+    
+    reportData.push([''])
+    reportData.push(['Dokümansız Namespace Listesi'])
+    
+    if (missingInfo?.undocumented) {
+      missingInfo.undocumented.forEach((item: any) => {
+        reportData.push([item.name, item.cluster?.name || '-'])
+      })
+    }
+    
+    const csvContent = reportData.map(row => row.join(',')).join('\n')
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `kubeatlas-rapor-${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   if (statsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -84,7 +129,7 @@ export default function Reports() {
             Envanter analizi ve eksiklik raporları
           </p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" onClick={downloadReport}>
           <Download className="h-4 w-4 mr-2" />
           Rapor İndir
         </Button>

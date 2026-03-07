@@ -244,25 +244,20 @@ export default function Namespaces() {
                       return team ? (
                         <span>{team.name}</span>
                       ) : (
-                        <span className="flex items-center gap-1 text-orange-500">
-                          <AlertTriangle className="h-4 w-4" />
-                          No owner
-                        </span>
+                        <span className="text-muted-foreground">-</span>
                       )
                     })()}
                   </td>
                   <td className="px-4 py-4">
-                    <div className="flex items-center gap-2">
-                      {ns.document_count && ns.document_count > 0 ? (
-                        <FileText className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      {ns.dependency_count && ns.dependency_count > 0 ? (
-                        <GitBranch className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <GitBranch className="h-4 w-4 text-muted-foreground" />
-                      )}
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1">
+                        <FileText className={`h-4 w-4 ${ns.document_count && ns.document_count > 0 ? 'text-green-500' : 'text-muted-foreground/40'}`} />
+                        <span className="text-xs text-muted-foreground">{ns.document_count || 0}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <GitBranch className={`h-4 w-4 ${ns.dependency_count && ns.dependency_count > 0 ? 'text-blue-500' : 'text-muted-foreground/40'}`} />
+                        <span className="text-xs text-muted-foreground">{ns.dependency_count || 0}</span>
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-4 text-sm text-muted-foreground">

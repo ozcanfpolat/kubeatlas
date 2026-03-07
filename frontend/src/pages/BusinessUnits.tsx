@@ -5,12 +5,15 @@ import {
   Plus,
   Search,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Boxes,
   RefreshCw,
   AlertTriangle,
   Trash,
   Edit,
   MoreVertical,
+  Server,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -52,6 +55,7 @@ export default function BusinessUnits() {
   const [assigningUnit, setAssigningUnit] = useState<BusinessUnit | null>(null)
   const [selectedNamespaces, setSelectedNamespaces] = useState<string[]>([])
   const [clusterFilter, setClusterFilter] = useState<string>('all')
+  const [expandedUnit, setExpandedUnit] = useState<string | null>(null)
   const [editingUnit, setEditingUnit] = useState<BusinessUnit | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -79,6 +83,17 @@ export default function BusinessUnits() {
       cluster_id: clusterFilter === 'all' ? undefined : clusterFilter,
     }),
     enabled: isAssignOpen,
+  })
+
+  // Get namespaces for expanded business unit
+  const { data: unitNamespacesData } = useQuery({
+    queryKey: ['unit-namespaces', expandedUnit],
+    queryFn: () => namespacesApi.list({ 
+      page: 1, 
+      page_size: 100,
+      business_unit_id: expandedUnit!,
+    }),
+    enabled: !!expandedUnit,
   })
 
   const createMutation = useMutation({
@@ -351,8 +366,42 @@ export default function BusinessUnits() {
                     <Boxes className="h-4 w-4" />
                     <span>{unit.namespace_count || 0} namespaces</span>
                   </div>
-                  <ChevronRight className="h-4 w-4" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setExpandedUnit(expandedUnit === unit.id ? null : unit.id)}
+                  >
+                    {expandedUnit === unit.id ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
+                
+                {/* Assigned Namespaces */}
+                {expandedUnit === unit.id && (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-sm font-medium mb-3">Atanmış Namespace'ler</p>
+                    {unitNamespacesData?.items && unitNamespacesData.items.length > 0 ? (
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {unitNamespacesData.items.map((ns: Namespace) => (
+                          <div key={ns.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 text-sm">
+                            <Server className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-mono">{ns.name}</span>
+                            {ns.environment && (
+                              <Badge variant="outline" className="ml-auto text-xs">
+                                {ns.environment}
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Henüz namespace atanmamış</p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

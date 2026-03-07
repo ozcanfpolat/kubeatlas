@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Users, MoreVertical, Trash, Edit, Mail, MessageSquare, RefreshCw, AlertTriangle } from 'lucide-react'
+import { Plus, Users, MoreVertical, Trash, Edit, Mail, MessageSquare, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, UserCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -22,13 +22,14 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { teamsApi } from '@/api'
-import type { Team } from '@/types'
+import type { Team, TeamMember } from '@/types'
 
 export default function Teams() {
   const queryClient = useQueryClient()
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
+  const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: '',
@@ -41,6 +42,13 @@ export default function Teams() {
     queryKey: ['teams'],
     queryFn: teamsApi.list,
     retry: 1,
+  })
+
+  // Get members for expanded team
+  const { data: membersData } = useQuery({
+    queryKey: ['team-members', expandedTeam],
+    queryFn: () => teamsApi.getMembers(expandedTeam!),
+    enabled: !!expandedTeam,
   })
 
   const createMutation = useMutation({
@@ -243,7 +251,46 @@ export default function Teams() {
 
                 <div className="mt-4 flex items-center justify-between">
                   <Badge variant="secondary">{team.member_count || 0} members</Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}
+                  >
+                    {expandedTeam === team.id ? (
+                      <>
+                        <ChevronUp className="h-4 w-4 mr-1" />
+                        Gizle
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="h-4 w-4 mr-1" />
+                        Üyeleri Gör
+                      </>
+                    )}
+                  </Button>
                 </div>
+                
+                {/* Members List */}
+                {expandedTeam === team.id && (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-sm font-medium mb-3">Üyeler</p>
+                    {membersData && membersData.length > 0 ? (
+                      <div className="space-y-2">
+                        {membersData.map((member: TeamMember) => (
+                          <div key={member.user_id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
+                            <UserCircle className="h-8 w-8 text-muted-foreground" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">{member.user?.full_name || member.user?.email || 'Unknown'}</p>
+                              <p className="text-xs text-muted-foreground">{member.role}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Henüz üye eklenmemiş</p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
